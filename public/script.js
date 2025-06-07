@@ -231,36 +231,37 @@ async function searchProgress() {
       return;
     }
 
-    // Lấy JSON:
+    // Lấy dữ liệu JSON
     const res = await fetch('/powerapp.json', { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    // Các key cần lấy từ JSON:
     const fields = [
-      'PRO ODER',
-      'Brand Code',
-      'Product Type',
-      'Total Qty',
-      'Status',
-      'RECEIVED (MATERIAL)',
-      'RECEIVED (LOGO)',
-      'Laminating (Pro)',
-      'Prefitting (Pro)',
-      'Slipting (Pro)',
-      'Bào (Pro)',
-      'Molding Pro (IN)',
-      'Molding Pro',
-      'IN lean Line (Pro)',
-      'IN lean Line (MACHINE)',
-      'Out lean Line (Pro)',
-      'PACKING PRO',
-      'Packing date',
-      'Finish date',
-      'STORED'
+      'PRO ODER', 'Brand Code', '#MOLDED', 'Total Qty', 'STATUS',
+      'RECEIVED (MATERIAL)', 'RECEIVED (LOGO)', 'Laminating (Pro)',
+      'Prefitting (Pro)', 'Slipting (Pro)', 'Bào (Pro)',
+      'Molding Pro (IN)', 'Molding Pro', 'IN lean Line (Pro)',
+      'IN lean Line (MACHINE)', 'Out lean Line (Pro)',
+      'PACKING PRO', 'Packing date', 'Finish date', 'STORED'
     ];
 
-    // Lọc các hàng có PRO ODER chứa query:
+    const dateFields = [
+      'RECEIVED (MATERIAL)', 'RECEIVED (LOGO)', 'Laminating (Pro)',
+      'Prefitting (Pro)', 'Slipting (Pro)', 'Bào (Pro)',
+      'Molding Pro (IN)', 'Molding Pro', 'IN lean Line (Pro)',
+      'IN lean Line (MACHINE)', 'Out lean Line (Pro)',
+      'PACKING PRO', 'Packing date', 'Finish date', 'STORED'
+    ];
+
+    const excelDateToString = (serial) => {
+      const base = new Date(1899, 11, 30);
+      const date = new Date(base.getTime() + Math.floor(serial) * 86400000);
+      return `${String(date.getDate()).padStart(2, '0')}/` +
+             `${String(date.getMonth() + 1).padStart(2, '0')}/` +
+             `${date.getFullYear()}`;
+    };
+
+    // Lọc dữ liệu theo ô được chọn
     const filtered = data.filter(row => {
       const val = (row[selectedField] || '').toString().toUpperCase();
       return val.includes(query);
@@ -271,9 +272,8 @@ async function searchProgress() {
       return;
     }
 
-    // Xây bảng với cột STT + các field trên:
+    // Xây bảng kết quả
     let html = '<table class="min-w-full table-auto border-collapse">';
-    // Header:
     html += '<thead class="bg-gray-50"><tr>';
     html += `<th class="border px-2 py-1 text-left text-sm font-medium text-gray-700">STT</th>`;
     fields.forEach(key => {
@@ -281,12 +281,19 @@ async function searchProgress() {
     });
     html += '</tr></thead><tbody>';
 
-    // Dữ liệu:
     filtered.forEach((row, idx) => {
       html += '<tr class="hover:bg-gray-100">';
       html += `<td class="border px-2 py-1 text-sm text-gray-800">${idx + 1}</td>`;
       fields.forEach(key => {
-        const cell = row[key] ?? '';
+        let cell = row[key] ?? '';
+        if (dateFields.includes(key)) {
+          const serial = Number(cell);
+          if (!isNaN(serial) && serial > 0) {
+            cell = excelDateToString(serial);
+          } else {
+            cell = '';
+          }
+        }
         html += `<td class="border px-2 py-1 text-sm text-gray-800">${cell}</td>`;
       });
       html += '</tr>';
@@ -295,6 +302,7 @@ async function searchProgress() {
     html += '</tbody></table>';
     container.innerHTML = html;
     updateTimestamp();
+
   } catch (e) {
     console.error('[ERROR] searchProgress failed:', e);
     container.innerHTML = '<div class="text-center text-red-500 py-4">Lỗi tìm tiến trình RPRO</div>';
@@ -302,6 +310,8 @@ async function searchProgress() {
     setBtnLoading(progressBtnSearch, false);
   }
 }
+
+
 
 function clearProgressSearch() {
   progressSearchBox.value = '';
