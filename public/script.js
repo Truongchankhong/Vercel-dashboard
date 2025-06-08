@@ -393,7 +393,12 @@ let html = `
   </div>
 `;
 
-detailsContainer.innerHTML = html;
+detailsContainer.innerHTML = `
+  <div class="mb-2 text-right text-sm text-gray-700 italic">
+    ✅ Tỷ lệ Verify = true: <b style="color:green;">${percentVerify}%</b>
+  </div>
+  ${html}
+`;
 // Tạo danh sách chi tiết (chưa gán STT)
 const details = rows.map(row => {
   const obj = {};
