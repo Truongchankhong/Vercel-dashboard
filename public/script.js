@@ -237,7 +237,7 @@ async function searchProgress() {
     const data = await res.json();
 
     const fields = [
-      'PRO ODER', 'Brand Code', '#MOLDED', 'BOM', ,'PU',''FB', 'Total Qty', 'STATUS',
+      'PRO ODER', 'Brand Code', '#MOLDED', 'BOM', ,'PU','FB', 'Total Qty', 'STATUS',
       'RECEIVED (MATERIAL)', 'RECEIVED (LOGO)', 'Laminating (Pro)',
       'Prefitting (Pro)', 'Slipting (Pro)', 'Bào (Pro)',
       'Molding Pro (IN)', 'Molding Pro', 'IN lean Line (Pro)',
