@@ -420,6 +420,10 @@ details.forEach((d, i) => {
   d.STT = i + 1;
 });
 
+// Tính % true của cột Verify
+const totalVerify = details.filter(d => d['Check'] === 'true' || d['Check'] === true);
+const percentVerify = ((totalVerify.length / details.length) * 100).toFixed(1);
+
 // 3. Tô màu theo PU
 const colorPalette = ['#fef08a', '#a7f3d0', '#fca5a5', '#c4b5fd', '#f9a8d4', '#fde68a', '#bfdbfe', '#6ee7b7'];
 const puGroups = [...new Set(details.map(d => d['PU']))];
@@ -428,18 +432,13 @@ puGroups.forEach((pu, idx) => {
   puColorMap[pu] = colorPalette[idx % colorPalette.length];
 });
 
-// 4. Render lại tbody
-let tbodyHTML = '';
-details.forEach(d => {
-  const bgColor = puColorMap[d['PU']] || '';
-  tbodyHTML += `<tr style="background-color:${bgColor}">`;
-  tbodyHTML += `<td class="border px-2 py-1">${d.STT}</td>`;
-  selectedColumns.forEach(key => {
-    const isMachineCol = key.includes('MACHINE');
-    tbodyHTML += `<td class="border px-2 py-1 ${isMachineCol ? 'max-w-[150px] truncate' : ''}">${d[key]}</td>`;
-  });
-  tbodyHTML += `</tr>`;
-});
+// ✅ Thêm hiển thị % true trước khi render bảng
+let tbodyHTML = `
+<div class="mb-2 text-right text-sm text-gray-700 italic">
+  ✅ Tỷ lệ Verify = true: <b style="color:green;">${percentVerify}%</b>
+</div>
+`;
+
 
 document.querySelector('#detailsTable tbody').innerHTML = tbodyHTML;
 
