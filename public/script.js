@@ -438,14 +438,31 @@ puGroups.forEach((pu, idx) => {
 });
 
 // ✅ Thêm hiển thị % true trước khi render bảng
-let tbodyHTML = `
-<div class="mb-2 text-right text-sm text-gray-700 italic">
-  ✅ Tỷ lệ Verify = true: <b style="color:green;">${percentVerify}%</b>
-</div>
+// Hiển thị phần trăm Verify = true ở phía trên bảng
+const verifyRateHTML = `
+  <div class="mb-2 text-right text-sm text-gray-700 italic">
+    ✅ Tỷ lệ Verify = true: <b style="color:green;">${percentVerify}%</b>
+  </div>
 `;
 
+// Đặt phần này vào đầu `detailsContainer`
+detailsContainer.innerHTML = verifyRateHTML + html;
+
+// Sau đó tạo tbody như bình thường
+let tbodyHTML = '';
+details.forEach(d => {
+  const bgColor = puColorMap[d['PU']] || '';
+  tbodyHTML += `<tr style="background-color:${bgColor}">`;
+  tbodyHTML += `<td class="border px-2 py-1">${d.STT}</td>`;
+  selectedColumns.forEach(key => {
+    const isMachineCol = key.includes('MACHINE');
+    tbodyHTML += `<td class="border px-2 py-1 ${isMachineCol ? 'max-w-[150px] truncate' : ''}">${d[key]}</td>`;
+  });
+  tbodyHTML += `</tr>`;
+});
 
 document.querySelector('#detailsTable tbody').innerHTML = tbodyHTML;
+
 
 
     // Tìm kiếm khi nhấn nút
