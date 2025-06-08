@@ -400,6 +400,7 @@ detailsContainer.innerHTML = `
   ${html}
 `;
 // Tạo danh sách chi tiết (chưa gán STT)
+// ✅ 1. Tạo mảng details
 const details = rows.map(row => {
   const obj = {};
   selectedColumns.forEach((key, j) => {
@@ -408,8 +409,7 @@ const details = rows.map(row => {
   return obj;
 });
 
-
-// 2. Sắp xếp theo PU → Brand Code → PRO ODER
+// ✅ 2. Sắp xếp + gán STT
 details.sort((a, b) => {
   const keys = ['PU', 'Brand Code', 'PRO ODER'];
   for (let k of keys) {
@@ -420,16 +420,13 @@ details.sort((a, b) => {
   }
   return 0;
 });
+details.forEach((d, i) => d.STT = i + 1);
 
-details.forEach((d, i) => {
-  d.STT = i + 1;
-});
-
-// Tính % true của cột Verify
+// ✅ 3. Tính % true
 const totalVerify = details.filter(d => d['Check'] === 'true' || d['Check'] === true);
 const percentVerify = ((totalVerify.length / details.length) * 100).toFixed(1);
 
-// 3. Tô màu theo PU
+// ✅ 4. Tô màu theo PU
 const colorPalette = ['#fef08a', '#a7f3d0', '#fca5a5', '#c4b5fd', '#f9a8d4', '#fde68a', '#bfdbfe', '#6ee7b7'];
 const puGroups = [...new Set(details.map(d => d['PU']))];
 const puColorMap = {};
@@ -437,18 +434,7 @@ puGroups.forEach((pu, idx) => {
   puColorMap[pu] = colorPalette[idx % colorPalette.length];
 });
 
-// ✅ Thêm hiển thị % true trước khi render bảng
-// Hiển thị phần trăm Verify = true ở phía trên bảng
-const verifyRateHTML = `
-  <div class="mb-2 text-right text-sm text-gray-700 italic">
-    ✅ Tỷ lệ Verify = true: <b style="color:green;">${percentVerify}%</b>
-  </div>
-`;
-
-// Đặt phần này vào đầu `detailsContainer`
-detailsContainer.innerHTML = verifyRateHTML + html;
-
-// Sau đó tạo tbody như bình thường
+// ✅ 5. Tạo tbody HTML
 let tbodyHTML = '';
 details.forEach(d => {
   const bgColor = puColorMap[d['PU']] || '';
@@ -461,7 +447,15 @@ details.forEach(d => {
   tbodyHTML += `</tr>`;
 });
 
+// ✅ 6. Gán HTML tổng vào `detailsContainer`
+detailsContainer.innerHTML = `
+  <div class="mb-2 text-right text-sm text-gray-700 italic">
+    ✅ Tỷ lệ Verify = true: <b style="color:green;">${percentVerify}%</b>
+  </div>
+  ${html}
+`;
 document.querySelector('#detailsTable tbody').innerHTML = tbodyHTML;
+
 
 
 
