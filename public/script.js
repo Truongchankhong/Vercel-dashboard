@@ -590,5 +590,6 @@ async function renderSummarySection() {
 const originalLoadSummary = loadSummary;
 loadSummary = () => {
   selectedSection = 'LAMINATION';
+  renderSectionButtons();
   renderSummarySection();
 };
