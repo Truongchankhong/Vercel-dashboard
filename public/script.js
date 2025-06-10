@@ -477,12 +477,13 @@ btnProgress.addEventListener('click', loadProgress);
 progressBtnSearch.addEventListener('click', searchProgress);
 progressBtnClear.addEventListener('click', clearProgressSearch);
 
-// === Định nghĩa override trước khi gọi loadSummary ===
-let selectedSection = 'LAMINATION'; // Default section
+// ==== Định nghĩa biến toàn cục ====
+let selectedSection = 'LAMINATION'; // Mặc định khi mới vào
 const sectionButtons = [
   { id: 'btn-lamination', label: 'Lamination', value: 'LAMINATION' }
 ];
 
+// ==== Vẽ nút chọn section ====
 function renderSectionButtons() {
   const sectionBar = document.getElementById('section-bar');
   sectionBar.innerHTML = '';
@@ -495,18 +496,31 @@ function renderSectionButtons() {
     }`;
     btn.onclick = () => {
       selectedSection = value;
+      renderSectionButtons(); // Vẽ lại để tô màu đúng nút
       renderSummarySection();
     };
     sectionBar.appendChild(btn);
   });
 }
 
-const originalLoadSummary = loadSummary;
-loadSummary = () => {
-  selectedSection = 'LAMINATION';
-  renderSectionButtons();
-  renderSummarySection();
-};
+// ==== Override loadSummary để tự động hiển thị đúng ngay từ đầu ====
+function loadSummary() {
+  selectedSection = 'LAMINATION'; // reset mỗi khi nhấn
+  renderSectionButtons();         // vẽ nút
+  renderSummarySection();         // vẽ bảng
+}
 
-// ✅ Gọi sau khi đã override
-loadSummary();
+// ==== Setup nút ====
+btnRaw.addEventListener('click', loadRaw);
+btnSummary.addEventListener('click', loadSummary);
+btnProgress.addEventListener('click', loadProgress);
+btnRefresh.addEventListener('click', () => window.location.reload());
+
+progressBtnSearch.addEventListener('click', searchProgress);
+progressBtnClear.addEventListener('click', clearProgressSearch);
+
+// ==== GỌI MẶC ĐỊNH NGAY KHI LOAD TRANG ====
+window.addEventListener('DOMContentLoaded', () => {
+  btnSummary.classList.add('bg-blue-600', 'text-white'); // tô nút Summary
+  loadSummary(); // hiển thị bảng Lamination mặc định
+});
