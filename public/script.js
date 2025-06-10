@@ -514,35 +514,51 @@ function renderSectionButtons() {
 }
 
 
+
 // Load summary filtered by selected section
 async function renderSummarySection() {
+  // 1. Hiệu ứng loading
   setBtnLoading(btnSummary, true);
   hideDetails();
   hideProgressSearchBar();
   container.innerHTML = '';
-  document.getElementById('section-bar').remove();
+
+  // 2. Clear section-bar nếu đã có từ lần trước
+  const sectionBarEl = document.getElementById('section-bar');
+  if (sectionBarEl) {
+    sectionBarEl.innerHTML = '';
+  }
+  // 3. Vẽ lại thanh nút section
   renderSectionButtons();
 
   try {
+    // 4. Fetch data summary
     const res = await fetch('/api/summary', { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+
+    // 5. Lọc theo section (ví dụ: "2.LAMINATION")
     const keyword = `2.${selectedSection.toUpperCase()}`;
+    const filtered = data.filter(row =>
+      row.status?.toUpperCase().includes(keyword)
+    );
 
-    const filtered = data.filter(row => row.status?.toUpperCase().includes(keyword));
-
+    // 6. Tổng hợp tổng số của từng máy
     const machines = {};
     filtered.forEach(row => {
-      const machine = row.machine;
-      if (!machines[machine]) machines[machine] = 0;
-      machines[machine] += row.total;
+      const m = row.machine || '<blank>';
+      machines[m] = (machines[m] || 0) + row.total;
     });
 
+    // 7. Sắp xếp các máy theo số cuối trong tên
     const entries = Object.entries(machines).sort((a, b) => {
-      const aNum = parseInt((a[0]?.match(/\d+/) || ['0'])[0], 10);
-      const bNum = parseInt((b[0]?.match(/\d+/) || ['0'])[0], 10);
+      const aNum = parseInt((a[0].match(/\d+$/) || ['0'])[0], 10);
+      const bNum = parseInt((b[0].match(/\d+$/) || ['0'])[0], 10);
       return aNum - bNum;
     });
 
+    // 8. Build HTML bảng
+    let totalAll = 0;
     let html = `
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
@@ -553,8 +569,6 @@ async function renderSummarySection() {
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
     `;
-
-    let totalAll = 0;
     entries.forEach(([machine, total]) => {
       totalAll += total;
       html += `
@@ -564,7 +578,6 @@ async function renderSummarySection() {
         </tr>
       `;
     });
-
     html += `
         <tr class="font-bold bg-gray-100">
           <td class="px-6 py-3 text-sm text-gray-700 text-right">Tổng cộng:</td>
@@ -576,11 +589,13 @@ async function renderSummarySection() {
 
     container.innerHTML = html;
   } catch (err) {
+    console.error('renderSummarySection error:', err);
     container.innerHTML = `<div class="text-red-500 py-4">Lỗi tải dữ liệu section</div>`;
   } finally {
     setBtnLoading(btnSummary, false);
   }
 }
+
 
 // Override loadSummary to include section logic
 const originalLoadSummary = loadSummary;
