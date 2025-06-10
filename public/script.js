@@ -482,3 +482,113 @@ progressBtnClear.addEventListener('click', clearProgressSearch);
 
 // Khi load trang, mặc định cho Summary:
 loadSummary();
+// Add this to your script.js
+
+// Section selector for Summary View
+let selectedSection = 'LAMINATION'; // Default section on load
+
+// Section buttons
+const sectionButtons = [
+  { id: 'btn-lamination', label: 'Lamination', value: 'LAMINATION' }
+  // Add more sections later like Prefitting, Molding, etc.
+];
+
+// Create buttons dynamically
+function renderSectionButtons() {
+  const sectionBar = document.createElement('div');
+  sectionBar.className = 'flex space-x-2 mb-4';
+  sectionBar.id = 'section-bar';
+
+  sectionButtons.forEach(({ id, label, value }) => {
+    const btn = document.createElement('button');
+    btn.id = id;
+    btn.textContent = label;
+    btn.className = `px-4 py-1 rounded font-medium text-white ${
+      selectedSection === value ? 'bg-green-600' : 'bg-gray-400'
+    }`;
+    btn.onclick = () => {
+      selectedSection = value;
+      renderSummarySection();
+    };
+    sectionBar.appendChild(btn);
+  });
+
+  // Insert section bar before table container
+  const container = document.getElementById('table-container');
+  container.parentNode.insertBefore(sectionBar, container);
+}
+
+// Load summary filtered by selected section
+async function renderSummarySection() {
+  setBtnLoading(btnSummary, true);
+  hideDetails();
+  hideProgressSearchBar();
+  container.innerHTML = '';
+  document.getElementById('section-bar').remove();
+  renderSectionButtons();
+
+  try {
+    const res = await fetch('/api/summary', { cache: 'no-store' });
+    const data = await res.json();
+    const keyword = `2.${selectedSection.toUpperCase()}`;
+
+    const filtered = data.filter(row => row.status?.toUpperCase().includes(keyword));
+
+    const machines = {};
+    filtered.forEach(row => {
+      const machine = row.machine;
+      if (!machines[machine]) machines[machine] = 0;
+      machines[machine] += row.total;
+    });
+
+    const entries = Object.entries(machines).sort((a, b) => {
+      const aNum = parseInt((a[0]?.match(/\d+/) || ['0'])[0], 10);
+      const bNum = parseInt((b[0]?.match(/\d+/) || ['0'])[0], 10);
+      return aNum - bNum;
+    });
+
+    let html = `
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Machine</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantity Pair Plan</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+    `;
+
+    let totalAll = 0;
+    entries.forEach(([machine, total]) => {
+      totalAll += total;
+      html += `
+        <tr>
+          <td class="px-6 py-4 text-sm text-gray-900">${machine}</td>
+          <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(total)}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+        <tr class="font-bold bg-gray-100">
+          <td class="px-6 py-3 text-sm text-gray-700 text-right">Tổng cộng:</td>
+          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAll)}</td>
+        </tr>
+        </tbody>
+      </table>
+    `;
+
+    container.innerHTML = html;
+  } catch (err) {
+    container.innerHTML = `<div class="text-red-500 py-4">Lỗi tải dữ liệu section</div>`;
+  } finally {
+    setBtnLoading(btnSummary, false);
+  }
+}
+
+// Override loadSummary to include section logic
+const originalLoadSummary = loadSummary;
+loadSummary = () => {
+  selectedSection = 'LAMINATION';
+  renderSummarySection();
+};
