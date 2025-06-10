@@ -23,8 +23,10 @@ app.use('/api/details', detailsRouter);
 app.use('/api/summary', summaryRouter);
 
 // Trang chính
+app.use(express.static('public'));
+
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Khởi động server

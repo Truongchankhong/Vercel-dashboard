@@ -12,16 +12,14 @@
   <!-- ==== Thanh Tìm chung (dùng cho Progress View) ==== -->
   <div id="progress-search-bar" class="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
     <select id="progressColumnSelect" class="w-full border px-2 py-1 rounded">
-  <option value="PRO ODER">PRO ORDER</option>
-  <option value="Brand Code">BRAND</option>
-  <option value="#MOLDED">LOẠI HÀNG (KHUÔN/DC)</option>
-  <option value="BOM">MÃ BOM</option>
-  <option value="PU">MÃ PU</option>
-  <option value="LAMINATION MACHINE (PLAN)">MÁY KẾ HOẠCH</option>
-  <option value="LAMINATION MACHINE (REALTIME)">MÁY THỰC TẾ</option>
-  
-</select>
-
+      <option value="PRO ODER">PRO ORDER</option>
+      <option value="Brand Code">BRAND</option>
+      <option value="#MOLDED">LOẠI HÀNG (KHUÔN/DC)</option>
+      <option value="BOM">MÃ BOM</option>
+      <option value="PU">MÃ PU</option>
+      <option value="LAMINATION MACHINE (PLAN)">MÁY KẾ HOẠCH</option>
+      <option value="LAMINATION MACHINE (REALTIME)">MÁY THỰC TẾ</option>
+    </select>
 
     <input id="progressSearchBox" type="text" placeholder="Nhập từ khóa..." class="w-full sm:w-1/3 border px-2 py-1 rounded">
 
@@ -30,7 +28,6 @@
       <button id="progressBtnClear" class="bg-red-500 text-white px-4 py-1 rounded">Xóa Progress</button>
     </div>
   </div>
-
 
   <!-- ==== Nút Raw / Summary / Progress / Refresh / Cập nhật ==== -->
   <div class="flex items-center space-x-2 mb-4">
@@ -48,6 +45,9 @@
     </button>
     <span id="last-updated" class="ml-auto text-sm text-gray-600">Cập nhật: --:--:--</span>
   </div>
+
+  <!-- ==== Section selector (Lamination, Prefitting, ...) ==== -->
+  <div id="section-bar" class="flex space-x-2 mb-4"></div>
 
   <!-- ==== Kết quả tìm kiếm chung ==== -->
   <div id="searchResult" class="mb-6"></div>

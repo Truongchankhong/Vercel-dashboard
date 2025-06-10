@@ -495,9 +495,8 @@ const sectionButtons = [
 
 // Create buttons dynamically
 function renderSectionButtons() {
-  const sectionBar = document.createElement('div');
-  sectionBar.className = 'flex space-x-2 mb-4';
-  sectionBar.id = 'section-bar';
+  const sectionBar = document.getElementById('section-bar');
+  sectionBar.innerHTML = ''; // Clear trước
 
   sectionButtons.forEach(({ id, label, value }) => {
     const btn = document.createElement('button');
@@ -512,11 +511,8 @@ function renderSectionButtons() {
     };
     sectionBar.appendChild(btn);
   });
-
-  // Insert section bar before table container
-  const container = document.getElementById('table-container');
-  container.parentNode.insertBefore(sectionBar, container);
 }
+
 
 // Load summary filtered by selected section
 async function renderSummarySection() {
