@@ -34,6 +34,10 @@ let currentMachine = null;
 function updateTimestamp() {
   lastUpdatedEl.textContent = 'Cập nhật: ' + new Date().toLocaleTimeString();
 }
+function hideSectionBar() {
+  const sectionBarEl = document.getElementById('section-bar');
+  if (sectionBarEl) sectionBarEl.innerHTML = '';
+}
 
 function setBtnLoading(btn, isLoading) {
   btn.disabled = isLoading;
@@ -72,53 +76,7 @@ function showProgressSearchBar() {
   progressSearchBar.classList.remove('hidden');
 }
 
-// -----------------------------------
-// --- RAW VIEW (dữ liệu gốc) ---
-// -----------------------------------
-async function loadRaw() {
-  currentView = 'raw';
-  currentMachine = null;
-  setBtnLoading(btnRaw, true);
 
-  hideDetails();
-  hideProgressSearchBar();
-  searchResult.innerHTML = '';
-  container.innerHTML = '';
-
-  try {
-    const res = await fetch('/api/data', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = await res.json();
-
-    if (!Array.isArray(rows) || rows.length === 0) {
-      container.innerHTML = '<div class="text-center py-4">Không có dữ liệu raw</div>';
-    } else {
-      let html = '<table class="min-w-full table-auto border-collapse">';
-      html += '<thead class="bg-gray-50"><tr>';
-      // Header: Cột 1, 2, ….
-      rows[0].forEach((_, i) => {
-        html += `<th class="border px-2 py-1 text-left text-sm font-medium text-gray-700">Cột ${i + 1}</th>`;
-      });
-      html += '</tr></thead><tbody>';
-      // Mỗi hàng
-      rows.slice(1).forEach(r => {
-        html += '<tr class="hover:bg-gray-100">';
-        r.forEach(cell => {
-          html += `<td class="border px-2 py-1 text-sm text-gray-800">${cell ?? ''}</td>`;
-        });
-        html += '</tr>';
-      });
-      html += '</tbody></table>';
-      container.innerHTML = html;
-    }
-    updateTimestamp();
-  } catch (e) {
-    console.error('[ERROR] loadRaw failed:', e);
-    container.innerHTML = '<div class="text-center text-red-500 py-4">Lỗi tải dữ liệu raw</div>';
-  } finally {
-    setBtnLoading(btnRaw, false);
-  }
-}
 
 // -----------------------------------
 // --- SUMMARY VIEW (tổng hợp máy) ---
@@ -212,7 +170,7 @@ async function loadProgress() {
   container.innerHTML = '';
   searchResult.innerHTML = '';
   updateTimestamp();
-
+  hideSectionBar();
   // Hiện thanh tìm kiếm Progress:
   showProgressSearchBar();
 }
@@ -321,7 +279,24 @@ function clearProgressSearch() {
 // -----------------------------------
 // --- DETAILS VIEW (nếu cần) ---
 // -----------------------------------
-async function loadDetailsClient(machine) {
+function shouldDisplayRow(d, isInitial) {
+  const selectedField = document.getElementById('detailsColumnSelect')?.value || '';
+  const keyword = document.getElementById('detailsSearchInput')?.value.trim().toUpperCase() || '';
+
+  // Khi click máy lần đầu (không có thao tác tìm kiếm), chỉ lọc theo STATUS
+  if (isInitial) {
+    return (d['STATUS'] || '').toUpperCase() === `2.${selectedSection.toUpperCase()}`;
+  }
+
+  // Nếu chọn "Tất cả" hoặc không nhập gì → hiển thị tất cả
+  if (selectedField === 'ALL' || keyword === '') {
+    return true;
+  }
+
+  // Nếu chọn cột cụ thể và có từ khóa → lọc theo từ khóa
+  return (d[selectedField] || '').toString().toUpperCase().includes(keyword);
+}
+async function loadDetailsClient(machine, isInitial = false, rememberedField = 'ALL', rememberedKeyword = '') {
   currentView = 'detail';
   currentMachine = machine;
 
@@ -345,15 +320,29 @@ async function loadDetailsClient(machine) {
     ];
     const selectedIndexes = selectedColumns.map(col => headers.indexOf(col));
 
-    const details = rows.map(row => {
-      const obj = {};
-      selectedColumns.forEach((key, j) => {
-        obj[key] = row[selectedIndexes[j]] ?? '';
-      });
-      return obj;
-    });
+    const details = rows
+      .map(row => {
+        const obj = {};
+        selectedColumns.forEach((key, j) => {
+          obj[key] = row[selectedIndexes[j]] ?? '';
+        });
+        obj['STATUS'] = row[headers.indexOf('STATUS')] ?? '';
+        return obj;
+      })
+      .filter(d => {
+        const selectedField = rememberedField;
+        const keyword = rememberedKeyword.trim().toUpperCase();
 
-    // Sắp xếp + STT
+        if (isInitial) {
+          return (d['STATUS'] || '').toUpperCase() === `2.${selectedSection.toUpperCase()}`;
+        }
+
+        if (selectedField === 'ALL' || keyword === '') return true;
+
+        return (d[selectedField] || '').toString().toUpperCase().includes(keyword);
+      });
+
+    // Sắp xếp
     details.sort((a, b) => {
       const keys = ['PU', 'Brand Code', 'PRO ODER'];
       for (let k of keys) {
@@ -366,11 +355,9 @@ async function loadDetailsClient(machine) {
     });
     details.forEach((d, i) => d.STT = i + 1);
 
-    // Tính % Verify
     const trueCount = details.filter(d => d['Check'] === 'true' || d['Check'] === true).length;
     const percentVerify = ((trueCount / details.length) * 100).toFixed(1);
 
-    // Tô màu PU
     const colorPalette = ['#fef08a', '#a7f3d0', '#fca5a5', '#c4b5fd', '#f9a8d4', '#fde68a', '#bfdbfe', '#6ee7b7'];
     const puGroups = [...new Set(details.map(d => d['PU']))];
     const puColorMap = {};
@@ -378,7 +365,6 @@ async function loadDetailsClient(machine) {
       puColorMap[pu] = colorPalette[idx % colorPalette.length];
     });
 
-    // Tạo tbody HTML
     let tbodyHTML = '';
     details.forEach(d => {
       const bgColor = puColorMap[d['PU']] || '';
@@ -391,7 +377,6 @@ async function loadDetailsClient(machine) {
       tbodyHTML += `</tr>`;
     });
 
-    // Tạo giao diện bảng
     const html = `
       <div class="flex justify-between items-center mb-2">
         <h2 class="text-xl font-bold">Chi tiết máy: ${machine}</h2>
@@ -404,10 +389,12 @@ async function loadDetailsClient(machine) {
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
         <select id="detailsColumnSelect" class="w-full border px-2 py-1 rounded col-span-3">
+          <option value="ALL"${rememberedField === 'ALL' ? ' selected' : ''}>Tất cả (All)</option>
           ${['PRO ODER', 'Brand Code', '#MOLDED', 'PU', 'LAMINATION MACHINE (PLAN)', 'LAMINATION MACHINE (REALTIME)']
-            .map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+            .map(opt => `<option value="${opt}"${rememberedField === opt ? ' selected' : ''}>${opt}</option>`).join('')}
         </select>
-        <input id="detailsSearchInput" type="text" placeholder="Nhập từ khóa..." class="border px-2 py-1 rounded w-full col-span-2">
+
+        <input id="detailsSearchInput" type="text" placeholder="Nhập từ khóa..." value="${rememberedKeyword}" class="border px-2 py-1 rounded w-full col-span-2">
         <div class="flex gap-2 col-span-1">
           <button id="detailsSearchBtn" class="bg-blue-600 text-white px-4 py-1 rounded w-full">Tìm</button>
           <button id="detailsClearBtn" class="bg-gray-400 text-white px-4 py-1 rounded w-full">Xóa</button>
@@ -416,7 +403,7 @@ async function loadDetailsClient(machine) {
 
       <div class="overflow-x-auto overflow-y-auto max-h-[70vh] whitespace-nowrap">
         <table class="min-w-full text-sm border border-gray-300 bg-white shadow" id="detailsTable">
-          <thead class="bg-gray-100 text-left">
+          <thead class="bg-gray-100 text-left sticky top-0 z-10">
             <tr>
               <th class="border px-2 py-1">STT</th>
               ${selectedColumns.map(h => {
@@ -433,22 +420,17 @@ async function loadDetailsClient(machine) {
 
     detailsContainer.innerHTML = html;
 
-    // Tìm/Xóa
+    // Nút tìm
     document.getElementById('detailsSearchBtn').addEventListener('click', () => {
-      const keyword = document.getElementById('detailsSearchInput').value.trim().toLowerCase();
-      const column = document.getElementById('detailsColumnSelect').value;
-      const colIndex = selectedColumns.indexOf(column);
-      const rows = document.querySelectorAll('#detailsTable tbody tr');
-      rows.forEach(row => {
-        const cell = row.querySelectorAll('td')[colIndex + 1];
-        const text = cell?.textContent.toLowerCase() || '';
-        row.style.display = text.includes(keyword) ? '' : 'none';
-      });
+      const field = document.getElementById('detailsColumnSelect').value;
+      const keyword = document.getElementById('detailsSearchInput').value.trim();
+      loadDetailsClient(currentMachine, false, field, keyword); // truyền lại giá trị đã chọn
     });
 
+    // Nút xóa
     document.getElementById('detailsClearBtn').addEventListener('click', () => {
       document.getElementById('detailsSearchInput').value = '';
-      document.querySelectorAll('#detailsTable tbody tr').forEach(row => row.style.display = '');
+      loadDetailsClient(currentMachine, false, rememberedField, '');
     });
 
   } catch (err) {
@@ -463,6 +445,7 @@ async function loadDetailsClient(machine) {
 
 
 
+
 // -----------------------------------
 // --- REFRESH BUTTON (F5) ---
 btnRefresh.addEventListener('click', () => {
@@ -470,7 +453,7 @@ btnRefresh.addEventListener('click', () => {
 });
 
 // --- KHỞI TẠO: Đăng ký sự kiện ---
-btnRaw.addEventListener('click', loadRaw);
+
 btnSummary.addEventListener('click', loadSummary);
 btnProgress.addEventListener('click', loadProgress);
 
@@ -515,16 +498,20 @@ async function renderSummarySection() {
   renderSectionButtons();
 
   try {
-    const res = await fetch('/api/summary', { cache: 'no-store' });
+    const res = await fetch('/powerapp.json', { cache: 'no-store' });
     const data = await res.json();
     const keyword = `2.${selectedSection.toUpperCase()}`;
 
-    const filtered = data.filter(row => row.status?.toUpperCase().includes(keyword));
-
     const machines = {};
-    filtered.forEach(row => {
-      const machine = row.machine || '<blank>';
-      machines[machine] = (machines[machine] || 0) + row.total;
+    data.forEach(row => {
+      const status = (row['STATUS'] || '').toUpperCase();
+      const machine = row['LAMINATION MACHINE (PLAN)'];
+      const qty = Number(row['Total Qty']) || 0;
+
+      if (status.includes(keyword) && machine) {
+        if (!machines[machine]) machines[machine] = 0;
+        machines[machine] += qty;
+      }
     });
 
     const entries = Object.entries(machines).sort((a, b) => {
@@ -535,7 +522,7 @@ async function renderSummarySection() {
 
     let totalAll = 0;
     let html = `
-      <table class="min-w-full divide-y divide-gray-200">
+      <table class="min-w-full divide-y divide-gray-200" id="summary-table">
         <thead class="bg-gray-50">
           <tr>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Machine</th>
@@ -544,15 +531,17 @@ async function renderSummarySection() {
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
     `;
+
     entries.forEach(([machine, total]) => {
       totalAll += total;
       html += `
-        <tr>
+        <tr data-machine="${machine}" class="hover:bg-gray-100 cursor-pointer">
           <td class="px-6 py-4 text-sm text-gray-900">${machine}</td>
           <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(total)}</td>
         </tr>
       `;
     });
+
     html += `
         <tr class="font-bold bg-gray-100">
           <td class="px-6 py-3 text-sm text-gray-700 text-right">Tổng cộng:</td>
@@ -561,13 +550,31 @@ async function renderSummarySection() {
         </tbody>
       </table>
     `;
+
     container.innerHTML = html;
+
+    // ✅ Gắn sự kiện click từng dòng
+    document.querySelectorAll('tbody tr').forEach(tr => {
+      const firstCell = tr.querySelector('td');
+      const machineName = firstCell?.textContent?.trim();
+      if (machineName && machineName !== 'Tổng cộng:') {
+        tr.classList.add('hover:bg-gray-100', 'cursor-pointer');
+        tr.addEventListener('click', () => {
+          currentMachine = machineName;
+          loadDetailsClient(machineName, true);  // ✅ gọi đúng
+        });
+      }
+    });
+
   } catch (err) {
+    console.error('[renderSummarySection error]', err);
     container.innerHTML = `<div class="text-red-500 py-4">Lỗi tải dữ liệu section</div>`;
   } finally {
     setBtnLoading(btnSummary, false);
   }
 }
+
+
 
 // ✅ Gọi đúng thứ tự
 function loadSummary() {
