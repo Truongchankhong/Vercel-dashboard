@@ -196,7 +196,7 @@ async function searchProgress() {
     const data = await res.json();
 
     const fields = [
-      'PRO ODER', 'Brand Code', '#MOLDED', 'BOM', ,'PU','FB', 'Total Qty', 'STATUS',
+      'PRO ODER', 'Brand Code', '#MOLDED', 'BOM' ,'PU','FB', 'Total Qty', 'STATUS',
       'RECEIVED (MATERIAL)', 'RECEIVED (LOGO)', 'Laminating (Pro)',
       'Prefitting (Pro)', 'Slipting (Pro)', 'Bào (Pro)',
       'Molding Pro (IN)', 'Molding Pro', 'IN lean Line (Pro)',
@@ -371,7 +371,7 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
       const bgColor = puColorMap[d['PU']] || '';
       tbodyHTML += `<tr style="background-color:${bgColor}">`;
       tbodyHTML += `<td class="border px-2 py-1">${d.STT}</td>`;
-      selectedColumns.forEach(key => {
+            selectedColumns.forEach(key => {
         let cellClass = 'border px-2 py-1';
         if (key === 'FB DESCRIPTION') {
           cellClass += ' max-w-[180px] whitespace-normal break-words';
@@ -379,7 +379,10 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
           cellClass += ' max-w-[150px] truncate';
         }
         tbodyHTML += `<td class="${cellClass}">${d[key]}</td>`;
-      });
+      }); // ✅ đóng forEach ở đây
+      tbodyHTML += `</tr>`;
+
+
 
 
     const html = `
@@ -444,10 +447,13 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
       loadDetailsClient(currentMachine, false, rememberedField, '');
     });
 
-  } catch (err) {
+    } 
+    catch (err) {
     console.error('DETAILS LOAD ERROR:', err);
     detailsContainer.innerHTML = `<div class="text-red-500 text-center py-4">Lỗi tải dữ liệu</div>`;
-  }
+    
+    }
+
 }
 
 
