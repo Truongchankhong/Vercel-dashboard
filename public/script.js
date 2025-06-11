@@ -22,6 +22,7 @@ const headerDisplayMap = {
   'Total Qty': 'PO Quantity (Pairs)',
   'STATUS': 'Status-Trạng thái đơn',
   'PU': 'PU Type',
+  'FB DESCRIPTION': 'Tên Vải',
   'LAMINATION MACHINE (PLAN)': 'Plan Machine',
   'LAMINATION MACHINE (REALTIME)': 'Actual Machine',
   'Check': 'Verify'
@@ -315,7 +316,7 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
     const [headers, ...rows] = data;
 
     const selectedColumns = [
-      'PRO ODER', 'Brand Code', '#MOLDED', 'Total Qty', 'STATUS', 'PU',
+      'PRO ODER', 'Brand Code', '#MOLDED', 'Total Qty', 'STATUS', 'PU', 'FB DESCRIPTION',
       'LAMINATION MACHINE (PLAN)', 'LAMINATION MACHINE (REALTIME)', 'Check'
     ];
     const selectedIndexes = selectedColumns.map(col => headers.indexOf(col));
@@ -371,11 +372,15 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
       tbodyHTML += `<tr style="background-color:${bgColor}">`;
       tbodyHTML += `<td class="border px-2 py-1">${d.STT}</td>`;
       selectedColumns.forEach(key => {
-        const isMachineCol = key.includes('MACHINE');
-        tbodyHTML += `<td class="border px-2 py-1 ${isMachineCol ? 'max-w-[150px] truncate' : ''}">${d[key]}</td>`;
+        let cellClass = 'border px-2 py-1';
+        if (key === 'FB DESCRIPTION') {
+          cellClass += ' max-w-[180px] whitespace-normal break-words';
+        } else if (key.includes('MACHINE')) {
+          cellClass += ' max-w-[150px] truncate';
+        }
+        tbodyHTML += `<td class="${cellClass}">${d[key]}</td>`;
       });
-      tbodyHTML += `</tr>`;
-    });
+
 
     const html = `
       <div class="flex justify-between items-center mb-2">
@@ -408,6 +413,12 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
               <th class="border px-2 py-1">STT</th>
               ${selectedColumns.map(h => {
                 const displayName = headerDisplayMap[h] || h;
+
+                // Giới hạn độ rộng nếu là cột FB DESCRIPTION
+                if (h === 'FB DESCRIPTION') {
+                  return `<th class="border px-2 py-1 max-w-[180px] whitespace-normal break-words">${displayName}</th>`;
+                }
+
                 const isMachineCol = h.includes('MACHINE');
                 return `<th class="border px-2 py-1 ${isMachineCol ? 'max-w-[150px] truncate' : ''}">${displayName}</th>`;
               }).join('')}
