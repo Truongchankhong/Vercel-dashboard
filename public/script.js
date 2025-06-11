@@ -396,7 +396,14 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
         <select id="detailsColumnSelect" class="w-full border px-2 py-1 rounded col-span-3">
           <option value="ALL"${rememberedField === 'ALL' ? ' selected' : ''}>Tất cả (All)</option>
-          ${['PRO ODER', 'Brand Code', '#MOLDED', 'PU', 'LAMINATION MACHINE (PLAN)', 'LAMINATION MACHINE (REALTIME)']
+          ${[
+            'PRO ODER',
+            'Brand Code',
+            '#MOLDED',
+            'PU',
+            'FB DESCRIPTION', // ✅ Thêm dòng này
+            'LAMINATION MACHINE (PLAN)',
+            'LAMINATION MACHINE (REALTIME)']
             .map(opt => `<option value="${opt}"${rememberedField === opt ? ' selected' : ''}>${opt}</option>`).join('')}
         </select>
 
