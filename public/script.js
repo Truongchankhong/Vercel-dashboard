@@ -371,7 +371,7 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
       const bgColor = puColorMap[d['PU']] || '';
       tbodyHTML += `<tr style="background-color:${bgColor}">`;
       tbodyHTML += `<td class="border px-2 py-1">${d.STT}</td>`;
-            selectedColumns.forEach(key => {
+      selectedColumns.forEach(key => {
         let cellClass = 'border px-2 py-1';
         if (key === 'FB DESCRIPTION') {
           cellClass += ' max-w-[180px] whitespace-normal break-words';
@@ -379,11 +379,9 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
           cellClass += ' max-w-[150px] truncate';
         }
         tbodyHTML += `<td class="${cellClass}">${d[key]}</td>`;
-      }); // ✅ đóng forEach ở đây
+      });
       tbodyHTML += `</tr>`;
-
-
-
+    });
 
     const html = `
       <div class="flex justify-between items-center mb-2">
@@ -416,12 +414,9 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
               <th class="border px-2 py-1">STT</th>
               ${selectedColumns.map(h => {
                 const displayName = headerDisplayMap[h] || h;
-
-                // Giới hạn độ rộng nếu là cột FB DESCRIPTION
                 if (h === 'FB DESCRIPTION') {
                   return `<th class="border px-2 py-1 max-w-[180px] whitespace-normal break-words">${displayName}</th>`;
                 }
-
                 const isMachineCol = h.includes('MACHINE');
                 return `<th class="border px-2 py-1 ${isMachineCol ? 'max-w-[150px] truncate' : ''}">${displayName}</th>`;
               }).join('')}
@@ -438,7 +433,7 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
     document.getElementById('detailsSearchBtn').addEventListener('click', () => {
       const field = document.getElementById('detailsColumnSelect').value;
       const keyword = document.getElementById('detailsSearchInput').value.trim();
-      loadDetailsClient(currentMachine, false, field, keyword); // truyền lại giá trị đã chọn
+      loadDetailsClient(currentMachine, false, field, keyword);
     });
 
     // Nút xóa
@@ -447,15 +442,11 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
       loadDetailsClient(currentMachine, false, rememberedField, '');
     });
 
-    } 
-    catch (err) {
+  } catch (err) {
     console.error('DETAILS LOAD ERROR:', err);
     detailsContainer.innerHTML = `<div class="text-red-500 text-center py-4">Lỗi tải dữ liệu</div>`;
-    
-    }
-
+  }
 }
-
 
 
 
@@ -601,7 +592,7 @@ function loadSummary() {
 }
 
 // ==== Đăng ký sự kiện ====
-btnRaw.addEventListener('click', loadRaw);
+
 btnSummary.addEventListener('click', loadSummary);
 btnProgress.addEventListener('click', loadProgress);
 btnRefresh.addEventListener('click', () => window.location.reload());
