@@ -355,7 +355,7 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
     });
     details.forEach((d, i) => d.STT = i + 1);
 
-    const trueCount = details.filter(d => d['Check'] === 'true' || d['Check'] === true).length;
+    const trueCount = details.filter(d => d['Check'] === 'True' || d['Check'] === true).length;
     const percentVerify = ((trueCount / details.length) * 100).toFixed(1);
 
     const colorPalette = ['#fef08a', '#a7f3d0', '#fca5a5', '#c4b5fd', '#f9a8d4', '#fde68a', '#bfdbfe', '#6ee7b7'];
