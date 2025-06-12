@@ -196,7 +196,7 @@ async function searchProgress() {
     const data = await res.json();
 
     const fields = [
-      'PRO ODER', 'Brand Code', '#MOLDED', 'BOM' ,'PU','FB', 'Total Qty', 'STATUS',
+      'PRO ODER', 'Brand Code', '#MOLD', 'BOM' ,'PU','FB', 'Total Qty', 'STATUS',
       'RECEIVED (MATERIAL)', 'RECEIVED (LOGO)', 'Laminating (Pro)',
       'Prefitting (Pro)', 'Slipting (Pro)', 'Bào (Pro)',
       'Molding Pro (IN)', 'Molding Pro', 'IN lean Line (Pro)',
@@ -316,7 +316,7 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
     const [headers, ...rows] = data;
 
     const selectedColumns = [
-      'PRO ODER', 'Brand Code', '#MOLDED', 'Total Qty', 'STATUS', 'PU', 'FB DESCRIPTION',
+      'PRO ODER', 'Brand Code', '#MOLD', 'Total Qty', 'STATUS', 'PU', 'FB DESCRIPTION',
       'LAMINATION MACHINE (PLAN)', 'LAMINATION MACHINE (REALTIME)', 'Check'
     ];
     const selectedIndexes = selectedColumns.map(col => headers.indexOf(col));
