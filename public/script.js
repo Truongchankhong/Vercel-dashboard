@@ -71,10 +71,12 @@ function showDetails() {
 
 function hideProgressSearchBar() {
   progressSearchBar.classList.add('hidden');
+  document.getElementById('progress-advanced-filter')?.classList.add('hidden'); // ✅ ẩn phần lọc nâng cao
 }
 
 function showProgressSearchBar() {
   progressSearchBar.classList.remove('hidden');
+  document.getElementById('progress-advanced-filter')?.classList.remove('hidden'); // ✅ hiện phần lọc nâng cao
 }
 
 

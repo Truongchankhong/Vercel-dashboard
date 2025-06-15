@@ -9,8 +9,8 @@
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
 
-  <!-- ==== Thanh Tìm chung (dùng cho Progress View) ==== -->
-  <div id="progress-search-bar" class="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+  <!-- ==== Thanh tìm kiếm cơ bản (chỉ dùng ở Progress View) ==== -->
+  <div id="progress-search-bar" class="flex flex-col sm:flex-row sm:items-center gap-2 mb-3 hidden">
     <select id="progressColumnSelect" class="w-full border px-2 py-1 rounded">
       <option value="PRO ODER">PRO ORDER</option>
       <option value="Brand Code">BRAND</option>
@@ -28,30 +28,29 @@
       <button id="progressBtnClear" class="bg-red-500 text-white px-4 py-1 rounded">Xóa Progress</button>
     </div>
   </div>
-<!-- Tìm nâng cao theo từng cột -->
-<div id="progress-advanced-filter" class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
-  <div>
-    <label><input type="checkbox" class="progress-check" data-key="PRO ODER" /> PRO ORDER</label>
-    <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="PRO ODER" />
-  </div>
-  <div>
-    <label><input type="checkbox" class="progress-check" data-key="Brand Code" /> BRAND</label>
-    <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="Brand Code" />
-  </div>
-  <div>
-    <label><input type="checkbox" class="progress-check" data-key="LAMINATION MACHINE (REALTIME)" /> MÁY THỰC TẾ</label>
-    <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="LAMINATION MACHINE (REALTIME)" />
-  </div>
-  <div>
-    <label><input type="checkbox" class="progress-check" data-key="STATUS" /> TRẠNG THÁI</label>
-    <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="STATUS" />
-  </div>
-</div>
 
-  <!-- ==== Nút Raw / Summary / Progress / Refresh / Cập nhật ==== -->
+  <!-- ==== Tìm nâng cao theo nhiều cột (ẩn mặc định, chỉ hiện trong Progress) ==== -->
+  <div id="progress-advanced-filter" class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4 hidden">
+    <div>
+      <label><input type="checkbox" class="progress-check" data-key="PRO ODER" /> PRO ORDER</label>
+      <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="PRO ODER" />
+    </div>
+    <div>
+      <label><input type="checkbox" class="progress-check" data-key="Brand Code" /> BRAND</label>
+      <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="Brand Code" />
+    </div>
+    <div>
+      <label><input type="checkbox" class="progress-check" data-key="LAMINATION MACHINE (REALTIME)" /> MÁY THỰC TẾ</label>
+      <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="LAMINATION MACHINE (REALTIME)" />
+    </div>
+    <div>
+      <label><input type="checkbox" class="progress-check" data-key="STATUS" /> TRẠNG THÁI</label>
+      <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="STATUS" />
+    </div>
+  </div>
+
+  <!-- ==== Nút chuyển view ==== -->
   <div class="flex items-center space-x-2 mb-4">
-    
-    </button>
     <button id="btn-summary" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
       Summary View
     </button>
@@ -64,19 +63,19 @@
     <span id="last-updated" class="ml-auto text-sm text-gray-600">Cập nhật: --:--:--</span>
   </div>
 
-  <!-- ==== Section selector (Lamination, Prefitting, ...) ==== -->
+  <!-- ==== Thanh chọn khu vực ==== -->
   <div id="section-bar" class="flex space-x-2 mb-4"></div>
 
-  <!-- ==== Kết quả tìm kiếm chung ==== -->
+  <!-- ==== Kết quả tìm kiếm ==== -->
   <div id="searchResult" class="mb-6"></div>
 
-  <!-- ==== Container bảng Raw/Summary/Progress ==== -->
+  <!-- ==== Bảng hiển thị chính ==== -->
   <div id="table-container" class="bg-white shadow rounded overflow-x-auto mb-6"></div>
 
-  <!-- ==== Container bảng Details (Raw/Detail/…) ==== -->
+  <!-- ==== Bảng chi tiết (nếu cần) ==== -->
   <div id="details-container" class="bg-white shadow rounded overflow-x-auto hidden"></div>
 
-  <!-- Main Script -->
+  <!-- ==== Script chính ==== -->
   <script src="/script.js"></script>
 </body>
 </html>
