@@ -182,15 +182,24 @@ async function searchProgress() {
   hideDetails();
   searchResult.innerHTML = '';
 
-  try {
-    const query = progressSearchBox.value.trim().toUpperCase();
-    const selectedField = document.getElementById('progressColumnSelect').value;
-    if (!query) {
-      container.innerHTML = '<div class="text-center py-4">Vui lòng nhập mã RPRO để tìm.</div>';
-      return;
-    }
+  const keyword = progressSearchBox.value.trim().toLowerCase();
+  const selectedField = document.getElementById('progressColumnSelect').value;
 
-    // Lấy dữ liệu JSON
+  // Lấy dữ liệu từ checkbox + input nâng cao
+  const inputs = document.querySelectorAll('.progress-input');
+  const checks = document.querySelectorAll('.progress-check');
+  const filters = {};
+  checks.forEach((checkbox) => {
+    if (checkbox.checked) {
+      const key = checkbox.dataset.key;
+      const input = Array.from(inputs).find(i => i.dataset.key === key);
+      if (input && input.value.trim()) {
+        filters[key] = input.value.trim().toLowerCase();
+      }
+    }
+  });
+
+  try {
     const res = await fetch('/powerapp.json', { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
@@ -220,18 +229,28 @@ async function searchProgress() {
              `${date.getFullYear()}`;
     };
 
-    // Lọc dữ liệu theo ô được chọn
+    // Lọc dữ liệu theo: chọn 1 cột + checkbox nâng cao
     const filtered = data.filter(row => {
-      const val = (row[selectedField] || '').toString().toUpperCase();
-      return val.includes(query);
+      let matchBasic = true;
+      if (keyword && selectedField) {
+        const val = (row[selectedField] || '').toString().toLowerCase();
+        matchBasic = val.includes(keyword);
+      }
+
+      const matchAdvanced = Object.entries(filters).every(([key, val]) => {
+        const v = (row[key] || '').toString().toLowerCase();
+        return v.includes(val);
+      });
+
+      return matchBasic && matchAdvanced;
     });
 
     if (filtered.length === 0) {
-      container.innerHTML = `<div class="text-center py-4">Không tìm thấy RPRO nào chứa “${progressSearchBox.value}”.</div>`;
+      container.innerHTML = `<div class="text-center py-4 text-red-500">Không tìm thấy dữ liệu khớp.</div>`;
       return;
     }
 
-    // Xây bảng kết quả
+    // Render kết quả
     let html = '<table class="min-w-full table-auto border-collapse">';
     html += '<thead class="bg-gray-50"><tr>';
     html += `<th class="border px-2 py-1 text-left text-sm font-medium text-gray-700">STT</th>`;
@@ -262,13 +281,14 @@ async function searchProgress() {
     container.innerHTML = html;
     updateTimestamp();
 
-  } catch (e) {
-    console.error('[ERROR] searchProgress failed:', e);
-    container.innerHTML = '<div class="text-center text-red-500 py-4">Lỗi tìm tiến trình RPRO</div>';
+  } catch (err) {
+    console.error('[searchProgress error]', err);
+    container.innerHTML = `<div class="text-red-500 text-center py-4">Lỗi tìm tiến trình</div>`;
   } finally {
     setBtnLoading(progressBtnSearch, false);
   }
 }
+
 
 
 
