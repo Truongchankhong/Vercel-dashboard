@@ -71,12 +71,16 @@ function showDetails() {
 
 function hideProgressSearchBar() {
   progressSearchBar.classList.add('hidden');
-  document.getElementById('progress-advanced-filter')?.classList.add('hidden'); // ✅ ẩn phần lọc nâng cao
+  document.getElementById('title-simple-filter')?.classList.add('hidden');
+  document.getElementById('progress-advanced-filter')?.classList.add('hidden');
+  document.getElementById('title-advanced-filter')?.classList.add('hidden');
 }
 
 function showProgressSearchBar() {
   progressSearchBar.classList.remove('hidden');
-  document.getElementById('progress-advanced-filter')?.classList.remove('hidden'); // ✅ hiện phần lọc nâng cao
+  document.getElementById('title-simple-filter')?.classList.remove('hidden');
+  document.getElementById('progress-advanced-filter')?.classList.remove('hidden');
+  document.getElementById('title-advanced-filter')?.classList.remove('hidden');
 }
 
 

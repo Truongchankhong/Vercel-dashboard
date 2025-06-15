@@ -9,7 +9,8 @@
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
 
-  <!-- ==== Thanh tìm kiếm cơ bản (chỉ dùng ở Progress View) ==== -->
+  <!-- ==== TÌM KIẾM ĐƠN GIẢN ==== -->
+  <h2 class="text-lg font-semibold text-gray-700 mb-1 hidden" id="title-simple-filter">🔍 TÌM KIẾM ĐƠN GIẢN</h2>
   <div id="progress-search-bar" class="flex flex-col sm:flex-row sm:items-center gap-2 mb-3 hidden">
     <select id="progressColumnSelect" class="w-full border px-2 py-1 rounded">
       <option value="PRO ODER">PRO ORDER</option>
@@ -29,7 +30,8 @@
     </div>
   </div>
 
-  <!-- ==== Tìm nâng cao theo nhiều cột (ẩn mặc định, chỉ hiện trong Progress) ==== -->
+  <!-- ==== TÌM KIẾM NÂNG CAO ==== -->
+  <h2 class="text-lg font-semibold text-gray-700 mb-1 hidden" id="title-advanced-filter">🧠 TÌM KIẾM NÂNG CAO</h2>
   <div id="progress-advanced-filter" class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4 hidden">
     <div>
       <label><input type="checkbox" class="progress-check" data-key="PRO ODER" /> PRO ORDER</label>
@@ -44,7 +46,6 @@
       <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="LAMINATION MACHINE (REALTIME)" />
     </div>
     <div>
-      <div>
       <label><input type="checkbox" class="progress-check" data-key="#MOLDED" /> LOẠI HÀNG (#MOLDED)</label>
       <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="#MOLDED" />
     </div>
@@ -60,11 +61,10 @@
       <label><input type="checkbox" class="progress-check" data-key="FB" /> FB</label>
       <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="FB" />
     </div>
-
+    <div>
       <label><input type="checkbox" class="progress-check" data-key="STATUS" /> TRẠNG THÁI</label>
       <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="STATUS" />
     </div>
-
   </div>
 
   <!-- ==== Nút chuyển view ==== -->
