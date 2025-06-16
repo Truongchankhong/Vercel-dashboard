@@ -9,6 +9,7 @@ export default async function handler(req, res) {
 
     const machineKey = 'LAMINATION MACHINE (PLAN)';  // ✅ cột đúng theo file JSON
     const qtyKey = 'Total Qty';
+    const sheetKey = 'DL PU';
 
     const machineMap = {};
 
