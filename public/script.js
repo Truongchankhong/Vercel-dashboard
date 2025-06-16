@@ -183,8 +183,9 @@ async function loadSummary() {
 // -----------------------------------
 async function loadProgress() {
   currentView = 'progress';
+  hideAllViews();
   currentMachine = null;
-
+  showProgressSearchBar();
   // Ẩn các view khác:
   hideDetails();
   container.innerHTML = '';
@@ -250,12 +251,14 @@ async function searchProgress() {
 
     // Lọc dữ liệu theo: chọn 1 cột + checkbox nâng cao
     const filtered = data.filter(row => {
-      const val = (row['Delay/Urgent'] || '').toUpperCase();
+      // 1. Lọc cơ bản theo dropdown + ô nhập keyword
+      const cell = row[selectedField];
+      const cellValue = cell !== undefined && cell !== null
+        ? cell.toString().toLowerCase()
+        : '';
+      const matchBasic = cellValue.includes(keyword);
 
-      let matchBasic = false;
-      if (type === 'DELAY') matchBasic = val === 'PRODUCTION DELAY';
-      if (type === 'URGENT') matchBasic = val === 'URGENT';
-
+      // 2. Lọc nâng cao theo các checkbox
       const matchAdvanced = Object.entries(filters).every(([key, val]) => {
         const v = (row[key] || '').toString().toLowerCase();
         return v.includes(val);
@@ -263,6 +266,7 @@ async function searchProgress() {
 
       return matchBasic && matchAdvanced;
     });
+
 
 
     if (filtered.length === 0) {
@@ -710,6 +714,7 @@ async function renderSummarySection() {
 
 // ✅ Gọi đúng thứ tự
 function loadSummary() {
+  hideAllViews();
   selectedSection = 'LAMINATION';
   renderSectionButtons();
   renderSummarySection();
@@ -794,6 +799,8 @@ function hideAllViews() {
   document.getElementById('basic-search-title')?.classList.add('hidden');
   document.getElementById('advanced-search-title')?.classList.add('hidden');
   document.getElementById('delay-tabs')?.classList.add('hidden');
+  document.getElementById('delay-search-bar')?.classList.add('hidden');
+  document.getElementById('delay-advanced-filter')?.classList.add('hidden');
 }
 function formatExcelDate(serial) {
   if (!serial || isNaN(serial)) return '';
