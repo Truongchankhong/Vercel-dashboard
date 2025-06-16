@@ -14,16 +14,26 @@ export default async function handler(req, res) {
     const machineMap = {};
 
     data.forEach(row => {
-      const machine = (row[machineKey] || '').toString().trim();
-      const qty = Number(row[qtyKey]?.toString().replace(/,/g, '')) || 0;
-      if (!machine) return;
-      machineMap[machine] = (machineMap[machine] || 0) + qty;
-    });
+    const machine = (row[machineKey] || '').toString().trim();
+    const qty = Number(row[qtyKey]?.toString().replace(/,/g, '')) || 0;
+    const sheet = Number(row[sheetKey]?.toString().replace(/,/g, '')) || 0;
+    if (!machine) return;
 
-    const result = Object.entries(machineMap).map(([machine, total]) => ({
+    if (!machineMap[machine]) {
+      machineMap[machine] = { total: 0, dlpu: 0 };
+    }
+
+  machineMap[machine].total += qty;
+  machineMap[machine].dlpu += sheet;
+});
+
+
+    const result = Object.entries(machineMap).map(([machine, { total, dlpu }]) => ({
       machine,
       total,
+      dlpu
     }));
+
 
     res.setHeader('Cache-Control', 'no-store');
     res.status(200).json(result);
