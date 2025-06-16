@@ -342,7 +342,7 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
     const [headers, ...rows] = data;
 
     const selectedColumns = [
-      'PRO ODER', 'Brand Code', '#MOLD', 'Total Qty', 'STATUS', 'PU', 'FB DESCRIPTION',
+      'PRO ODER', 'Brand Code', '#MOLD', 'Total Qty', 'STATUS', 'PU', 'FB', 'FB DESCRIPTION',
       'LAMINATION MACHINE (PLAN)', 'LAMINATION MACHINE (REALTIME)', 'Check'
     ];
     const selectedIndexes = selectedColumns.map(col => headers.indexOf(col));
@@ -386,15 +386,20 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
     const percentVerify = ((trueCount / details.length) * 100).toFixed(1);
 
     const colorPalette = ['#fef08a', '#a7f3d0', '#fca5a5', '#c4b5fd', '#f9a8d4', '#fde68a', '#bfdbfe', '#6ee7b7'];
-    const puGroups = [...new Set(details.map(d => d['PU']))];
-    const puColorMap = {};
-    puGroups.forEach((pu, idx) => {
-      puColorMap[pu] = colorPalette[idx % colorPalette.length];
+    
+
+    const groupKeys = [...new Set(details.map(d => `${d['PU']}_${d['FB']}`))];
+    const puFbColorMap = {};
+    groupKeys.forEach((key, idx) => {
+      puFbColorMap[key] = colorPalette[idx % colorPalette.length];
     });
+
 
     let tbodyHTML = '';
     details.forEach(d => {
-      const bgColor = puColorMap[d['PU']] || '';
+      const groupKey = `${d['PU']}_${d['FB']}`;
+      const bgColor = puFbColorMap[groupKey] || '';
+
       tbodyHTML += `<tr style="background-color:${bgColor}">`;
       tbodyHTML += `<td class="border px-2 py-1">${d.STT}</td>`;
       selectedColumns.forEach(key => {
