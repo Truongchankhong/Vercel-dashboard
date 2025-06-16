@@ -19,7 +19,7 @@ const progressBtnClear  = document.getElementById('progressBtnClear');
 const headerDisplayMap = {
   'PRO ODER': 'Order Code',
   'Brand Code': 'Brand',
-  '#MOLD': 'Lo'
+  '#MOLD': 'Loại hàng',
   'Total Qty': 'PO Quantity (Pairs)',
   'STATUS': 'Status-Trạng thái đơn',
   'PU': 'Mã PU',
@@ -373,7 +373,7 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
 
     // Sắp xếp
     details.sort((a, b) => {
-      const keys = ['PU', 'Brand Code', 'PRO ODER'];
+      const keys = ['PU', 'FB', 'PRO ODER'];
       for (let k of keys) {
         const va = (a[k] || '').toString().toUpperCase();
         const vb = (b[k] || '').toString().toUpperCase();
@@ -382,6 +382,7 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
       }
       return 0;
     });
+
     details.forEach((d, i) => d.STT = i + 1);
 
     const trueCount = details.filter(d => d['Check'] === 'True' || d['Check'] === true).length;
