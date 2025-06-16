@@ -8,6 +8,17 @@ const btnRaw           = document.getElementById('btn-raw');
 const btnSummary       = document.getElementById('btn-summary');
 const btnProgress      = document.getElementById('btn-progress');
 const btnRefresh       = document.getElementById('btn-refresh');
+const btnDelayUrgent = document.getElementById('btn-delay-urgent');      // nút đỏ chuyển view
+const btnDelayTab = document.getElementById('btn-delay-tab');      // nút tab "Delay"
+const btnUrgentTab = document.getElementById('btn-urgent-tab');    // nút tab "Xuất gấp"
+const delayTabs      = document.getElementById('delay-tabs');
+
+const delaySearchBox = document.getElementById('delaySearchBox');
+const delayColumnSelect = document.getElementById('delayColumnSelect');
+const delayBtnSearch = document.getElementById('delayBtnSearch');
+const delayBtnClear = document.getElementById('delayBtnClear');
+const delaySearchBar = document.getElementById('delay-search-bar');
+const delayAdvancedFilter = document.getElementById('delay-advanced-filter');
 
 // Elements cho Progress View
 const progressSearchBar = document.getElementById('progress-search-bar');
@@ -239,11 +250,11 @@ async function searchProgress() {
 
     // Lọc dữ liệu theo: chọn 1 cột + checkbox nâng cao
     const filtered = data.filter(row => {
-      let matchBasic = true;
-      if (keyword && selectedField) {
-        const val = (row[selectedField] || '').toString().toLowerCase();
-        matchBasic = val.includes(keyword);
-      }
+      const val = (row['Delay/Urgent'] || '').toUpperCase();
+
+      let matchBasic = false;
+      if (type === 'DELAY') matchBasic = val === 'PRODUCTION DELAY';
+      if (type === 'URGENT') matchBasic = val === 'URGENT';
 
       const matchAdvanced = Object.entries(filters).every(([key, val]) => {
         const v = (row[key] || '').toString().toLowerCase();
@@ -252,6 +263,7 @@ async function searchProgress() {
 
       return matchBasic && matchAdvanced;
     });
+
 
     if (filtered.length === 0) {
       container.innerHTML = `<div class="text-center py-4 text-red-500">Không tìm thấy dữ liệu khớp.</div>`;
@@ -506,8 +518,66 @@ btnRefresh.addEventListener('click', () => {
 btnSummary.addEventListener('click', loadSummary);
 btnProgress.addEventListener('click', loadProgress);
 
+btnDelayUrgent.addEventListener('click', () => {
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
+  loadDelayUrgentData('DELAY'); // Mặc định là Delay
+
+  // Mặc định highlight nút Delay khi mở
+  btnDelayTab.classList.add('bg-yellow-400', 'text-white');
+  btnDelayTab.classList.remove('bg-gray-300', 'text-black');
+  btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
+  btnUrgentTab.classList.add('bg-gray-300', 'text-black');
+});
+
+
+btnDelayTab.addEventListener('click', () => {
+  loadDelayUrgentData('DELAY');
+// === STEP 5: Bind button tìm kiếm Delay-Urgent ===
+delayBtnSearch.addEventListener('click', () => loadDelayUrgentData('DELAY'));
+
+delayBtnClear.addEventListener('click', () => {
+  delaySearchBox.value = '';
+  document.querySelectorAll('.delay-input').forEach(i => i.value = '');
+  document.querySelectorAll('.delay-check').forEach(c => c.checked = false);
+  loadDelayUrgentData('DELAY');
+});
+
+  // Highlight nút Delay
+  btnDelayTab.classList.add('bg-yellow-400', 'text-white');
+  btnDelayTab.classList.remove('bg-gray-300', 'text-black');
+
+  // Bỏ highlight nút Xuất gấp
+  btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
+  btnUrgentTab.classList.add('bg-gray-300', 'text-black');
+});
+
+
+btnUrgentTab.addEventListener('click', () => {
+  loadDelayUrgentData('URGENT');
+
+  // Highlight nút Xuất gấp
+  btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
+  btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
+
+  // Bỏ highlight nút Delay
+  btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
+  btnDelayTab.classList.add('bg-gray-300', 'text-black');
+});
+
+
+
 progressBtnSearch.addEventListener('click', searchProgress);
 progressBtnClear.addEventListener('click', clearProgressSearch);
+// ✅ STEP 5: Bind button tìm kiếm Delay-Urgent
+delayBtnSearch.addEventListener('click', () => loadDelayUrgentData('DELAY'));
+
+delayBtnClear.addEventListener('click', () => {
+  delaySearchBox.value = '';
+  document.querySelectorAll('.delay-input').forEach(i => i.value = '');
+  document.querySelectorAll('.delay-check').forEach(c => c.checked = false);
+  loadDelayUrgentData('DELAY');
+});
 
 // Biến toàn cục
 let selectedSection = 'LAMINATION';
@@ -518,7 +588,7 @@ const sectionButtons = [
 // Hàm vẽ nút
 function renderSectionButtons() {
   const sectionBar = document.getElementById('section-bar');
-  sectionBar.innerHTML = '';
+  document.getElementById('section-bar').innerHTML = '';
   sectionButtons.forEach(({ id, label, value }) => {
     const btn = document.createElement('button');
     btn.id = id;
@@ -653,10 +723,254 @@ btnRefresh.addEventListener('click', () => window.location.reload());
 
 progressBtnSearch.addEventListener('click', searchProgress);
 progressBtnClear.addEventListener('click', clearProgressSearch);
+// ✅ STEP 5: Bind button tìm kiếm Delay-Urgent
+delayBtnSearch.addEventListener('click', () => loadDelayUrgentData('DELAY'));
+
+delayBtnClear.addEventListener('click', () => {
+  delaySearchBox.value = '';
+  document.querySelectorAll('.delay-input').forEach(i => i.value = '');
+  document.querySelectorAll('.delay-check').forEach(c => c.checked = false);
+  loadDelayUrgentData('DELAY');
+});
 
 // ✅ Gọi khi load trang xong
 window.addEventListener('DOMContentLoaded', () => {
   loadSummary();
+
+  btnSummary.addEventListener('click', loadSummary);
+  btnProgress.addEventListener('click', loadProgress);
+  btnRefresh.addEventListener('click', () => window.location.reload());
+
+  btnDelayUrgent.addEventListener('click', () => {
+    hideAllViews();
+    delayTabs.classList.remove('hidden');
+    delaySearchBar.classList.remove('hidden');
+    delayAdvancedFilter.classList.remove('hidden');
+    loadDelayUrgentData('DELAY');
+
+    btnDelayTab.classList.add('bg-yellow-400', 'text-white');
+    btnDelayTab.classList.remove('bg-gray-300', 'text-black');
+    btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
+    btnUrgentTab.classList.add('bg-gray-300', 'text-black');
+  });
+
+  btnDelayTab.addEventListener('click', () => {
+    loadDelayUrgentData('DELAY');
+
+    btnDelayTab.classList.add('bg-yellow-400', 'text-white');
+    btnDelayTab.classList.remove('bg-gray-300', 'text-black');
+    btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
+    btnUrgentTab.classList.add('bg-gray-300', 'text-black');
+  });
+
+  btnUrgentTab.addEventListener('click', () => {
+    loadDelayUrgentData('URGENT');
+
+    btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
+    btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
+    btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
+    btnDelayTab.classList.add('bg-gray-300', 'text-black');
+  });
+
+  progressBtnSearch.addEventListener('click', searchProgress);
+  progressBtnClear.addEventListener('click', clearProgressSearch);
+
+  delayBtnSearch.addEventListener('click', () => loadDelayUrgentData('DELAY'));
+  delayBtnClear.addEventListener('click', () => {
+    delaySearchBox.value = '';
+    document.querySelectorAll('.delay-input').forEach(i => i.value = '');
+    document.querySelectorAll('.delay-check').forEach(c => c.checked = false);
+    loadDelayUrgentData('DELAY');
+  });
 });
 
+function hideAllViews() {
+  document.getElementById('section-bar').innerHTML = '';
+  document.getElementById('searchResult').innerHTML = '';
+  document.getElementById('table-container').innerHTML = '';
+  document.getElementById('details-container').classList.add('hidden');
+  document.getElementById('progress-search-bar').classList.add('hidden');
+  document.getElementById('progress-advanced-filter').classList.add('hidden');
+  document.getElementById('basic-search-title')?.classList.add('hidden');
+  document.getElementById('advanced-search-title')?.classList.add('hidden');
+  document.getElementById('delay-tabs')?.classList.add('hidden');
+}
+function formatExcelDate(serial) {
+  if (!serial || isNaN(serial)) return '';
+  const base = new Date(1899, 11, 30);
+  const date = new Date(base.getTime() + serial * 86400000);
+  return `${String(date.getDate()).padStart(2, '0')}/` +
+         `${String(date.getMonth() + 1).padStart(2, '0')}/` +
+         `${date.getFullYear()}`;
+}
 
+function loadDelayUrgentData(type) {
+  fetch('/powerapp.json')
+    .then(res => res.json())
+    .then(data => {
+
+      const keyword = delaySearchBox.value.trim().toLowerCase();
+      const selectedField = delayColumnSelect.value;
+
+      // Lọc theo điều kiện nâng cao
+      const inputs = document.querySelectorAll('.delay-input');
+      const checks = document.querySelectorAll('.delay-check');
+      const filters = {};
+      checks.forEach(chk => {
+        if (chk.checked) {
+          const key = chk.dataset.key;
+          const input = [...inputs].find(i => i.dataset.key === key);
+          if (input && input.value.trim()) filters[key] = input.value.trim().toLowerCase();
+        }
+      });
+
+      const filtered = data.filter(row => {
+        const delayVal = (row['Delay/Urgent'] || '').toUpperCase();
+        if ((type === 'DELAY' && delayVal !== 'PRODUCTION DELAY') || (type === 'URGENT' && delayVal !== 'URGENT')) return false;
+
+        const main = (row[selectedField] || '').toString().toLowerCase();
+        const matchBasic = !keyword || main.includes(keyword);
+
+        const matchAdvanced = Object.entries(filters).every(([k, v]) => {
+          return (row[k] || '').toString().toLowerCase().includes(v);
+        });
+
+        return matchBasic && matchAdvanced;
+      });
+
+      const headers = ['STT', 'PRO ODER', 'Brand Code', '#MOLDED', 'BOM', 'Total Qty', 'Finish date', 'PPC Confirm', 'STORED', 'STATUS'];
+
+      let html = `
+        <table class="min-w-full text-sm text-left border">
+          <thead class="bg-gray-200">
+            <tr>${headers.map(h => `<th class="px-2 py-1 border">${h}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${filtered.map((row, i) => {
+              const finishDate = row['Finish date'];
+              const ppcConfirm = row['PPC Confirm'];
+              const stored = row['STORED'];
+
+              return `
+                <tr>
+                  <td class="border px-2 py-1">${i + 1}</td>
+                  <td class="border px-2 py-1">${row['PRO ODER'] || ''}</td>
+                  <td class="border px-2 py-1">${row['Brand Code'] || ''}</td>
+                  <td class="border px-2 py-1">${row['#MOLDED'] || ''}</td>
+                  <td class="border px-2 py-1">${row['BOM'] || ''}</td>
+                  <td class="border px-2 py-1">${row['Total Qty'] || ''}</td>
+                  <td class="border px-2 py-1">${formatExcelDate(Number(finishDate))}</td>
+                  <td class="border px-2 py-1">${formatExcelDate(Number(ppcConfirm))}</td>
+                  <td class="border px-2 py-1">${formatExcelDate(Number(stored))}</td>
+                  <td class="border px-2 py-1">${row['STATUS'] || ''}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+
+      document.getElementById('table-container').innerHTML = html;
+    });
+}
+
+function hideDelayUrgentButtons() {
+  btnDelay.classList.add('hidden');
+  btnUrgent.classList.add('hidden');
+}
+// ==== Load Delay hoặc Urgent View ====
+function loadDelayUrgentView(type) {
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
+  delaySearchBar.classList.remove('hidden');
+  delayAdvancedFilter.classList.remove('hidden');
+  // Ẩn các phần khác
+
+    document.getElementById('progress-search-bar').classList.add('hidden');
+    document.getElementById('progress-advanced-filter').classList.add('hidden');
+    document.getElementById('section-bar').classList.add('hidden');
+    document.getElementById('details-container').classList.add('hidden');
+    document.getElementById('searchResult').innerHTML = '';
+    document.getElementById('table-container').innerHTML = '';
+
+
+  // Hiện bảng chính
+  const container = document.getElementById('table-container');
+  container.innerHTML = '';
+
+  // Đổi màu nút
+  document.getElementById('btn-delay').classList.remove('bg-red-500');
+  document.getElementById('btn-urgent').classList.remove('bg-red-500');
+  if (type === 'DELAY') {
+    document.getElementById('btn-delay').classList.add('bg-red-500');
+  } else {
+    document.getElementById('btn-urgent').classList.add('bg-red-500');
+  }
+
+  // Lọc dữ liệu
+  const table = document.createElement('table');
+  table.className = 'min-w-full table-auto border border-gray-300';
+  const thead = document.createElement('thead');
+  thead.innerHTML = `
+    <tr class="bg-gray-200 text-left">
+      <th class="border px-2 py-1">STT</th>
+      <th class="border px-2 py-1">PRO ODER</th>
+      <th class="border px-2 py-1">Brand Code</th>
+      <th class="border px-2 py-1">#MOLDED</th>
+      <th class="border px-2 py-1">BOM</th>
+      <th class="border px-2 py-1">Total Qty</th>
+      <th class="border px-2 py-1">Finish Date</th>
+      <th class="border px-2 py-1">PPC Confirm</th>
+      <th class="border px-2 py-1">STORED</th>
+      <th class="border px-2 py-1">STATUS</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  let filtered = jsonData.filter(row => (row['Delay/Urgent'] || '').toUpperCase() === type);
+
+  filtered.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="border px-2 py-1">${i + 1}</td>
+      <td class="border px-2 py-1">${row['PRO ODER'] || ''}</td>
+      <td class="border px-2 py-1">${row['Brand Code'] || ''}</td>
+      <td class="border px-2 py-1">${row['#MOLDED'] || ''}</td>
+      <td class="border px-2 py-1">${row['BOM'] || ''}</td>
+      <td class="border px-2 py-1">${row['Total Qty'] || ''}</td>
+      <td class="border px-2 py-1">${row['Finish date'] || ''}</td>
+      <td class="border px-2 py-1">${row['PPC Confirm'] || ''}</td>
+      <td class="border px-2 py-1">${row['STORED'] || ''}</td>
+      <td class="border px-2 py-1">${row['STATUS'] || ''}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+// Xử lý đổi màu khi chọn Delay hoặc Xuất gấp
+
+
+// Sự kiện nút Delay
+btnDelayTab.addEventListener('click', () => {
+  loadDelayUrgentData('DELAY');
+
+  btnDelayTab.classList.add('bg-yellow-400', 'text-white');
+  btnDelayTab.classList.remove('bg-gray-300', 'text-black');
+
+  btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
+  btnUrgentTab.classList.add('bg-gray-300', 'text-black');
+});
+
+// Sự kiện nút Xuất gấp
+btnUrgentTab.addEventListener('click', () => {
+  loadDelayUrgentData('URGENT');
+
+  btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
+  btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
+
+  btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
+  btnDelayTab.classList.add('bg-gray-300', 'text-black');
+});

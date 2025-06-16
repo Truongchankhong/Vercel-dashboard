@@ -7,8 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
-
-  <!-- ==== TÌM KIẾM CƠ BẢN (chỉ hiển thị ở Progress View) ==== -->
+<!-- ==== TÌM KIẾM CƠ BẢN (chỉ hiển thị ở Progress View) ==== -->
   <h2 id="basic-search-title" class="text-lg font-semibold mb-1 hidden">TÌM KIẾM ĐƠN GIẢN</h2>
   <div id="progress-search-bar" class="flex flex-col sm:flex-row sm:items-center gap-2 mb-3 hidden">
     <select id="progressColumnSelect" class="w-full border px-2 py-1 rounded">
@@ -65,43 +64,74 @@
       <input type="text" class="progress-input w-full border px-2 py-1 rounded" data-key="STATUS" />
     </div>
   </div>
-
-  <!-- ==== NÚT CHUYỂN VIEW ==== -->
+  <!-- Nút chuyển view -->
   <div class="flex items-center space-x-2 mb-4">
-    <button id="btn-summary" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-      Summary View
-    </button>
-    <button id="btn-progress" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">
-      Progress
-    </button>
-    <button id="btn-delay" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
-      Delay - Xuất gấp
-    </button>
-    <button id="btn-refresh" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">
-      Refresh
-    </button>
+    <button id="btn-summary" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Summary View</button>
+    <button id="btn-progress" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">Progress</button>
+    <button id="btn-delay-urgent" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">Delay - Xuất gấp</button>
+    <button id="btn-refresh" class="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600">Refresh</button>
     <span id="last-updated" class="ml-auto text-sm text-gray-600">Cập nhật: --:--:--</span>
   </div>
 
-  <!-- ==== TAB Delay / Xuất Gấp ==== -->
-  <div id="delay-tabs" class="hidden flex gap-2 mb-4">
-    <button id="btn-delay-tab" class="bg-gray-300 px-4 py-1 rounded">Delay</button>
-    <button id="btn-urgent-tab" class="bg-gray-300 px-4 py-1 rounded">Xuất gấp</button>
+  <!-- Tabs Delay/Xuất gấp -->
+  <div id="delay-tabs" class="hidden flex gap-2 mb-3">
+    <button id="btn-delay-tab" class="bg-gray-300 text-black px-4 py-2 rounded">Delay</button>
+    <button id="btn-urgent-tab" class="bg-gray-300 text-black px-4 py-2 rounded">Xuất gấp</button>
   </div>
 
-  <!-- ==== KHU VỰC CHỌN BỘ PHẬN ==== -->
+  <!-- Thanh tìm kiếm cơ bản Delay -->
+  <div id="delay-search-bar" class="hidden flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+    <select id="delayColumnSelect" class="w-full border px-2 py-1 rounded">
+      <option value="PRO ODER">PRO ODER</option>
+      <option value="Brand Code">Brand Code</option>
+      <option value="#MOLDED">#MOLDED</option>
+      <option value="BOM">BOM</option>
+      <option value="STATUS">STATUS</option>
+    </select>
+    <input id="delaySearchBox" type="text" placeholder="Nhập từ khóa..." class="w-full sm:w-1/3 border px-2 py-1 rounded">
+    <div class="flex gap-2">
+      <button id="delayBtnSearch" class="bg-blue-600 text-white px-4 py-1 rounded">Tìm</button>
+      <button id="delayBtnClear" class="bg-red-500 text-white px-4 py-1 rounded">Xóa</button>
+    </div>
+  </div>
+
+  <!-- Thanh tìm kiếm nâng cao Delay -->
+  <div id="delay-advanced-filter" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
+    <div>
+      <label><input type="checkbox" class="delay-check" data-key="PRO ODER" /> PRO ODER</label>
+      <input type="text" class="delay-input w-full border px-2 py-1 rounded" data-key="PRO ODER" />
+    </div>
+    <div>
+      <label><input type="checkbox" class="delay-check" data-key="Brand Code" /> Brand Code</label>
+      <input type="text" class="delay-input w-full border px-2 py-1 rounded" data-key="Brand Code" />
+    </div>
+    <div>
+      <label><input type="checkbox" class="delay-check" data-key="#MOLDED" /> #MOLDED</label>
+      <input type="text" class="delay-input w-full border px-2 py-1 rounded" data-key="#MOLDED" />
+    </div>
+    <div>
+      <label><input type="checkbox" class="delay-check" data-key="BOM" /> BOM</label>
+      <input type="text" class="delay-input w-full border px-2 py-1 rounded" data-key="BOM" />
+    </div>
+    <div>
+      <label><input type="checkbox" class="delay-check" data-key="STATUS" /> STATUS</label>
+      <input type="text" class="delay-input w-full border px-2 py-1 rounded" data-key="STATUS" />
+    </div>
+  </div>
+
+  <!-- Thanh chọn bộ phận (nếu có) -->
   <div id="section-bar" class="flex space-x-2 mb-4"></div>
 
-  <!-- ==== KẾT QUẢ TÌM KIẾM ==== -->
+  <!-- Kết quả tìm kiếm -->
   <div id="searchResult" class="mb-6"></div>
 
-  <!-- ==== BẢNG DỮ LIỆU CHÍNH ==== -->
+  <!-- Bảng dữ liệu chính -->
   <div id="table-container" class="bg-white shadow rounded overflow-x-auto mb-6"></div>
 
-  <!-- ==== BẢNG CHI TIẾT ==== -->
+  <!-- Bảng chi tiết -->
   <div id="details-container" class="bg-white shadow rounded overflow-x-auto hidden"></div>
 
-  <!-- ==== SCRIPT CHÍNH ==== -->
+  <!-- Script -->
   <script src="/script.js"></script>
 </body>
 </html>
