@@ -19,9 +19,11 @@ const progressBtnClear  = document.getElementById('progressBtnClear');
 const headerDisplayMap = {
   'PRO ODER': 'Order Code',
   'Brand Code': 'Brand',
+  '#MOLD': 'Lo'
   'Total Qty': 'PO Quantity (Pairs)',
   'STATUS': 'Status-Trạng thái đơn',
-  'PU': 'PU Type',
+  'PU': 'Mã PU',
+  'FB': 'Mã Vải',
   'FB DESCRIPTION': 'Tên Vải',
   'LAMINATION MACHINE (PLAN)': 'Plan Machine',
   'LAMINATION MACHINE (REALTIME)': 'Actual Machine',
