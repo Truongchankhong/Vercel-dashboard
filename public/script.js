@@ -544,14 +544,20 @@ async function renderSummarySection() {
     const keyword = `2.${selectedSection.toUpperCase()}`;
 
     const machines = {};
+    const sheets = {}; // Số tấm (DL PU)
+
     data.forEach(row => {
       const status = (row['STATUS'] || '').toUpperCase();
       const machine = row['LAMINATION MACHINE (PLAN)'];
       const qty = Number(row['Total Qty']) || 0;
+      const sheet = Number(row['DL PU']) || 0;
 
       if (status.includes(keyword) && machine) {
         if (!machines[machine]) machines[machine] = 0;
+        if (!sheets[machine]) sheets[machine] = 0;
+
         machines[machine] += qty;
+        sheets[machine] += sheet;
       }
     });
 
@@ -561,24 +567,30 @@ async function renderSummarySection() {
       return aNum - bNum;
     });
 
-    let totalAll = 0;
+    let totalAllQty = 0;
+    let totalAllSheets = 0;
     let html = `
       <table class="min-w-full divide-y divide-gray-200" id="summary-table">
         <thead class="bg-gray-50">
           <tr>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Machine</th>
             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantity Pair Plan</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Số Tấm (Sheet)</th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
     `;
 
     entries.forEach(([machine, total]) => {
-      totalAll += total;
+      const sheetTotal = sheets[machine] || 0;
+      totalAllQty += total;
+      totalAllSheets += sheetTotal;
+
       html += `
         <tr data-machine="${machine}" class="hover:bg-gray-100 cursor-pointer">
           <td class="px-6 py-4 text-sm text-gray-900">${machine}</td>
           <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(total)}</td>
+          <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(sheetTotal)}</td>
         </tr>
       `;
     });
@@ -586,7 +598,8 @@ async function renderSummarySection() {
     html += `
         <tr class="font-bold bg-gray-100">
           <td class="px-6 py-3 text-sm text-gray-700 text-right">Tổng cộng:</td>
-          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAll)}</td>
+          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAllQty)}</td>
+          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAllSheets)}</td>
         </tr>
         </tbody>
       </table>
@@ -594,7 +607,6 @@ async function renderSummarySection() {
 
     container.innerHTML = html;
 
-    // ✅ Gắn sự kiện click từng dòng
     document.querySelectorAll('tbody tr').forEach(tr => {
       const firstCell = tr.querySelector('td');
       const machineName = firstCell?.textContent?.trim();
@@ -602,7 +614,7 @@ async function renderSummarySection() {
         tr.classList.add('hover:bg-gray-100', 'cursor-pointer');
         tr.addEventListener('click', () => {
           currentMachine = machineName;
-          loadDetailsClient(machineName, true);  // ✅ gọi đúng
+          loadDetailsClient(machineName, true);
         });
       }
     });
@@ -614,6 +626,7 @@ async function renderSummarySection() {
     setBtnLoading(btnSummary, false);
   }
 }
+
 
 
 
