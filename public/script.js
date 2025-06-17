@@ -845,7 +845,7 @@ function loadDelayUrgentData(type) {
         return matchBasic && matchAdvanced;
       });
 
-      const headers = ['STT', 'PRO ODER', 'Brand Code', '#MOLDED', 'BOM', 'Total Qty', 'Finish date', 'PPC Confirm', 'STORED', 'STATUS'];
+      const headers = ['STT', 'PRO ODER', 'Brand Code', '#MOLDED', '#MOLD', 'BOM', 'Total Qty', 'Finish date', 'PPC Confirm', 'STORED', 'STATUS'];
 
       let html = `
         <table class="min-w-full text-sm text-left border">
