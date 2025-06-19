@@ -186,6 +186,13 @@ async function loadProgress() {
   hideAllViews();
   currentMachine = null;
   showProgressSearchBar();
+   // Hiện tiêu đề tìm kiếm cơ bản và nâng cao
+    document.getElementById('basic-search-title').classList.remove('hidden');
+    document.getElementById('advanced-search-title').classList.remove('hidden');
+
+   // Hiện thanh tìm kiếm cơ bản & nâng cao
+   showProgressSearchBar();
+   showProgressAdvancedFilter();
   // Ẩn các view khác:
   hideDetails();
   container.innerHTML = '';
@@ -889,6 +896,9 @@ function hideDelayUrgentButtons() {
 // ==== Load Delay hoặc Urgent View ====
 function loadDelayUrgentView(type) {
   hideAllViews();
+  // Hiện tiêu đề tìm kiếm cơ bản và nâng cao
+  document.getElementById('basic-search-title').classList.remove('hidden');
+  document.getElementById('advanced-search-title').classList.remove('hidden');
   delayTabs.classList.remove('hidden');
   delaySearchBar.classList.remove('hidden');
   delayAdvancedFilter.classList.remove('hidden');
