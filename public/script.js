@@ -26,6 +26,10 @@ const progressSearchBox = document.getElementById('progressSearchBox');
 const progressBtnSearch = document.getElementById('progressBtnSearch');
 const progressBtnClear  = document.getElementById('progressBtnClear');
 
+const delayErrorOnly = document.getElementById('delayErrorOnly');
+// Và biến lưu kiểu hiện tại của bảng Delay (DELAY hoặc URGENT):
+let currentDelayType = 'DELAY';
+
 // đổi tên cho dễ đọc
 const headerDisplayMap = {
   'PRO ODER': 'Order Code',
@@ -525,12 +529,10 @@ btnDelayUrgent.addEventListener('click', () => {
 
 // Sự kiện nút Delay
 btnDelayTab.addEventListener('click', () => {
+  currentDelayType = 'DELAY';
   hideAllViews();
   delayTabs.classList.remove('hidden');
-
-  // chung: hiển thị cả đơn giản + nâng cao
   showDelaySearchWidgets();
-
   loadDelayUrgentData('DELAY');
 
   // highlight nút
@@ -542,12 +544,10 @@ btnDelayTab.addEventListener('click', () => {
 
 // Sự kiện nút Xuất gấp
 btnUrgentTab.addEventListener('click', () => {
+  currentDelayType = 'URGENT';
   hideAllViews();
   delayTabs.classList.remove('hidden');
-
-  // chung: hiển thị cả đơn giản + nâng cao
   showDelaySearchWidgets();
-
   loadDelayUrgentData('URGENT');
 
   // highlight nút
@@ -571,7 +571,10 @@ delayBtnClear.addEventListener('click', () => {
   document.querySelectorAll('.delay-check').forEach(c => c.checked = false);
   loadDelayUrgentData('DELAY');
 });
-
+// **Chèn ngay đây** để khi check/uncheck “Chỉ lỗi” tự load lại
+delayErrorOnly.addEventListener('change', () => {
+  loadDelayUrgentData(currentDelayType);
+});
 // Biến toàn cục
 let selectedSection = 'LAMINATION';
 const sectionButtons = [
@@ -767,12 +770,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Sự kiện nút Delay
 btnDelayTab.addEventListener('click', () => {
+  currentDelayType = 'DELAY';
   hideAllViews();
   delayTabs.classList.remove('hidden');
-
-  // chung: hiển thị cả đơn giản + nâng cao
   showDelaySearchWidgets();
-
   loadDelayUrgentData('DELAY');
 
   // highlight nút
@@ -784,12 +785,10 @@ btnDelayTab.addEventListener('click', () => {
 
 // Sự kiện nút Xuất gấp
 btnUrgentTab.addEventListener('click', () => {
+  currentDelayType = 'URGENT';
   hideAllViews();
   delayTabs.classList.remove('hidden');
-
-  // chung: hiển thị cả đơn giản + nâng cao
   showDelaySearchWidgets();
-
   loadDelayUrgentData('URGENT');
 
   // highlight nút
@@ -878,27 +877,33 @@ function loadDelayUrgentData(type) {
             <tr>${headers.map(h => `<th class="px-2 py-1 border">${h}</th>`).join('')}</tr>
           </thead>
           <tbody>
-            ${filtered.map((row, i) => {
-              const finishDate = row['Finish date'];
-              const ppcConfirm = row['PPC Confirm'];
-              const stored = row['STORED'];
+      `;
+      html += filtered.map((row, i) => {
+        // Kiểm tra STATUS
+        const status = row['STATUS'] || '';
+        const highlight = (status !== '7.PACKING' && status !== '9.STORED') ? 'bg-red-100' : '';
 
-              return `
-                <tr>
-                  <td class="border px-2 py-1">${i + 1}</td>
-                  <td class="border px-2 py-1">${row['PRO ODER'] || ''}</td>
-                  <td class="border px-2 py-1">${row['Brand Code'] || ''}</td>
-                  <td class="border px-2 py-1">${row['#MOLDED'] || ''}</td>
-                  <td class="border px-2 py-1">${row['#MOLD']      || ''}</td>
-                  <td class="border px-2 py-1">${row['BOM'] || ''}</td>
-                  <td class="border px-2 py-1">${row['Total Qty'] || ''}</td>
-                  <td class="border px-2 py-1">${formatExcelDate(Number(finishDate))}</td>
-                  <td class="border px-2 py-1">${formatExcelDate(Number(ppcConfirm))}</td>
-                  <td class="border px-2 py-1">${formatExcelDate(Number(stored))}</td>
-                  <td class="border px-2 py-1">${row['STATUS'] || ''}</td>
-                </tr>
-              `;
-            }).join('')}
+        const finishDate = row['Finish date'];
+        const ppcConfirm = row['PPC Confirm'];
+        const stored     = row['STORED'];
+
+        return `
+          <tr class="${highlight}">
+            <td class="border px-2 py-1">${i + 1}</td>
+            <td class="border px-2 py-1">${row['PRO ODER'] || ''}</td>
+            <td class="border px-2 py-1">${row['Brand Code'] || ''}</td>
+            <td class="border px-2 py-1">${row['#MOLDED'] || ''}</td>
+            <td class="border px-2 py-1">${row['#MOLD'] || ''}</td>
+            <td class="border px-2 py-1">${row['BOM'] || ''}</td>
+            <td class="border px-2 py-1">${row['Total Qty'] || ''}</td>
+            <td class="border px-2 py-1">${formatExcelDate(Number(finishDate))}</td>
+            <td class="border px-2 py-1">${formatExcelDate(Number(ppcConfirm))}</td>
+            <td class="border px-2 py-1">${formatExcelDate(Number(stored))}</td>
+            <td class="border px-2 py-1">${status}</td>
+          </tr>
+        `;
+      }).join('');
+      html += `
           </tbody>
         </table>
       `;
@@ -995,9 +1000,10 @@ function loadDelayUrgentView(type) {
 
 // Sự kiện nút Delay
 btnDelayTab.addEventListener('click', () => {
+  currentDelayType = 'DELAY';
   hideAllViews();
   delayTabs.classList.remove('hidden');
-  showDelaySearchWidgets();      // ← gọi chung
+  showDelaySearchWidgets();
   loadDelayUrgentData('DELAY');
 
   // highlight nút Delay
@@ -1009,9 +1015,10 @@ btnDelayTab.addEventListener('click', () => {
 
 // Sự kiện nút Xuất gấp
 btnUrgentTab.addEventListener('click', () => {
+  currentDelayType = 'URGENT';
   hideAllViews();
   delayTabs.classList.remove('hidden');
-  showDelaySearchWidgets();      // ← gọi chung
+  showDelaySearchWidgets();
   loadDelayUrgentData('URGENT');
 
   // highlight nút Xuất gấp
