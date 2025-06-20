@@ -114,6 +114,12 @@ function hideProgressAdvancedFilter() {
 // --- SUMMARY VIEW (tổng hợp máy) ---
 // -----------------------------------
 async function loadSummary() {
+
+   hideAllViews();
+  selectedSection = 'LAMINATION';
+  renderSectionButtons();
+  await renderSummarySection();
+
   currentView = 'summary';
   currentMachine = null;
   setBtnLoading(btnSummary, true);
@@ -607,7 +613,7 @@ delayBtnClear.addEventListener('click', () => {
 let selectedSection = 'LAMINATION';
 const sectionButtons = [
   { id: 'btn-lamination', label: 'Lamination', value: 'LAMINATION' },
-+ { id: 'btn-leanline-dc', label: 'Leanline DC', value: 'LEANLINE_DC' },
+  { id: 'btn-leanline-dc', label: 'Leanline DC', value: 'LEANLINE_DC' },
   // … các section tiếp theo …
 ];
 
@@ -643,23 +649,21 @@ async function renderSummarySection() {
   if (sectionBarEl) sectionBarEl.innerHTML = '';
   renderSectionButtons();
 
-  try {
-    // Load dữ liệu
-    const res = await fetch('/powerapp.json', { cache: 'no-store' });
+   try {
+    const res  = await fetch('/powerapp.json', { cache: 'no-store' });
     const data = await res.json();
     const statusKey = `2.${selectedSection.toUpperCase()}`;
 
-    // Chọn cột plan và sheet (chỉ dùng sheet cho Lamination)
+    // chọn cột plan đúng: nếu Leanline DC -> "LEANLINE PLAN", ngược lại Lamination
     const planKey  = selectedSection === 'LEANLINE_DC'
       ? 'LEANLINE PLAN'
       : 'LAMINATION MACHINE (PLAN)';
-    const sheetKey = 'DL PU'; // luôn lấy về, nhưng chỉ hiển thị khi Lamination
+    const sheetKey = 'DL PU';
 
-    // Gom nhóm tổng Qty và tổng Sheet theo machine
     const machines = {}, sheets = {};
     data.forEach(row => {
       const status  = (row['STATUS'] || '').toUpperCase();
-      const machine = row[planKey];
+      const machine = row[planKey];             // ← đây phải là planKey
       const qty     = Number(row['Total Qty']) || 0;
       const sheet   = Number(row[sheetKey])    || 0;
 
@@ -763,13 +767,7 @@ async function renderSummarySection() {
 
 
 
-// ✅ Gọi đúng thứ tự
-function loadSummary() {
-  hideAllViews();
-  selectedSection = 'LAMINATION';
-  renderSectionButtons();
-  renderSummarySection();
-}
+
 
 // ==== Đăng ký sự kiện ====
 
