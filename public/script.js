@@ -593,26 +593,28 @@ delayBtnClear.addEventListener('click', () => {
 // Biến toàn cục
 let selectedSection = 'LAMINATION';
 const sectionButtons = [
-  { id: 'btn-lamination', label: 'Lamination', value: 'LAMINATION' }
+  { id: 'btn-lamination', label: 'Lamination', value: 'LAMINATION' },
++ { id: 'btn-leanline-dc', label: 'Leanline DC', value: 'LEANLINE_DC' },
+  // … các section tiếp theo …
 ];
 
 // Hàm vẽ nút
 function renderSectionButtons() {
-  const sectionBar = document.getElementById('section-bar');
-  document.getElementById('section-bar').innerHTML = '';
-  sectionButtons.forEach(({ id, label, value }) => {
+  const bar = document.getElementById('section-bar');
+  bar.innerHTML = '';
+  sectionButtons.forEach(({id, label, value}) => {
     const btn = document.createElement('button');
     btn.id = id;
     btn.textContent = label;
     btn.className = `px-4 py-1 rounded font-medium text-white ${
-      selectedSection === value ? 'bg-green-600' : 'bg-gray-400'
+      selectedSection===value ? 'bg-green-600' : 'bg-gray-400'
     }`;
     btn.onclick = () => {
       selectedSection = value;
       renderSectionButtons();
       renderSummarySection();
     };
-    sectionBar.appendChild(btn);
+    bar.appendChild(btn);
   });
 }
 
