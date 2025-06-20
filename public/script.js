@@ -365,8 +365,12 @@ function shouldDisplayRow(d, isInitial) {
 
   // Nếu chọn cột cụ thể và có từ khóa → lọc theo từ khóa
   return (d[selectedField] || '').toString().toUpperCase().includes(keyword);
-}
-async function loadDetailsClient(machine, isInitial = false, rememberedField = 'ALL', rememberedKeyword = '') {
+}async function loadDetailsClient(
+  machine,
+  isInitial = false,
+  rememberedField = 'ALL',
+  rememberedKeyword = ''
+) {
   currentView = 'detail';
   currentMachine = machine;
 
@@ -374,17 +378,12 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
   detailsContainer.innerHTML = '<div class="text-center py-4">Loading chi tiết…</div>';
 
   try {
-    // 1. Lấy dữ liệu
-    const res = await fetch(`/api/details?machine=${encodeURIComponent(machine)}`);
+    // 1) Lấy nguyên cả JSON
+    const res  = await fetch('/powerapp.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) {
-      detailsContainer.innerHTML = `<div class="text-center py-4">Không có dữ liệu cho máy ${machine}</div>`;
-      return;
-    }
 
-    const [headers, ...rows] = data;
-
-    // 2. Xác định cột Plan/Actual dựa vào section
+    // 2) Xác định cột Plan / Actual
     const planCol     = selectedSection === 'LEANLINE_DC'
       ? 'LEANLINE PLAN'
       : 'LAMINATION MACHINE (PLAN)';
@@ -392,87 +391,77 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
       ? 'LEANLINE (REALTIME)'
       : 'LAMINATION MACHINE (REALTIME)';
 
-    // 3. Chọn các cột cần hiển thị
-    const selectedColumns = [
-      'PRO ODER',
-      'Brand Code',
-      '#MOLD',
-      'Total Qty',
-      'STATUS',
-      'PU',
-      'FB',
-      'FB DESCRIPTION',
-      planCol,
-      realtimeCol,
-      'Check'
-    ];
-    // Tìm index trong header gốc
-    const selectedIndexes = selectedColumns.map(col => headers.indexOf(col));
+    // 3) Xác định statusKeys
+    const statusKeys = selectedSection === 'LEANLINE_DC'
+      ? ['5.LEAN LINE DC', '6.IN LEAN LINE DC']
+      : [`2.${selectedSection.toUpperCase()}`];
 
-    // 4. Chuyển rows thành objects và lọc
-    const details = rows
-      .map(row => {
-        const obj = {};
-        selectedColumns.forEach((key, j) => {
-          obj[key] = row[selectedIndexes[j]] ?? '';
-        });
-        return obj;
-      })
-      .filter(d => {
-        if (isInitial) {
-          return (d['STATUS'] || '').toUpperCase() === `2.${selectedSection.toUpperCase()}`;
-        }
-        if (rememberedField === 'ALL' || !rememberedKeyword.trim()) {
-          return true;
-        }
-        return ('' + d[rememberedField]).toUpperCase().includes(rememberedKeyword.trim().toUpperCase());
-      });
-
-    // 5. Sắp xếp & đánh STT
-    details.sort((a, b) => {
-      for (let k of ['PU', 'FB', 'PRO ODER']) {
-        const va = (a[k] || '').toString().toUpperCase();
-        const vb = (b[k] || '').toString().toUpperCase();
-        if (va < vb) return -1;
-        if (va > vb) return 1;
-      }
-      return 0;
+    // 4) Lọc data theo máy và status
+    const rows = data.filter(row => {
+      const rowMachine = row[planCol];
+      const rowStatus  = (row['STATUS'] || '').toUpperCase();
+      return rowMachine === machine && statusKeys.includes(rowStatus);
     });
-    details.forEach((d, i) => d.STT = i + 1);
 
-    // 6. Tính % verify
-    const trueCount = details.filter(d => d['Check'] === true || d['Check'] === 'True').length;
+    if (rows.length === 0) {
+      detailsContainer.innerHTML = `<div class="text-center py-4">
+        Không có dữ liệu cho máy ${machine}
+      </div>`;
+      return;
+    }
+
+    // 5) Chọn các cột cần hiển thị
+    const selectedColumns = [
+      'PRO ODER', 'Brand Code', '#MOLD', 'Total Qty',
+      'STATUS', 'PU', 'FB', 'FB DESCRIPTION',
+      planCol, realtimeCol, 'Check'
+    ];
+    // 6) Xây đối tượng từ rows
+    const details = rows.map((row, i) => {
+      const obj = { STT: i + 1 };
+      selectedColumns.forEach(col => {
+        obj[col] = row[col] ?? '';
+      });
+      return obj;
+    });
+
+    // 7) Tính % Verify
+    const trueCount = details.filter(d =>
+      d['Check'] === true || d['Check'] === 'True'
+    ).length;
     const percentVerify = ((trueCount / details.length) * 100).toFixed(1);
 
-    // 7. Xây dựng màu nhóm (giữ nguyên)
-    const colorPalette = ['#fef08a','#a7f3d0','#fca5a5','#c4b5fd','#f9a8d4','#fde68a','#bfdbfe','#6ee7b7'];
-    const groupKeys = [...new Set(details.map(d => `${d.PU}_${d.FB}`))];
-    const puFbColorMap = {};
-    groupKeys.forEach((key, idx) => {
-      puFbColorMap[key] = colorPalette[idx % colorPalette.length];
-    });
+    // 8) Gán màu theo nhóm PU+FB
+    const palette = ['#fef08a','#a7f3d0','#fca5a5','#c4b5fd','#f9a8d4','#fde68a','#bfdbfe','#6ee7b7'];
+    const groups = [...new Set(details.map(d => `${d.PU}_${d.FB}`))];
+    const colorMap = {};
+    groups.forEach((g, idx) => colorMap[g] = palette[idx % palette.length]);
 
-    // 8. Build tbody HTML
+    // 9) Build HTML cho bảng
+    const headerDisplayMapWithPlan = {
+      ...headerDisplayMap,
+      [planCol]: 'Plan Machine',
+      [realtimeCol]: 'Actual Machine'
+    };
+
     let tbodyHTML = '';
     details.forEach(d => {
-      const bg = puFbColorMap[`${d.PU}_${d.FB}`] || '';
+      const bg = colorMap[`${d.PU}_${d.FB}`] || '';
       tbodyHTML += `<tr style="background-color:${bg}"><td class="border px-2 py-1">${d.STT}</td>`;
-      selectedColumns.forEach(key => {
+      selectedColumns.forEach(col => {
         let cls = 'border px-2 py-1';
-        if (key === 'FB DESCRIPTION') cls += ' max-w-[180px] whitespace-normal break-words';
-        if (key === planCol || key === realtimeCol) cls += ' max-w-[150px] truncate';
-        tbodyHTML += `<td class="${cls}">${d[key]}</td>`;
+        if (col === 'FB DESCRIPTION') cls += ' max-w-[180px] break-words';
+        if (col === planCol || col === realtimeCol) cls += ' max-w-[150px] truncate';
+        tbodyHTML += `<td class="${cls}">${d[col]}</td>`;
       });
-      tbodyHTML += `</tr>`;
+      tbodyHTML += '</tr>';
     });
 
-    // 9. Build toàn bộ Detail HTML
-    const dropdownOptions = selectedColumns
+    const optionsHTML = selectedColumns
       .map(opt => {
         const sel = rememberedField === opt ? ' selected' : '';
-        return `<option value="${opt}"${sel}>${headerDisplayMap[opt]||opt}</option>`;
-      })
-      .join('');
+        return `<option value="${opt}"${sel}>${headerDisplayMapWithPlan[opt]||opt}</option>`;
+      }).join('');
 
     detailsContainer.innerHTML = `
       <div class="flex justify-between items-center mb-2">
@@ -485,7 +474,7 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
         <select id="detailsColumnSelect" class="col-span-3 border px-2 py-1 rounded">
           <option value="ALL"${rememberedField==='ALL'?' selected':''}>Tất cả (All)</option>
-          ${dropdownOptions}
+          ${optionsHTML}
         </select>
         <input id="detailsSearchInput" type="text" placeholder="Nhập từ khóa..."
           value="${rememberedKeyword}" class="border px-2 py-1 rounded col-span-2" />
@@ -495,27 +484,30 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
         </div>
       </div>
       <div class="overflow-auto max-h-[70vh] whitespace-nowrap">
-        <table id="detailsTable" class="min-w-full text-sm border border-gray-300 bg-white shadow">
-          <thead class="bg-gray-100 sticky top-0 z-10"><tr>
-            <th class="border px-2 py-1">STT</th>
-            ${selectedColumns.map(col=>{
-              const disp = headerDisplayMap[col]||col;
-              const extra = (col===planCol||col===realtimeCol)
-                ? ' max-w-[150px] truncate' : (col==='FB DESCRIPTION'
-                ? ' max-w-[180px] whitespace-normal break-words' : '');
-              return `<th class="border px-2 py-1${extra}">${disp}</th>`;
-            }).join('')}
-          </tr></thead>
+        <table class="min-w-full text-sm border border-gray-300 bg-white shadow">
+          <thead class="bg-gray-100 sticky top-0 z-10">
+            <tr>
+              <th class="border px-2 py-1">STT</th>
+              ${selectedColumns.map(col => {
+                const extra = (col===planCol||col===realtimeCol)
+                  ? ' max-w-[150px] truncate'
+                  : (col==='FB DESCRIPTION'
+                    ? ' max-w-[180px] break-words'
+                    : '');
+                return `<th class="border px-2 py-1${extra}">${headerDisplayMapWithPlan[col]||col}</th>`;
+              }).join('')}
+            </tr>
+          </thead>
           <tbody>${tbodyHTML}</tbody>
         </table>
       </div>
     `;
 
-    // 10. Gắn event cho tìm / xóa
+    // 10) Gắn event tìm / xóa
     document.getElementById('detailsSearchBtn')
       .addEventListener('click', () => {
-        const f = document.getElementById('detailsColumnSelect').value;
-        const kw= document.getElementById('detailsSearchInput').value.trim();
+        const f  = document.getElementById('detailsColumnSelect').value;
+        const kw = document.getElementById('detailsSearchInput').value.trim();
         loadDetailsClient(machine, false, f, kw);
       });
     document.getElementById('detailsClearBtn')
@@ -526,10 +518,12 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
 
   } catch (err) {
     console.error('DETAILS LOAD ERROR:', err);
-    detailsContainer.innerHTML =
-      `<div class="text-red-500 text-center py-4">Lỗi tải dữ liệu</div>`;
+    detailsContainer.innerHTML = `<div class="text-red-500 text-center py-4">Lỗi tải dữ liệu</div>`;
   }
 }
+
+
+
 
 
 
