@@ -318,15 +318,15 @@ function shouldDisplayRow(d, isInitial) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-   + // 2) Xác định cột Plan / Actual và cột Verify (luôn từ JSON["Check"])
- const planCol     = selectedSection === 'LEANLINE_DC'
-   ? 'LEANLINE PLAN'
-   : 'LAMINATION MACHINE (PLAN)';
-const realtimeCol = selectedSection === 'LEANLINE_DC'
-   ? 'LEANLINE (REALTIME)'
-   : 'LAMINATION MACHINE (REALTIME)';
- // Cột cuối luôn lấy từ JSON["Check"], và sẽ hiển thị thành Verify
- const verifyCol   = 'Check';
+    // 2) Xác định cột Plan / Actual và cột Verify (luôn từ JSON["Check"])
+    const planCol     = selectedSection === 'LEANLINE_DC'
+      ? 'LEANLINE PLAN'
+      : 'LAMINATION MACHINE (PLAN)';
+    const realtimeCol = selectedSection === 'LEANLINE_DC'
+      ? 'LEANLINE (REALTIME)'
+      : 'LAMINATION MACHINE (REALTIME)';
+    // Cột cuối luôn lấy từ JSON["Check"], và sẽ hiển thị thành Verify
+    const verifyCol   = 'Check';
 
     // 3) Xác định statusKeys
     const statusKeys = selectedSection === 'LEANLINE_DC'
@@ -347,7 +347,7 @@ const realtimeCol = selectedSection === 'LEANLINE_DC'
     const selectedColumns = [
       'PRO ODER', 'Brand Code', '#MOLD', 'Total Qty',
       'STATUS', 'PU', 'FB', 'FB DESCRIPTION',
-      planCol, realtimeCol, planCheck
+      planCol, realtimeCol, verifyCol
     ];
     // 6) Xây đối tượng từ rows
     const details = rows.map((row, i) => {
@@ -391,7 +391,8 @@ const filtered = details.filter(d => {
     const headerDisplayMapWithPlan = {
       ...headerDisplayMap,
       [planCol]: 'Plan Machine',
-      [realtimeCol]: 'Actual Machine'
+      [realtimeCol]: 'Actual Machine',
+      [verifyCol]:   'Verify'
     };
     
       let tbodyHTML = '';
@@ -497,7 +498,14 @@ btnProgress.addEventListener('click', loadProgress);
 btnDelayUrgent.addEventListener('click', () => {
   hideAllViews();
   delayTabs.classList.remove('hidden');
-  loadDelayUrgentData('DELAY'); // Mặc định là Delay
+    // Hiện tiêu đề & thanh tìm kiếm cơ bản + nâng cao
+  document.getElementById('delay-basic-search-title').classList.remove('hidden');
+  document.getElementById('delay-advanced-search-title').classList.remove('hidden');
+
+  delaySearchBar.classList.remove('hidden');
+  delayAdvancedFilter.classList.remove('hidden');
+  
+  loadDelayUrgentData('DELAY');
 
   // Mặc định highlight nút Delay khi mở
   btnDelayTab.classList.add('bg-yellow-400', 'text-white');
@@ -779,6 +787,8 @@ function hideAllViews() {
   document.getElementById('basic-search-title')?.classList.add('hidden');
   document.getElementById('advanced-search-title')?.classList.add('hidden');
   document.getElementById('delay-tabs')?.classList.add('hidden');
+  document.getElementById('delay-basic-search-title')?.classList.add('hidden');
+  document.getElementById('delay-advanced-search-title')?.classList.add('hidden');
   document.getElementById('delay-search-bar')?.classList.add('hidden');
   document.getElementById('delay-advanced-filter')?.classList.add('hidden');
 }
