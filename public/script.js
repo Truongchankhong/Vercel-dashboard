@@ -625,98 +625,127 @@ async function renderSummarySection() {
   hideProgressSearchBar();
   container.innerHTML = '';
 
+  // Vẽ lại Section buttons
   const sectionBarEl = document.getElementById('section-bar');
   if (sectionBarEl) sectionBarEl.innerHTML = '';
   renderSectionButtons();
 
   try {
+    // Load dữ liệu
     const res = await fetch('/powerapp.json', { cache: 'no-store' });
     const data = await res.json();
-    const keyword = `2.${selectedSection.toUpperCase()}`;
+    const statusKey = `2.${selectedSection.toUpperCase()}`;
 
-    const machines = {};
-    const sheets = {}; // Số tấm (DL PU)
+    // Chọn cột plan và sheet (chỉ dùng sheet cho Lamination)
+    const planKey  = selectedSection === 'LEANLINE_DC'
+      ? 'LEANLINE PLAN'
+      : 'LAMINATION MACHINE (PLAN)';
+    const sheetKey = 'DL PU'; // luôn lấy về, nhưng chỉ hiển thị khi Lamination
 
+    // Gom nhóm tổng Qty và tổng Sheet theo machine
+    const machines = {}, sheets = {};
     data.forEach(row => {
-      const status = (row['STATUS'] || '').toUpperCase();
-      const machine = row['LAMINATION MACHINE (PLAN)'];
-      const qty = Number(row['Total Qty']) || 0;
-      const sheet = Number(row['DL PU']) || 0;
+      const status  = (row['STATUS'] || '').toUpperCase();
+      const machine = row[planKey];
+      const qty     = Number(row['Total Qty']) || 0;
+      const sheet   = Number(row[sheetKey])    || 0;
 
-      if (status.includes(keyword) && machine) {
-        if (!machines[machine]) machines[machine] = 0;
-        if (!sheets[machine]) sheets[machine] = 0;
-
-        machines[machine] += qty;
-        sheets[machine] += sheet;
+      if (status.includes(statusKey) && machine) {
+        machines[machine] = (machines[machine] || 0) + qty;
+        sheets[machine]   = (sheets[machine]   || 0) + sheet;
       }
     });
 
+    // Chuyển thành mảng và sort theo số cuối trong tên machine
     const entries = Object.entries(machines).sort((a, b) => {
-      const aNum = parseInt((a[0].match(/\d+/) || ['0'])[0], 10);
-      const bNum = parseInt((b[0].match(/\d+/) || ['0'])[0], 10);
-      return aNum - bNum;
+      const na = parseInt((a[0].match(/\d+$/) || ['0'])[0], 10);
+      const nb = parseInt((b[0].match(/\d+$/) || ['0'])[0], 10);
+      return na - nb;
     });
 
-    let totalAllQty = 0;
-    let totalAllSheets = 0;
+    // Build header
     let html = `
       <table class="min-w-full divide-y divide-gray-200" id="summary-table">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Machine</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantity Pair Plan</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Số Tấm (Sheet)</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              Machine
+            </th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+              Quantity Pair Plan
+            </th>`;
+    if (selectedSection === 'LAMINATION') {
+      html += `
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+              Số Tấm (Sheet)
+            </th>`;
+    }
+    html += `
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
     `;
 
-    entries.forEach(([machine, total]) => {
+    // Rows và tổng
+    let totalQty = 0, totalSheets = 0;
+    entries.forEach(([machine, qty]) => {
       const sheetTotal = sheets[machine] || 0;
-      totalAllQty += total;
-      totalAllSheets += sheetTotal;
+      totalQty += qty;
+      totalSheets += sheetTotal;
 
       html += `
         <tr data-machine="${machine}" class="hover:bg-gray-100 cursor-pointer">
           <td class="px-6 py-4 text-sm text-gray-900">${machine}</td>
-          <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(total)}</td>
-          <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(sheetTotal)}</td>
+          <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(qty)}</td>`;
+      if (selectedSection === 'LAMINATION') {
+        html += `
+          <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(sheetTotal)}</td>`;
+      }
+      html += `
         </tr>
       `;
     });
 
+    // Hàng tổng cộng
     html += `
         <tr class="font-bold bg-gray-100">
           <td class="px-6 py-3 text-sm text-gray-700 text-right">Tổng cộng:</td>
-          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAllQty)}</td>
-          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAllSheets)}</td>
+          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalQty)}</td>`;
+    if (selectedSection === 'LAMINATION') {
+      html += `
+          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalSheets)}</td>`;
+    }
+    html += `
         </tr>
-        </tbody>
+      </tbody>
       </table>
     `;
 
     container.innerHTML = html;
+    updateTimestamp();
 
-    document.querySelectorAll('tbody tr').forEach(tr => {
-      const firstCell = tr.querySelector('td');
-      const machineName = firstCell?.textContent?.trim();
-      if (machineName && machineName !== 'Tổng cộng:') {
-        tr.classList.add('hover:bg-gray-100', 'cursor-pointer');
+    // Bật sự kiện click để chuyển sang Detail
+    document
+      .querySelectorAll('#summary-table tbody tr[data-machine]')
+      .forEach(tr =>
         tr.addEventListener('click', () => {
-          currentMachine = machineName;
-          loadDetailsClient(machineName, true);
-        });
-      }
-    });
+          currentMachine = tr.dataset.machine;
+          loadDetailsClient(currentMachine, true);
+        })
+      );
 
   } catch (err) {
     console.error('[renderSummarySection error]', err);
-    container.innerHTML = `<div class="text-red-500 py-4">Lỗi tải dữ liệu section</div>`;
+    container.innerHTML = `
+      <div class="text-red-500 py-4">
+        Lỗi tải dữ liệu section
+      </div>
+    `;
   } finally {
     setBtnLoading(btnSummary, false);
   }
 }
+
 
 
 
