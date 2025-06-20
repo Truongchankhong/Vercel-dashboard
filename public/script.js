@@ -114,87 +114,22 @@ function hideProgressAdvancedFilter() {
 // --- SUMMARY VIEW (tổng hợp máy) ---
 // -----------------------------------
 async function loadSummary() {
+  hideAllViews();
 
-   hideAllViews();
+  // 1) thiết lập section mặc định là Lamination
   selectedSection = 'LAMINATION';
+
+  // 2) vẽ lại nút Lamination/Leanline
   renderSectionButtons();
+
+  // 3) vẽ bảng Section summary (có cột SỐ TẤM nếu là Lamination)
   await renderSummarySection();
 
+  // 4) đánh dấu view hiện tại
   currentView = 'summary';
   currentMachine = null;
-  setBtnLoading(btnSummary, true);
-
-  hideDetails();
-  hideProgressSearchBar();
-  searchResult.innerHTML = '';
-  container.innerHTML = '';
-
-  try {
-    const res = await fetch('/api/summary', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-
-    if (!Array.isArray(data) || data.length === 0) {
-      container.innerHTML = '<div class="text-center py-4">Không có dữ liệu summary</div>';
-      return;
-    }
-
-    // Phân nhóm có tên máy (non–blank) trước, rồi blank
-    const withMachine = data.filter(d => d.machine?.trim());
-    const withoutMachine = data.filter(d => !d.machine?.trim());
-    withMachine.sort((a, b) => {
-      const aNum = parseInt((a.machine.match(/\d+$/) || ['0'])[0], 10);
-      const bNum = parseInt((b.machine.match(/\d+$/) || ['0'])[0], 10);
-      return aNum - bNum;
-    });
-    const sorted = [...withMachine, ...withoutMachine];
-
-    let html = `
-      <table id="summary-table" class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Machine</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantity Pair Plan (Kế hoạch)</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-    `;
-    let totalAll = 0;
-    sorted.forEach(({ machine, total }) => {
-      totalAll += total;
-      html += `
-        <tr data-machine="${machine}" class="hover:bg-gray-100 cursor-pointer">
-          <td class="px-6 py-4 text-sm text-gray-900">${machine || '<blank>'}</td>
-          <td class="px-6 py-4 text-sm text-gray-900 text-right">${formatNumber(total)}</td>
-        </tr>
-      `;
-    });
-    html += `
-        <tr class="font-bold bg-gray-100">
-          <td class="px-6 py-3 text-sm text-gray-700 text-right">Tổng cộng:</td>
-          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAll)}</td>
-        </tr>
-        </tbody>
-      </table>
-    `;
-    container.innerHTML = html;
-
-    // Khi click vào một máy sẽ load chi tiết (nếu muốn)
-    document.querySelectorAll('#summary-table tbody tr[data-machine]').forEach(tr => {
-      tr.addEventListener('click', () => {
-        const machine = tr.dataset.machine;
-        loadDetailsClient(machine);
-      });
-    });
-
-    updateTimestamp();
-  } catch (e) {
-    console.error('[ERROR] loadSummary failed:', e);
-    container.innerHTML = '<div class="text-center text-red-500 py-4">Lỗi tải dữ liệu summary</div>';
-  } finally {
-    setBtnLoading(btnSummary, false);
-  }
 }
+
 
 // -----------------------------------
 // --- PROGRESS VIEW (tiến trình RPRO) ---
@@ -630,8 +565,7 @@ function renderSectionButtons() {
     };
     bar.appendChild(btn);
   });
-}
-async function renderSummarySection() {
+}async function renderSummarySection() {
   setBtnLoading(btnSummary, true);
   hideDetails();
   hideProgressSearchBar();
@@ -643,11 +577,10 @@ async function renderSummarySection() {
   renderSectionButtons();
 
   try {
-    // 1) Fetch dữ liệu
     const res  = await fetch('/powerapp.json', { cache: 'no-store' });
     const data = await res.json();
 
-    // 2) Xác định bộ status keys
+    // 1) Xác định statusKeys
     let statusKeys;
     if (selectedSection === 'LEANLINE_DC') {
       statusKeys = ['5.LEAN LINE DC', '6.IN LEAN LINE DC'];
@@ -655,43 +588,59 @@ async function renderSummarySection() {
       statusKeys = [`2.${selectedSection.toUpperCase()}`];
     }
 
-    // 3) Chọn cột planKey
+    // 2) Chọn cột Plan Machine
     const planKey = selectedSection === 'LEANLINE_DC'
       ? 'LEANLINE PLAN'
       : 'LAMINATION MACHINE (PLAN)';
 
-    // 4) Gom nhóm theo máy
-    const machines = {};
+    // 3) Gom nhóm theo máy và tính tổng Qty + Sheet (DL PU)
+    const machines     = {};
+    const sheetCounts  = {};
     data.forEach(row => {
-      const status  = (row['STATUS']  || '').toUpperCase();
-      const machine = row[planKey];
-      const qty     = Number(row['Total Qty']) || 0;
+      const status   = (row['STATUS']     || '').toUpperCase();
+      const machine  = row[planKey];
+      const qty      = Number(row['Total Qty']) || 0;
+      const sheets   = Number(row['DL PU'])     || 0;
 
-      // Lọc theo nhiều statusKey và phải có machine
       if (statusKeys.includes(status) && machine) {
-        machines[machine] = (machines[machine] || 0) + qty;
+        machines[machine]    = (machines[machine]    || 0) + qty;
+        // chỉ cộng sheets khi Lamination
+        if (selectedSection === 'LAMINATION') {
+          sheetCounts[machine] = (sheetCounts[machine] || 0) + sheets;
+        }
       }
     });
 
-    // 5) Render bảng Summary
+    // 4) Build HTML bảng Summary
     let html = `
       <table class="min-w-full text-sm border border-gray-300 bg-white shadow">
         <thead class="bg-gray-100">
           <tr>
             <th class="px-6 py-3 text-left">MACHINE</th>
             <th class="px-6 py-3 text-right">QUANTITY PAIR PLAN</th>
+            ${selectedSection === 'LAMINATION'
+              ? `<th class="px-6 py-3 text-right">SỐ TẤM (SHEET)</th>`
+              : ''}
           </tr>
         </thead>
         <tbody>
     `;
-    let totalAll = 0;
+
+    let totalQty    = 0;
+    let totalSheets = 0;
     Object.keys(machines).sort().forEach(machine => {
-      const qty = machines[machine];
-      totalAll += qty;
+      const qty    = machines[machine];
+      const sh     = sheetCounts[machine] || 0;
+      totalQty    += qty;
+      totalSheets += sh;
+
       html += `
         <tr class="hover:bg-gray-50 cursor-pointer" data-machine="${machine}">
           <td class="px-6 py-3 text-sm text-gray-700">${machine}</td>
           <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(qty)}</td>
+          ${selectedSection === 'LAMINATION'
+            ? `<td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(sh)}</td>`
+            : ''}
         </tr>
       `;
     });
@@ -700,7 +649,10 @@ async function renderSummarySection() {
     html += `
         <tr class="font-bold bg-gray-100">
           <td class="px-6 py-3 text-sm text-gray-700 text-right">Tổng cộng:</td>
-          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAll)}</td>
+          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalQty)}</td>
+          ${selectedSection === 'LAMINATION'
+            ? `<td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalSheets)}</td>`
+            : ''}
         </tr>
       </tbody>
     </table>
@@ -708,20 +660,26 @@ async function renderSummarySection() {
 
     container.innerHTML = html;
 
-    // 6) Bắt sự kiện click từng dòng để show detail
+    // 5) Bắt event click để show detail
     container.querySelectorAll('tbody tr[data-machine]').forEach(row =>
       row.addEventListener('click', () => {
-        loadDetailsClient(row.dataset.machine, true);
+        const m = row.getAttribute('data-machine');
+        loadDetailsClient(m, true);
       })
     );
 
   } catch (err) {
     console.error('[renderSummarySection error]', err);
-    container.innerHTML = `<div class="text-red-500 py-4">Lỗi tải dữ liệu section</div>`;
+    container.innerHTML = `
+      <div class="text-red-500 py-4">
+        Lỗi tải dữ liệu section
+      </div>
+    `;
   } finally {
     setBtnLoading(btnSummary, false);
   }
 }
+
 
 
 
