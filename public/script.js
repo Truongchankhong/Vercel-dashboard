@@ -418,8 +418,9 @@ function shouldDisplayRow(d, isInitial) {
           <button id="detailsClearBtn" class="bg-gray-400 text-white px-4 py-1 rounded w-full">Xóa</button>
         </div>
       </div>
-      <div class="overflow-auto max-h-[70vh] whitespace-nowrap">
-        <table class="min-w-full text-sm border border-gray-300 bg-white shadow">
+      <div class="overflow-auto max-h-[70vh]">
+         <table id="detailsTable" class="min-w-full table-fixed text-sm border border-gray-300 bg-white shadow">
+
           <thead class="bg-gray-100 sticky top-0 z-10">
             <tr>
               <th class="border px-2 py-1">STT</th>
@@ -892,6 +893,7 @@ function loadDelayUrgentView(type) {
   thead.innerHTML = `
     <tr class="bg-gray-200 text-left">
       <th class="border px-2 py-1">STT</th>
+      <th class="border px-2 py-1 w-[180px]">Tên Vải</th>
       <th class="border px-2 py-1">PRO ODER</th>
       <th class="border px-2 py-1">Brand Code</th>
       <th class="border px-2 py-1">#MOLDED</th>
