@@ -523,44 +523,40 @@ btnDelayUrgent.addEventListener('click', () => {
 });
 
 
+// Sự kiện nút Delay
 btnDelayTab.addEventListener('click', () => {
-  loadDelayUrgentData('DELAY');
-// === STEP 5: Bind button tìm kiếm Delay-Urgent ===
-delayBtnSearch.addEventListener('click', () => loadDelayUrgentData('DELAY'));
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
 
-delayBtnClear.addEventListener('click', () => {
-  delaySearchBox.value = '';
-  document.querySelectorAll('.delay-input').forEach(i => i.value = '');
-  document.querySelectorAll('.delay-check').forEach(c => c.checked = false);
+  // chung: hiển thị cả đơn giản + nâng cao
+  showDelaySearchWidgets();
+
   loadDelayUrgentData('DELAY');
+
+  // highlight nút
+  btnDelayTab.classList.add('bg-yellow-400','text-white');
+  btnDelayTab.classList.remove('bg-gray-300','text-black');
+  btnUrgentTab.classList.remove('bg-yellow-400','text-white');
+  btnUrgentTab.classList.add('bg-gray-300','text-black');
 });
 
-  // Highlight nút Delay
-  btnDelayTab.classList.add('bg-yellow-400', 'text-white');
-  btnDelayTab.classList.remove('bg-gray-300', 'text-black');
-
-  // Bỏ highlight nút Xuất gấp
-  btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
-  btnUrgentTab.classList.add('bg-gray-300', 'text-black');
-});
-
-
+// Sự kiện nút Xuất gấp
 btnUrgentTab.addEventListener('click', () => {
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
+
+  // chung: hiển thị cả đơn giản + nâng cao
+  showDelaySearchWidgets();
+
   loadDelayUrgentData('URGENT');
 
-  // Hiện lại tab & 2 thanh tìm kiếm
-   delayTabs.classList.remove('hidden');
-   delaySearchBar.classList.remove('hidden');
-   delayAdvancedFilter.classList.remove('hidden');
-
-  // Highlight nút Xuất gấp
-  btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
-  btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
-
-  // Bỏ highlight nút Delay
-  btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
-  btnDelayTab.classList.add('bg-gray-300', 'text-black');
+  // highlight nút
+  btnUrgentTab.classList.add('bg-yellow-400','text-white');
+  btnUrgentTab.classList.remove('bg-gray-300','text-black');
+  btnDelayTab.classList.remove('bg-yellow-400','text-white');
+  btnDelayTab.classList.add('bg-gray-300','text-black');
 });
+
 
 
 
@@ -769,27 +765,40 @@ window.addEventListener('DOMContentLoaded', () => {
     btnUrgentTab.classList.add('bg-gray-300', 'text-black');
   });
 
-  btnDelayTab.addEventListener('click', () => {
-    loadDelayUrgentData('DELAY');
-        // Hiện tiêu đề tìm kiếm cơ bản & nâng cao cho Delay
-    document.getElementById('delay-basic-search-title').classList.remove('hidden');
-    document.getElementById('delay-advanced-search-title').classList.remove('hidden');
-    btnDelayTab.classList.add('bg-yellow-400', 'text-white');
-    btnDelayTab.classList.remove('bg-gray-300', 'text-black');
-    btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
-    btnUrgentTab.classList.add('bg-gray-300', 'text-black');
-  });
+  // Sự kiện nút Delay
+btnDelayTab.addEventListener('click', () => {
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
 
-  btnUrgentTab.addEventListener('click', () => {
-    loadDelayUrgentData('URGENT');
-    // Hiện tiêu đề tìm kiếm cơ bản & nâng cao cho Delay
-    document.getElementById('delay-basic-search-title').classList.remove('hidden');
-    document.getElementById('delay-advanced-search-title').classList.remove('hidden');
-    btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
-    btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
-    btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
-    btnDelayTab.classList.add('bg-gray-300', 'text-black');
-  });
+  // chung: hiển thị cả đơn giản + nâng cao
+  showDelaySearchWidgets();
+
+  loadDelayUrgentData('DELAY');
+
+  // highlight nút
+  btnDelayTab.classList.add('bg-yellow-400','text-white');
+  btnDelayTab.classList.remove('bg-gray-300','text-black');
+  btnUrgentTab.classList.remove('bg-yellow-400','text-white');
+  btnUrgentTab.classList.add('bg-gray-300','text-black');
+});
+
+// Sự kiện nút Xuất gấp
+btnUrgentTab.addEventListener('click', () => {
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
+
+  // chung: hiển thị cả đơn giản + nâng cao
+  showDelaySearchWidgets();
+
+  loadDelayUrgentData('URGENT');
+
+  // highlight nút
+  btnUrgentTab.classList.add('bg-yellow-400','text-white');
+  btnUrgentTab.classList.remove('bg-gray-300','text-black');
+  btnDelayTab.classList.remove('bg-yellow-400','text-white');
+  btnDelayTab.classList.add('bg-gray-300','text-black');
+});
+
 
   progressBtnSearch.addEventListener('click', searchProgress);
   progressBtnClear.addEventListener('click', clearProgressSearch);
