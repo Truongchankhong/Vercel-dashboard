@@ -8,7 +8,7 @@
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
 <!-- ==== TÌM KIẾM CƠ BẢN (chỉ hiển thị ở Progress View) ==== -->
-  <h2 id="basic-search-title" class="text-lg font-semibold mb-1 hidden">TÌM KIẾM ĐƠN GIẢN</h2>
+  <h2 id="basic-search-title" class="text-lg font-semibold mb-1 hidden">TÌM KIẾM ĐƠN GIẢN-BASIC SEARCH</h2>
   <div id="progress-search-bar" class="flex flex-col sm:flex-row sm:items-center gap-2 mb-3 hidden">
     <select id="progressColumnSelect" class="w-full border px-2 py-1 rounded">
       <option value="PRO ODER">PRO ORDER</option>
@@ -29,7 +29,7 @@
   </div>
 
   <!-- ==== TÌM KIẾM NÂNG CAO (chỉ hiển thị ở Progress View) ==== -->
-  <h2 id="advanced-search-title" class="text-lg font-semibold mb-1 hidden">TÌM KIẾM NÂNG CAO</h2>
+  <h2 id="advanced-search-title" class="text-lg font-semibold mb-1 hidden">TÌM KIẾM NÂNG CAO-ADVANCE SEARCH</h2>
   <div id="progress-advanced-filter" class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4 hidden">
     <div>
       <label><input type="checkbox" class="progress-check" data-key="PRO ODER" /> PRO ORDER</label>
@@ -80,41 +80,45 @@
   </div>
 
   <!-- Thanh tìm kiếm Delay -->
-  <h2 id="delay-basic-search-title" class="hidden font-semibold mb-1">TÌM KIẾM ĐƠN GIẢN</h2>
+  <h2 id="delay-basic-search-title" class="hidden font-semibold mb-1">TÌM KIẾM ĐƠN GIẢN-BASIC SEARCH</h2>
   <div id="delay-search-bar" class="hidden flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
     <select id="delayColumnSelect" class="border px-2 py-1 rounded">
       <option value="PRO ODER">PRO ODER</option>
-      <option value="Brand Code">Brand Code</option>
-      <option value="#MOLDED">#MOLDED</option>
+      <option value="Brand Code">KHÁCH HÀNG (CUSTOMER)</option>
+      <option value="#MOLDED">LOẠI HÀNG (TYPE)</option>
       <option value="BOM">BOM</option>
-      <option value="STATUS">STATUS</option>
+      <option value="STATUS">TRẠNG THÁI (STATUS)</option>
     </select>
     <input id="delaySearchBox" type="text" placeholder="Nhập từ khóa..." class="border px-2 py-1 rounded flex-1">
     <button id="delayBtnSearch" class="bg-blue-600 text-white px-4 py-1 rounded">Tìm</button>
     <button id="delayBtnClear" class="bg-gray-400 text-white px-4 py-1 rounded">Xóa</button>
   </div>
 
-  <h2 id="delay-advanced-search-title" class="hidden font-semibold mb-1">TÌM KIẾM NÂNG CAO</h2>
+  <h2 id="delay-advanced-search-title" class="hidden font-semibold mb-1">TÌM KIẾM NÂNG CAO-ADVANCE SEARCH</h2>
   <div id="delay-advanced-filter" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
     <div>
       <label><input type="checkbox" data-key="PRO ORDER" class="delay-check"> RPRO </label>
       <input data-key="PRO ORDER" class="delay-input w-full border px-2 py-1 rounded" placeholder="Nhập RPRO (Không cần đầy đủ)">
     </div>
     <div>
-      <label><input type="checkbox" data-key="Brand Code" class="delay-check"> Khách hàng </label>
+      <label><input type="checkbox" data-key="Brand Code" class="delay-check"> KHÁCH HÀNG (CUSTOMER) </label>
       <input data-key="Brand Code" class="delay-input w-full border px-2 py-1 rounded" placeholder="Nhập Khách hàng (Không cần đầy đủ)">
     </div>
     <div>
-      <label><input type="checkbox" data-key="#MOLDED" class="delay-check"> LOẠI HÀNG (#MOLDED)</label>
-      <input data-key="#MOLDED" class="delay-input w-full border px-2 py-1 rounded" placeholder="Nhập #MOLDED">
+      <label><input type="checkbox" data-key="#MOLD" class="delay-check"> MÃ KHUÔN (MOLD CODE)) </label>
+      <input data-key="#MOLD" class="delay-input w-full border px-2 py-1 rounded" placeholder="Nhập Mã khuôn (Không cần đầy đủ)">
+    </div>
+    <div>
+      <label><input type="checkbox" data-key="#MOLDED" class="delay-check"> LOẠI HÀNG (TYPE)</label>
+      <input data-key="#MOLDED" class="delay-input w-full border px-2 py-1 rounded" placeholder="Nhập loại hàng khuôn (Molded) hay DC">
     </div>
     <div>
       <label><input type="checkbox" data-key="BOM" class="delay-check"> BOM</label>
       <input data-key="BOM" class="delay-input w-full border px-2 py-1 rounded" placeholder="Nhập BOM">
     </div>
     <div>
-      <label><input type="checkbox" data-key="STATUS" class="delay-check"> STATUS</label>
-      <input data-key="STATUS" class="delay-input w-full border px-2 py-1 rounded" placeholder="Nhập STATUS">
+      <label><input type="checkbox" data-key="STATUS" class="delay-check"> TRẠNG THÁI (STATUS)</label>
+      <input data-key="STATUS" class="delay-input w-full border px-2 py-1 rounded" placeholder="Nhập trạng thái (STATUS)">
     </div>
     <!-- thêm các bộ lọc khác nếu cần -->
   </div>
