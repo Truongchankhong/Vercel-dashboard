@@ -835,42 +835,65 @@ function formatExcelDate(serial) {
          `${date.getFullYear()}`;
 }
 
+// Phải khai báo biến này ở đầu file, tương ứng với <input type="checkbox" id="delayErrorOnly" /> trong HTML
+const delayErrorOnly = document.getElementById('delayErrorOnly');
+
 function loadDelayUrgentData(type) {
   fetch('/powerapp.json')
     .then(res => res.json())
     .then(data => {
-
-      const keyword = delaySearchBox.value.trim().toLowerCase();
+      const keyword       = delaySearchBox.value.trim().toLowerCase();
       const selectedField = delayColumnSelect.value;
+      const errorOnly     = delayErrorOnly.checked;
 
       // Lọc theo điều kiện nâng cao
-      const inputs = document.querySelectorAll('.delay-input');
-      const checks = document.querySelectorAll('.delay-check');
+      const inputs  = document.querySelectorAll('.delay-input');
+      const checks  = document.querySelectorAll('.delay-check');
       const filters = {};
       checks.forEach(chk => {
         if (chk.checked) {
-          const key = chk.dataset.key;
+          const key   = chk.dataset.key;
           const input = [...inputs].find(i => i.dataset.key === key);
-          if (input && input.value.trim()) filters[key] = input.value.trim().toLowerCase();
+          if (input && input.value.trim()) {
+            filters[key] = input.value.trim().toLowerCase();
+          }
         }
       });
 
-      const filtered = data.filter(row => {
+      // Lọc chính
+      let filtered = data.filter(row => {
         const delayVal = (row['Delay/Urgent'] || '').toUpperCase();
-        if ((type === 'DELAY' && delayVal !== 'PRODUCTION DELAY') || (type === 'URGENT' && delayVal !== 'URGENT')) return false;
+        // Chọn DELAY hay URGENT
+        if ((type === 'DELAY'  && delayVal !== 'PRODUCTION DELAY') ||
+            (type === 'URGENT' && delayVal !== 'URGENT')) {
+          return false;
+        }
 
+        // Basic search
         const main = (row[selectedField] || '').toString().toLowerCase();
-        const matchBasic = !keyword || main.includes(keyword);
+        if (keyword && !main.includes(keyword)) return false;
 
-        const matchAdvanced = Object.entries(filters).every(([k, v]) => {
-          return (row[k] || '').toString().toLowerCase().includes(v);
-        });
+        // Advanced filters
+        for (let [k, v] of Object.entries(filters)) {
+          if (!(row[k] || '').toString().toLowerCase().includes(v)) {
+            return false;
+          }
+        }
 
-        return matchBasic && matchAdvanced;
+        // Nếu check “Chỉ lỗi” thì chỉ lấy status ≠ 7.PACKING & ≠ 9.STORED
+        if (errorOnly) {
+          const st = (row['STATUS'] || '').toUpperCase();
+          if (st === '7.PACKING' || st === '9.STORED') return false;
+        }
+
+        return true;
       });
 
-      const headers = ['STT', 'PRO ODER', 'Brand Code', 'Loại hàng', 'Mã khuôn', 'BOM', 'Total Qty', 'Finish date', 'PPC Confirm', 'STORED', 'STATUS'];
-
+      // Tạo table
+      const headers = [
+        'STT','PRO ODER','Brand Code','Loại hàng','Mã khuôn',
+        'BOM','Total Qty','Finish date','PPC Confirm','STORED','STATUS'
+      ];
       let html = `
         <table class="min-w-full text-sm text-left border">
           <thead class="bg-gray-200">
@@ -879,26 +902,24 @@ function loadDelayUrgentData(type) {
           <tbody>
       `;
       html += filtered.map((row, i) => {
-        // Kiểm tra STATUS
-        const status = row['STATUS'] || '';
-        const highlight = (status !== '7.PACKING' && status !== '9.STORED') ? 'bg-red-100' : '';
-
-        const finishDate = row['Finish date'];
-        const ppcConfirm = row['PPC Confirm'];
-        const stored     = row['STORED'];
+        const status    = row['STATUS'] || '';
+        // Nếu không ở chế độ errorOnly mà status lỗi → tô đỏ
+        const highlight = (!errorOnly && status !== '7.PACKING' && status !== '9.STORED')
+                          ? 'bg-red-100'
+                          : '';
 
         return `
           <tr class="${highlight}">
-            <td class="border px-2 py-1">${i + 1}</td>
-            <td class="border px-2 py-1">${row['PRO ODER'] || ''}</td>
-            <td class="border px-2 py-1">${row['Brand Code'] || ''}</td>
-            <td class="border px-2 py-1">${row['#MOLDED'] || ''}</td>
-            <td class="border px-2 py-1">${row['#MOLD'] || ''}</td>
-            <td class="border px-2 py-1">${row['BOM'] || ''}</td>
-            <td class="border px-2 py-1">${row['Total Qty'] || ''}</td>
-            <td class="border px-2 py-1">${formatExcelDate(Number(finishDate))}</td>
-            <td class="border px-2 py-1">${formatExcelDate(Number(ppcConfirm))}</td>
-            <td class="border px-2 py-1">${formatExcelDate(Number(stored))}</td>
+            <td class="border px-2 py-1">${i+1}</td>
+            <td class="border px-2 py-1">${row['PRO ODER']    || ''}</td>
+            <td class="border px-2 py-1">${row['Brand Code']  || ''}</td>
+            <td class="border px-2 py-1">${row['#MOLDED']      || ''}</td>
+            <td class="border px-2 py-1">${row['#MOLD']        || ''}</td>
+            <td class="border px-2 py-1">${row['BOM']          || ''}</td>
+            <td class="border px-2 py-1">${row['Total Qty']   || ''}</td>
+            <td class="border px-2 py-1">${formatExcelDate(Number(row['Finish date']))}</td>
+            <td class="border px-2 py-1">${formatExcelDate(Number(row['PPC Confirm']))}</td>
+            <td class="border px-2 py-1">${formatExcelDate(Number(row['STORED']))}</td>
             <td class="border px-2 py-1">${status}</td>
           </tr>
         `;
@@ -909,8 +930,21 @@ function loadDelayUrgentData(type) {
       `;
 
       document.getElementById('table-container').innerHTML = html;
+    })
+    .catch(err => {
+      console.error('Lỗi loadDelayUrgentData:', err);
+      document.getElementById('table-container').innerHTML =
+        '<div class="text-red-500 p-4">Không tải được dữ liệu</div>';
     });
 }
+
+// Sau khi định nghĩa hàm, đừng quên gắn sự kiện để khi check/uncheck “Chỉ lỗi” lại load lại bảng:
+delayErrorOnly.addEventListener('change', () => {
+  // Giữ lại type hiện tại (DELAY hay URGENT), ví dụ bạn lưu ở biến global currentDelayType
+  loadDelayUrgentData(currentDelayType);
+});
+
+
 
 function hideDelayUrgentButtons() {
   btnDelay.classList.add('hidden');
