@@ -504,7 +504,7 @@ btnDelayUrgent.addEventListener('click', () => {
 
   delaySearchBar.classList.remove('hidden');
   delayAdvancedFilter.classList.remove('hidden');
-  
+
   loadDelayUrgentData('DELAY');
 
   // Mặc định highlight nút Delay khi mở
@@ -737,9 +737,18 @@ window.addEventListener('DOMContentLoaded', () => {
   btnDelayUrgent.addEventListener('click', () => {
     hideAllViews();
     delayTabs.classList.remove('hidden');
+
+    // Hiện tiêu đề tìm kiếm cơ bản & nâng cao cho Delay
+    document.getElementById('delay-basic-search-title').classList.remove('hidden');
+    document.getElementById('delay-advanced-search-title').classList.remove('hidden');
+
     delaySearchBar.classList.remove('hidden');
     delayAdvancedFilter.classList.remove('hidden');
     loadDelayUrgentData('DELAY');
+    
+   delayTabs.classList.remove('hidden');
+   delaySearchBar.classList.remove('hidden');
+   delayAdvancedFilter.classList.remove('hidden');
 
     btnDelayTab.classList.add('bg-yellow-400', 'text-white');
     btnDelayTab.classList.remove('bg-gray-300', 'text-black');
@@ -749,7 +758,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   btnDelayTab.addEventListener('click', () => {
     loadDelayUrgentData('DELAY');
-
+        // Hiện tiêu đề tìm kiếm cơ bản & nâng cao cho Delay
+    document.getElementById('delay-basic-search-title').classList.remove('hidden');
+    document.getElementById('delay-advanced-search-title').classList.remove('hidden');
     btnDelayTab.classList.add('bg-yellow-400', 'text-white');
     btnDelayTab.classList.remove('bg-gray-300', 'text-black');
     btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
@@ -758,7 +769,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   btnUrgentTab.addEventListener('click', () => {
     loadDelayUrgentData('URGENT');
-
+    // Hiện tiêu đề tìm kiếm cơ bản & nâng cao cho Delay
+    document.getElementById('delay-basic-search-title').classList.remove('hidden');
+    document.getElementById('delay-advanced-search-title').classList.remove('hidden');
     btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
     btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
     btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
