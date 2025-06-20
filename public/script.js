@@ -318,18 +318,15 @@ function shouldDisplayRow(d, isInitial) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    // 2) Xác định cột Plan / Actual
-    const planCol     = selectedSection === 'LEANLINE_DC'
-      ? 'LEANLINE PLAN':
-       'LAMINATION MACHINE (PLAN)';
-      
-    const realtimeCol = selectedSection === 'LEANLINE_DC'
-      ? 'LEANLINE (REALTIME)'
-      : 'LAMINATION MACHINE (REALTIME)';
-    
-      const planCheck     = selectedSection === 'LEANLINE_DC'
-      ? 'Check':
-       'CheckLL';
+   + // 2) Xác định cột Plan / Actual và cột Verify (luôn từ JSON["Check"])
+ const planCol     = selectedSection === 'LEANLINE_DC'
+   ? 'LEANLINE PLAN'
+   : 'LAMINATION MACHINE (PLAN)';
+const realtimeCol = selectedSection === 'LEANLINE_DC'
+   ? 'LEANLINE (REALTIME)'
+   : 'LAMINATION MACHINE (REALTIME)';
+ // Cột cuối luôn lấy từ JSON["Check"], và sẽ hiển thị thành Verify
+ const verifyCol   = 'Check';
 
     // 3) Xác định statusKeys
     const statusKeys = selectedSection === 'LEANLINE_DC'
@@ -337,11 +334,7 @@ function shouldDisplayRow(d, isInitial) {
       : [`2.${selectedSection.toUpperCase()}`];
 
     // 4) Lọc data theo máy và status
-    const rows = data.filter(row => {
-      const rowMachine = row[planCol];
-      const rowStatus  = (row['STATUS'] || '').toUpperCase();
-      return rowMachine === machine && statusKeys.includes(rowStatus);
-    });
+    const rows = data.filter(row => row[planCol] === machine);
 
     if (rows.length === 0) {
       detailsContainer.innerHTML = `<div class="text-center py-4">
@@ -364,6 +357,23 @@ function shouldDisplayRow(d, isInitial) {
       });
       return obj;
     });
+    // 6.1) Lọc “pending” vs show-all vs keyword
+const filtered = details.filter(d => {
+  // Lần đầu click: chỉ show các đơn pending (Actual Machine trống)
+  if (isInitial) {
+    return !(d[realtimeCol] || '').toString().trim();
+  }
+  // Sau khi bấm Tìm:
+  //  • Nếu chọn ALL hoặc không nhập keyword → show hết
+  if (rememberedField === 'ALL' || !rememberedKeyword.trim()) {
+    return true;
+  }
+  //  • Ngược lại: filter theo cột + keyword
+  return ('' + d[rememberedField])
+    .toUpperCase()
+    .includes(rememberedKeyword.trim().toUpperCase());
+});
+
 
     // 7) Tính % Verify
     const trueCount = details.filter(d =>
@@ -383,9 +393,9 @@ function shouldDisplayRow(d, isInitial) {
       [planCol]: 'Plan Machine',
       [realtimeCol]: 'Actual Machine'
     };
-
-    let tbodyHTML = '';
-    details.forEach(d => {
+    
+      let tbodyHTML = '';
+      filtered.forEach(d => {
       const bg = colorMap[`${d.PU}_${d.FB}`] || '';
       tbodyHTML += `<tr style="background-color:${bg}"><td class="border px-2 py-1">${d.STT}</td>`;
       selectedColumns.forEach(col => {
