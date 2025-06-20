@@ -42,6 +42,13 @@ const headerDisplayMap = {
   'LEANLINE (REALTIME)': 'Actual Machine',
   'Check': 'Verify'
 };
+function showDelaySearchWidgets() {
+  document.getElementById('delay-basic-search-title').classList.remove('hidden');
+  document.getElementById('delay-search-bar').classList.remove('hidden');
+  document.getElementById('delay-advanced-search-title').classList.remove('hidden');
+  document.getElementById('delay-advanced-filter').classList.remove('hidden');
+}
+
 // Track view hiện tại: 'summary' | 'raw' | 'progress' | 'detail'
 let currentView   = 'summary';
 let currentMachine = null;
@@ -515,44 +522,22 @@ btnDelayUrgent.addEventListener('click', () => {
 });
 
 
-btnDelayTab.addEventListener('click', () => {
+btnDelayTab.addEventListener('click', () => {btnDelayTab.addEventListener('click', () => {
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
+  showDelaySearchWidgets();
   loadDelayUrgentData('DELAY');
-// === STEP 5: Bind button tìm kiếm Delay-Urgent ===
-delayBtnSearch.addEventListener('click', () => loadDelayUrgentData('DELAY'));
-
-delayBtnClear.addEventListener('click', () => {
-  delaySearchBox.value = '';
-  document.querySelectorAll('.delay-input').forEach(i => i.value = '');
-  document.querySelectorAll('.delay-check').forEach(c => c.checked = false);
-  loadDelayUrgentData('DELAY');
+  // highlight nút…
 });
-
-  // Highlight nút Delay
-  btnDelayTab.classList.add('bg-yellow-400', 'text-white');
-  btnDelayTab.classList.remove('bg-gray-300', 'text-black');
-
-  // Bỏ highlight nút Xuất gấp
-  btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
-  btnUrgentTab.classList.add('bg-gray-300', 'text-black');
-});
-
 
 btnUrgentTab.addEventListener('click', () => {
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
+  showDelaySearchWidgets();
   loadDelayUrgentData('URGENT');
-
-  // Hiện lại tab & 2 thanh tìm kiếm
-   delayTabs.classList.remove('hidden');
-   delaySearchBar.classList.remove('hidden');
-   delayAdvancedFilter.classList.remove('hidden');
-
-  // Highlight nút Xuất gấp
-  btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
-  btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
-
-  // Bỏ highlight nút Delay
-  btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
-  btnDelayTab.classList.add('bg-gray-300', 'text-black');
+  // highlight nút…
 });
+
 
 
 
@@ -762,26 +747,21 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   btnDelayTab.addEventListener('click', () => {
-    loadDelayUrgentData('DELAY');
-        // Hiện tiêu đề tìm kiếm cơ bản & nâng cao cho Delay
-    document.getElementById('delay-basic-search-title').classList.remove('hidden');
-    document.getElementById('delay-advanced-search-title').classList.remove('hidden');
-    btnDelayTab.classList.add('bg-yellow-400', 'text-white');
-    btnDelayTab.classList.remove('bg-gray-300', 'text-black');
-    btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
-    btnUrgentTab.classList.add('bg-gray-300', 'text-black');
-  });
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
+  showDelaySearchWidgets();
+  loadDelayUrgentData('DELAY');
+  // highlight nút…
+});
 
-  btnUrgentTab.addEventListener('click', () => {
-    loadDelayUrgentData('URGENT');
-    // Hiện tiêu đề tìm kiếm cơ bản & nâng cao cho Delay
-    document.getElementById('delay-basic-search-title').classList.remove('hidden');
-    document.getElementById('delay-advanced-search-title').classList.remove('hidden');
-    btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
-    btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
-    btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
-    btnDelayTab.classList.add('bg-gray-300', 'text-black');
-  });
+btnUrgentTab.addEventListener('click', () => {
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
+  showDelaySearchWidgets();
+  loadDelayUrgentData('URGENT');
+  // highlight nút…
+});
+
 
   progressBtnSearch.addEventListener('click', searchProgress);
   progressBtnClear.addEventListener('click', clearProgressSearch);
@@ -974,26 +954,31 @@ function loadDelayUrgentView(type) {
   container.appendChild(table);
 }
 // Xử lý đổi màu khi chọn Delay hoặc Xuất gấp
-
-
-// Sự kiện nút Delay
+// Listener cho nút Delay
 btnDelayTab.addEventListener('click', () => {
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
+  showDelaySearchWidgets();
   loadDelayUrgentData('DELAY');
 
-  btnDelayTab.classList.add('bg-yellow-400', 'text-white');
-  btnDelayTab.classList.remove('bg-gray-300', 'text-black');
+  // highlight nút Delay
+  btnDelayTab.classList.add('bg-yellow-400','text-white');
+  btnDelayTab.classList.remove('bg-gray-300','text-black');
+  btnUrgentTab.classList.remove('bg-yellow-400','text-white');
+  btnUrgentTab.classList.add('bg-gray-300','text-black');
+});  // ← Đúng: đóng } cho arrow function, rồi ) cho addEventListener, rồi ; cho kết thúc statement
 
-  btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
-  btnUrgentTab.classList.add('bg-gray-300', 'text-black');
-});
-
-// Sự kiện nút Xuất gấp
+// Listener cho nút Xuất gấp
 btnUrgentTab.addEventListener('click', () => {
+  hideAllViews();
+  delayTabs.classList.remove('hidden');
+  showDelaySearchWidgets();
   loadDelayUrgentData('URGENT');
 
-  btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
-  btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
+  // highlight nút Xuất gấp
+  btnUrgentTab.classList.add('bg-yellow-400','text-white');
+  btnUrgentTab.classList.remove('bg-gray-300','text-black');
+  btnDelayTab.classList.remove('bg-yellow-400','text-white');
+  btnDelayTab.classList.add('bg-gray-300','text-black');
+});  // ← Đúng tương tự
 
-  btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
-  btnDelayTab.classList.add('bg-gray-300', 'text-black');
-});
