@@ -826,6 +826,9 @@ function hideAllViews() {
   document.getElementById('delay-search-bar')?.classList.add('hidden');
   document.getElementById('delay-advanced-filter')?.classList.add('hidden');
 }
+
+
+
 function formatExcelDate(serial) {
   if (!serial || isNaN(serial)) return '';
   const base = new Date(1899, 11, 30);
@@ -835,8 +838,7 @@ function formatExcelDate(serial) {
          `${date.getFullYear()}`;
 }
 
-// Phải khai báo biến này ở đầu file, tương ứng với <input type="checkbox" id="delayErrorOnly" /> trong HTML
-const delayErrorOnly = document.getElementById('delayErrorOnly');
+
 
 function loadDelayUrgentData(type) {
   fetch('/powerapp.json')
@@ -1060,4 +1062,7 @@ btnUrgentTab.addEventListener('click', () => {
   btnUrgentTab.classList.remove('bg-gray-300','text-black');
   btnDelayTab.classList.remove('bg-yellow-400','text-white');
   btnDelayTab.classList.add('bg-gray-300','text-black');
+});
+delayErrorOnly.addEventListener('change', () => {
+  loadDelayUrgentData(currentDelayType);
 });
