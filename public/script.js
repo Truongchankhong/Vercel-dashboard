@@ -636,8 +636,6 @@ function renderSectionButtons() {
     bar.appendChild(btn);
   });
 }
-
-// ✅ Đặt HÀM renderSummarySection trước khi gọi loadSummary
 async function renderSummarySection() {
   setBtnLoading(btnSummary, true);
   hideDetails();
@@ -649,21 +647,22 @@ async function renderSummarySection() {
   if (sectionBarEl) sectionBarEl.innerHTML = '';
   renderSectionButtons();
 
-   try {
+  try {
     const res  = await fetch('/powerapp.json', { cache: 'no-store' });
     const data = await res.json();
     const statusKey = `2.${selectedSection.toUpperCase()}`;
 
-    // chọn cột plan đúng: nếu Leanline DC -> "LEANLINE PLAN", ngược lại Lamination
+    // Chọn cột plan và sheet
     const planKey  = selectedSection === 'LEANLINE_DC'
       ? 'LEANLINE PLAN'
       : 'LAMINATION MACHINE (PLAN)';
     const sheetKey = 'DL PU';
 
+    // Gom nhóm
     const machines = {}, sheets = {};
     data.forEach(row => {
       const status  = (row['STATUS'] || '').toUpperCase();
-      const machine = row[planKey];             // ← đây phải là planKey
+      const machine = row[planKey];
       const qty     = Number(row['Total Qty']) || 0;
       const sheet   = Number(row[sheetKey])    || 0;
 
@@ -673,75 +672,66 @@ async function renderSummarySection() {
       }
     });
 
-    // Chuyển thành mảng và sort theo số cuối trong tên machine
+    // Sort theo số cuối
     const entries = Object.entries(machines).sort((a, b) => {
       const na = parseInt((a[0].match(/\d+$/) || ['0'])[0], 10);
       const nb = parseInt((b[0].match(/\d+$/) || ['0'])[0], 10);
       return na - nb;
     });
 
-    // Build header
+    // **Khai báo biến tổng ở đây**
+    let totalAllQty = 0;
+    let totalAllSheets = 0;
+
+    // Build header động
     let html = `
-      <table class="min-w-full divide-y divide-gray-200" id="summary-table">
+      <table id="summary-table" class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Machine
-            </th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              Quantity Pair Plan
-            </th>`;
-    if (selectedSection === 'LAMINATION') {
-      html += `
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              Số Tấm (Sheet)
-            </th>`;
-    }
-    html += `
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Machine</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantity Pair Plan</th>
+            ${selectedSection === 'LAMINATION'
+              ? '<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Số Tấm (Sheet)</th>'
+              : ''}
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
     `;
 
-    // Rows và tổng
-    let totalQty = 0, totalSheets = 0;
-    entries.forEach(([machine, qty]) => {
-      const sheetTotal = sheets[machine] || 0;
-      totalQty += qty;
-      totalSheets += sheetTotal;
+    // Build các dòng row và cộng dồn tổng
+    entries.forEach(([m, qty]) => {
+      const sheetTotal = sheets[m] || 0;
+      totalAllQty    += qty;
+      totalAllSheets += sheetTotal;
 
       html += `
-        <tr data-machine="${machine}" class="hover:bg-gray-100 cursor-pointer">
-          <td class="px-6 py-4 text-sm text-gray-900">${machine}</td>
-          <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(qty)}</td>`;
-      if (selectedSection === 'LAMINATION') {
-        html += `
-          <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(sheetTotal)}</td>`;
-      }
-      html += `
+        <tr data-machine="${m}" class="hover:bg-gray-100 cursor-pointer">
+          <td class="px-6 py-4 text-sm text-gray-900">${m}</td>
+          <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(qty)}</td>
+          ${selectedSection === 'LAMINATION'
+            ? `<td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(sheetTotal)}</td>`
+            : ''}
         </tr>
       `;
     });
 
-    // Hàng tổng cộng
+    // Dòng tổng cộng
     html += `
         <tr class="font-bold bg-gray-100">
           <td class="px-6 py-3 text-sm text-gray-700 text-right">Tổng cộng:</td>
-          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalQty)}</td>`;
-    if (selectedSection === 'LAMINATION') {
-      html += `
-          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalSheets)}</td>`;
-    }
-    html += `
+          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAllQty)}</td>
+          ${selectedSection === 'LAMINATION'
+            ? `<td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAllSheets)}</td>`
+            : ''}
         </tr>
       </tbody>
-      </table>
+    </table>
     `;
 
     container.innerHTML = html;
     updateTimestamp();
 
-    // Bật sự kiện click để chuyển sang Detail
+    // Bật sự kiện click vào row để show Detail
     document
       .querySelectorAll('#summary-table tbody tr[data-machine]')
       .forEach(tr =>
@@ -762,6 +752,7 @@ async function renderSummarySection() {
     setBtnLoading(btnSummary, false);
   }
 }
+
 
 
 
