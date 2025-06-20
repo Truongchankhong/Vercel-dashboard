@@ -895,10 +895,13 @@ function hideDelayUrgentButtons() {
 }
 // ==== Load Delay hoặc Urgent View ====
 function loadDelayUrgentView(type) {
+ // 1. Ẩn sạch mọi view cũ
   hideAllViews();
-  // Hiện tiêu đề tìm kiếm cơ bản và nâng cao
+
+  // 2. Hiện tiêu đề tìm kiếm
   document.getElementById('basic-search-title').classList.remove('hidden');
   document.getElementById('advanced-search-title').classList.remove('hidden');
+  
   delayTabs.classList.remove('hidden');
   delaySearchBar.classList.remove('hidden');
   delayAdvancedFilter.classList.remove('hidden');
