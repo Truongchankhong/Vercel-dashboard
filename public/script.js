@@ -540,6 +540,11 @@ delayBtnClear.addEventListener('click', () => {
 btnUrgentTab.addEventListener('click', () => {
   loadDelayUrgentData('URGENT');
 
+  // Hiện lại tab & 2 thanh tìm kiếm
+   delayTabs.classList.remove('hidden');
+   delaySearchBar.classList.remove('hidden');
+   delayAdvancedFilter.classList.remove('hidden');
+
   // Highlight nút Xuất gấp
   btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
   btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
@@ -745,7 +750,7 @@ window.addEventListener('DOMContentLoaded', () => {
     delaySearchBar.classList.remove('hidden');
     delayAdvancedFilter.classList.remove('hidden');
     loadDelayUrgentData('DELAY');
-    
+
    delayTabs.classList.remove('hidden');
    delaySearchBar.classList.remove('hidden');
    delayAdvancedFilter.classList.remove('hidden');
