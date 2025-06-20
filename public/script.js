@@ -320,11 +320,16 @@ function shouldDisplayRow(d, isInitial) {
 
     // 2) Xác định cột Plan / Actual
     const planCol     = selectedSection === 'LEANLINE_DC'
-      ? 'LEANLINE PLAN'
-      : 'LAMINATION MACHINE (PLAN)';
+      ? 'LEANLINE PLAN':
+       'LAMINATION MACHINE (PLAN)';
+      
     const realtimeCol = selectedSection === 'LEANLINE_DC'
       ? 'LEANLINE (REALTIME)'
       : 'LAMINATION MACHINE (REALTIME)';
+    
+      const planCheck     = selectedSection === 'LEANLINE_DC'
+      ? 'Check':
+       'CheckLL';
 
     // 3) Xác định statusKeys
     const statusKeys = selectedSection === 'LEANLINE_DC'
@@ -349,7 +354,7 @@ function shouldDisplayRow(d, isInitial) {
     const selectedColumns = [
       'PRO ODER', 'Brand Code', '#MOLD', 'Total Qty',
       'STATUS', 'PU', 'FB', 'FB DESCRIPTION',
-      planCol, realtimeCol, 'Check'
+      planCol, realtimeCol, planCheck
     ];
     // 6) Xây đối tượng từ rows
     const details = rows.map((row, i) => {
