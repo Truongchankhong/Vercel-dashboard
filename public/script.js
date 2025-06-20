@@ -365,7 +365,8 @@ function shouldDisplayRow(d, isInitial) {
 
   // Nếu chọn cột cụ thể và có từ khóa → lọc theo từ khóa
   return (d[selectedField] || '').toString().toUpperCase().includes(keyword);
-}async function loadDetailsClient(machine, isInitial = false, rememberedField = 'ALL', rememberedKeyword = '') {
+}
+async function loadDetailsClient(machine, isInitial = false, rememberedField = 'ALL', rememberedKeyword = '') {
   currentView = 'detail';
   currentMachine = machine;
 
@@ -648,34 +649,37 @@ async function renderSummarySection() {
   renderSectionButtons();
 
   try {
+    // 1) Fetch dữ liệu
     const res  = await fetch('/powerapp.json', { cache: 'no-store' });
     const data = await res.json();
 
-    // Map trạng thái theo section
-    const statusMap = {
-      LAMINATION:  '2.LAMINATION',
-      LEANLINE_DC: '5.LEAN LINE MOLD',
-    };
-    const statusKey = statusMap[selectedSection] || `2.${selectedSection.toUpperCase()}`;
+    // 2) Xác định bộ status keys
+    let statusKeys;
+    if (selectedSection === 'LEANLINE_DC') {
+      statusKeys = ['5.LEAN LINE DC', '6.IN LEAN LINE DC'];
+    } else {
+      statusKeys = [`2.${selectedSection.toUpperCase()}`];
+    }
 
-    // Chọn cột máy đúng
+    // 3) Chọn cột planKey
     const planKey = selectedSection === 'LEANLINE_DC'
-      ? 'LEANLINE (REALTIME)'
+      ? 'LEANLINE PLAN'
       : 'LAMINATION MACHINE (PLAN)';
 
-    // Gom nhóm theo máy
-    const machines  = {};
+    // 4) Gom nhóm theo máy
+    const machines = {};
     data.forEach(row => {
-      const status  = (row['STATUS'] || '').toUpperCase();
+      const status  = (row['STATUS']  || '').toUpperCase();
       const machine = row[planKey];
       const qty     = Number(row['Total Qty']) || 0;
 
-      if (status === statusKey && machine) {
+      // Lọc theo nhiều statusKey và phải có machine
+      if (statusKeys.includes(status) && machine) {
         machines[machine] = (machines[machine] || 0) + qty;
       }
     });
 
-    // Tạo HTML bảng
+    // 5) Render bảng Summary
     let html = `
       <table class="min-w-full text-sm border border-gray-300 bg-white shadow">
         <thead class="bg-gray-100">
@@ -697,6 +701,8 @@ async function renderSummarySection() {
         </tr>
       `;
     });
+
+    // Dòng tổng cộng
     html += `
         <tr class="font-bold bg-gray-100">
           <td class="px-6 py-3 text-sm text-gray-700 text-right">Tổng cộng:</td>
@@ -708,12 +714,13 @@ async function renderSummarySection() {
 
     container.innerHTML = html;
 
-    // Click mở chi tiết
+    // 6) Bắt sự kiện click từng dòng để show detail
     container.querySelectorAll('tbody tr[data-machine]').forEach(row =>
       row.addEventListener('click', () => {
         loadDetailsClient(row.dataset.machine, true);
       })
     );
+
   } catch (err) {
     console.error('[renderSummarySection error]', err);
     container.innerHTML = `<div class="text-red-500 py-4">Lỗi tải dữ liệu section</div>`;
@@ -721,12 +728,6 @@ async function renderSummarySection() {
     setBtnLoading(btnSummary, false);
   }
 }
-
-
-
-
-
-
 
 
 
