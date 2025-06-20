@@ -38,6 +38,8 @@ const headerDisplayMap = {
   'FB DESCRIPTION': 'Tên Vải',
   'LAMINATION MACHINE (PLAN)': 'Plan Machine',
   'LAMINATION MACHINE (REALTIME)': 'Actual Machine',
+  'LEANLINE PLAN': 'Plan Machine',
+  'LEANLINE (REALTIME)': 'Actual Machine',
   'Check': 'Verify'
 };
 // Track view hiện tại: 'summary' | 'raw' | 'progress' | 'detail'
@@ -82,21 +84,31 @@ function showDetails() {
   detailsContainer.classList.remove('hidden');
 }
 
-function hideProgressSearchBar() {
-  progressSearchBar.classList.add('hidden');
-  document.getElementById('title-simple-filter')?.classList.add('hidden');
-  document.getElementById('progress-advanced-filter')?.classList.add('hidden');
-  document.getElementById('title-advanced-filter')?.classList.add('hidden');
-}
-
+// Hiện thanh tìm kiếm cơ bản Progress
 function showProgressSearchBar() {
-  progressSearchBar.classList.remove('hidden');
-  document.getElementById('title-simple-filter')?.classList.remove('hidden');
-  document.getElementById('progress-advanced-filter')?.classList.remove('hidden');
-  document.getElementById('title-advanced-filter')?.classList.remove('hidden');
+  document.getElementById('basic-search-title').classList.remove('hidden');
+  document.getElementById('progress-search-bar').classList.remove('hidden');
 }
 
+// Ẩn thanh tìm kiếm cơ bản Progress
+function hideProgressSearchBar() {
+  document.getElementById('basic-search-title')?.classList.add('hidden');
+  document.getElementById('progress-search-bar')?.classList.add('hidden');
+}
 
+// Thêm vào đây:
+
+// Hiện thanh tìm kiếm nâng cao Progress
+function showProgressAdvancedFilter() {
+  document.getElementById('advanced-search-title').classList.remove('hidden');
+  document.getElementById('progress-advanced-filter').classList.remove('hidden');
+}
+
+// Ẩn thanh tìm kiếm nâng cao Progress
+function hideProgressAdvancedFilter() {
+  document.getElementById('advanced-search-title')?.classList.add('hidden');
+  document.getElementById('progress-advanced-filter')?.classList.add('hidden');
+}
 
 // -----------------------------------
 // --- SUMMARY VIEW (tổng hợp máy) ---
@@ -347,8 +359,7 @@ function shouldDisplayRow(d, isInitial) {
 
   // Nếu chọn cột cụ thể và có từ khóa → lọc theo từ khóa
   return (d[selectedField] || '').toString().toUpperCase().includes(keyword);
-}
-async function loadDetailsClient(machine, isInitial = false, rememberedField = 'ALL', rememberedKeyword = '') {
+}async function loadDetailsClient(machine, isInitial = false, rememberedField = 'ALL', rememberedKeyword = '') {
   currentView = 'detail';
   currentMachine = machine;
 
@@ -356,9 +367,9 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
   detailsContainer.innerHTML = '<div class="text-center py-4">Loading chi tiết…</div>';
 
   try {
+    // 1. Lấy dữ liệu
     const res = await fetch(`/api/details?machine=${encodeURIComponent(machine)}`);
     const data = await res.json();
-
     if (!Array.isArray(data) || data.length === 0) {
       detailsContainer.innerHTML = `<div class="text-center py-4">Không có dữ liệu cho máy ${machine}</div>`;
       return;
@@ -366,38 +377,53 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
 
     const [headers, ...rows] = data;
 
+    // 2. Xác định cột Plan/Actual dựa vào section
+    const planCol     = selectedSection === 'LEANLINE_DC'
+      ? 'LEANLINE PLAN'
+      : 'LAMINATION MACHINE (PLAN)';
+    const realtimeCol = selectedSection === 'LEANLINE_DC'
+      ? 'LEANLINE (REALTIME)'
+      : 'LAMINATION MACHINE (REALTIME)';
+
+    // 3. Chọn các cột cần hiển thị
     const selectedColumns = [
-      'PRO ODER', 'Brand Code', '#MOLD', 'Total Qty', 'STATUS', 'PU', 'FB', 'FB DESCRIPTION',
-      'LAMINATION MACHINE (PLAN)', 'LAMINATION MACHINE (REALTIME)', 'Check'
+      'PRO ODER',
+      'Brand Code',
+      '#MOLD',
+      'Total Qty',
+      'STATUS',
+      'PU',
+      'FB',
+      'FB DESCRIPTION',
+      planCol,
+      realtimeCol,
+      'Check'
     ];
+    // Tìm index trong header gốc
     const selectedIndexes = selectedColumns.map(col => headers.indexOf(col));
 
+    // 4. Chuyển rows thành objects và lọc
     const details = rows
       .map(row => {
         const obj = {};
         selectedColumns.forEach((key, j) => {
           obj[key] = row[selectedIndexes[j]] ?? '';
         });
-        obj['STATUS'] = row[headers.indexOf('STATUS')] ?? '';
         return obj;
       })
       .filter(d => {
-        const selectedField = rememberedField;
-        const keyword = rememberedKeyword.trim().toUpperCase();
-
         if (isInitial) {
           return (d['STATUS'] || '').toUpperCase() === `2.${selectedSection.toUpperCase()}`;
         }
-
-        if (selectedField === 'ALL' || keyword === '') return true;
-
-        return (d[selectedField] || '').toString().toUpperCase().includes(keyword);
+        if (rememberedField === 'ALL' || !rememberedKeyword.trim()) {
+          return true;
+        }
+        return ('' + d[rememberedField]).toUpperCase().includes(rememberedKeyword.trim().toUpperCase());
       });
 
-    // Sắp xếp
+    // 5. Sắp xếp & đánh STT
     details.sort((a, b) => {
-      const keys = ['PU', 'FB', 'PRO ODER'];
-      for (let k of keys) {
+      for (let k of ['PU', 'FB', 'PRO ODER']) {
         const va = (a[k] || '').toString().toUpperCase();
         const vb = (b[k] || '').toString().toUpperCase();
         if (va < vb) return -1;
@@ -405,112 +431,99 @@ async function loadDetailsClient(machine, isInitial = false, rememberedField = '
       }
       return 0;
     });
-
     details.forEach((d, i) => d.STT = i + 1);
 
-    const trueCount = details.filter(d => d['Check'] === 'True' || d['Check'] === true).length;
+    // 6. Tính % verify
+    const trueCount = details.filter(d => d['Check'] === true || d['Check'] === 'True').length;
     const percentVerify = ((trueCount / details.length) * 100).toFixed(1);
 
-    const colorPalette = ['#fef08a', '#a7f3d0', '#fca5a5', '#c4b5fd', '#f9a8d4', '#fde68a', '#bfdbfe', '#6ee7b7'];
-    
-
-    const groupKeys = [...new Set(details.map(d => `${d['PU']}_${d['FB']}`))];
+    // 7. Xây dựng màu nhóm (giữ nguyên)
+    const colorPalette = ['#fef08a','#a7f3d0','#fca5a5','#c4b5fd','#f9a8d4','#fde68a','#bfdbfe','#6ee7b7'];
+    const groupKeys = [...new Set(details.map(d => `${d.PU}_${d.FB}`))];
     const puFbColorMap = {};
     groupKeys.forEach((key, idx) => {
       puFbColorMap[key] = colorPalette[idx % colorPalette.length];
     });
 
-
+    // 8. Build tbody HTML
     let tbodyHTML = '';
     details.forEach(d => {
-      const groupKey = `${d['PU']}_${d['FB']}`;
-      const bgColor = puFbColorMap[groupKey] || '';
-
-      tbodyHTML += `<tr style="background-color:${bgColor}">`;
-      tbodyHTML += `<td class="border px-2 py-1">${d.STT}</td>`;
+      const bg = puFbColorMap[`${d.PU}_${d.FB}`] || '';
+      tbodyHTML += `<tr style="background-color:${bg}"><td class="border px-2 py-1">${d.STT}</td>`;
       selectedColumns.forEach(key => {
-        let cellClass = 'border px-2 py-1';
-        if (key === 'FB DESCRIPTION') {
-          cellClass += ' max-w-[180px] whitespace-normal break-words';
-        } else if (key.includes('MACHINE')) {
-          cellClass += ' max-w-[150px] truncate';
-        }
-        tbodyHTML += `<td class="${cellClass}">${d[key]}</td>`;
+        let cls = 'border px-2 py-1';
+        if (key === 'FB DESCRIPTION') cls += ' max-w-[180px] whitespace-normal break-words';
+        if (key === planCol || key === realtimeCol) cls += ' max-w-[150px] truncate';
+        tbodyHTML += `<td class="${cls}">${d[key]}</td>`;
       });
       tbodyHTML += `</tr>`;
     });
 
-    const html = `
+    // 9. Build toàn bộ Detail HTML
+    const dropdownOptions = selectedColumns
+      .map(opt => {
+        const sel = rememberedField === opt ? ' selected' : '';
+        return `<option value="${opt}"${sel}>${headerDisplayMap[opt]||opt}</option>`;
+      })
+      .join('');
+
+    detailsContainer.innerHTML = `
       <div class="flex justify-between items-center mb-2">
         <h2 class="text-xl font-bold">Chi tiết máy: ${machine}</h2>
         <button onclick="hideDetails()" class="text-blue-600 underline">Quay lại</button>
       </div>
-
-      <div class="text-right mb-2 text-sm text-gray-700 italic">
-        ✅ Tỷ lệ Verify = true: <b style="color:green;">${percentVerify}%</b>
+      <div class="text-right mb-2 text-sm italic">
+        ✅ Tỷ lệ Verify = <b style="color:green;">${percentVerify}%</b>
       </div>
-
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
-        <select id="detailsColumnSelect" class="w-full border px-2 py-1 rounded col-span-3">
-          <option value="ALL"${rememberedField === 'ALL' ? ' selected' : ''}>Tất cả (All)</option>
-          ${[
-            'PRO ODER',
-            'Brand Code',
-            '#MOLDED',
-            'PU',
-            'FB DESCRIPTION', // ✅ Thêm dòng này
-            'LAMINATION MACHINE (PLAN)',
-            'LAMINATION MACHINE (REALTIME)']
-            .map(opt => `<option value="${opt}"${rememberedField === opt ? ' selected' : ''}>${opt}</option>`).join('')}
+        <select id="detailsColumnSelect" class="col-span-3 border px-2 py-1 rounded">
+          <option value="ALL"${rememberedField==='ALL'?' selected':''}>Tất cả (All)</option>
+          ${dropdownOptions}
         </select>
-
-        <input id="detailsSearchInput" type="text" placeholder="Nhập từ khóa..." value="${rememberedKeyword}" class="border px-2 py-1 rounded w-full col-span-2">
+        <input id="detailsSearchInput" type="text" placeholder="Nhập từ khóa..."
+          value="${rememberedKeyword}" class="border px-2 py-1 rounded col-span-2" />
         <div class="flex gap-2 col-span-1">
           <button id="detailsSearchBtn" class="bg-blue-600 text-white px-4 py-1 rounded w-full">Tìm</button>
           <button id="detailsClearBtn" class="bg-gray-400 text-white px-4 py-1 rounded w-full">Xóa</button>
         </div>
       </div>
-
-      <div class="overflow-x-auto overflow-y-auto max-h-[70vh] whitespace-nowrap">
-        <table class="min-w-full text-sm border border-gray-300 bg-white shadow" id="detailsTable">
-          <thead class="bg-gray-100 text-left sticky top-0 z-10">
-            <tr>
-              <th class="border px-2 py-1">STT</th>
-              ${selectedColumns.map(h => {
-                const displayName = headerDisplayMap[h] || h;
-                if (h === 'FB DESCRIPTION') {
-                  return `<th class="border px-2 py-1 max-w-[180px] whitespace-normal break-words">${displayName}</th>`;
-                }
-                const isMachineCol = h.includes('MACHINE');
-                return `<th class="border px-2 py-1 ${isMachineCol ? 'max-w-[150px] truncate' : ''}">${displayName}</th>`;
-              }).join('')}
-            </tr>
-          </thead>
+      <div class="overflow-auto max-h-[70vh] whitespace-nowrap">
+        <table id="detailsTable" class="min-w-full text-sm border border-gray-300 bg-white shadow">
+          <thead class="bg-gray-100 sticky top-0 z-10"><tr>
+            <th class="border px-2 py-1">STT</th>
+            ${selectedColumns.map(col=>{
+              const disp = headerDisplayMap[col]||col;
+              const extra = (col===planCol||col===realtimeCol)
+                ? ' max-w-[150px] truncate' : (col==='FB DESCRIPTION'
+                ? ' max-w-[180px] whitespace-normal break-words' : '');
+              return `<th class="border px-2 py-1${extra}">${disp}</th>`;
+            }).join('')}
+          </tr></thead>
           <tbody>${tbodyHTML}</tbody>
         </table>
       </div>
     `;
 
-    detailsContainer.innerHTML = html;
-
-    // Nút tìm
-    document.getElementById('detailsSearchBtn').addEventListener('click', () => {
-      const field = document.getElementById('detailsColumnSelect').value;
-      const keyword = document.getElementById('detailsSearchInput').value.trim();
-      loadDetailsClient(currentMachine, false, field, keyword);
-    });
-
-    // Nút xóa
-    document.getElementById('detailsClearBtn').addEventListener('click', () => {
-      document.getElementById('detailsSearchInput').value = '';
-      loadDetailsClient(currentMachine, false, rememberedField, '');
-    });
+    // 10. Gắn event cho tìm / xóa
+    document.getElementById('detailsSearchBtn')
+      .addEventListener('click', () => {
+        const f = document.getElementById('detailsColumnSelect').value;
+        const kw= document.getElementById('detailsSearchInput').value.trim();
+        loadDetailsClient(machine, false, f, kw);
+      });
+    document.getElementById('detailsClearBtn')
+      .addEventListener('click', () => {
+        document.getElementById('detailsSearchInput').value = '';
+        loadDetailsClient(machine, false, rememberedField, '');
+      });
 
   } catch (err) {
     console.error('DETAILS LOAD ERROR:', err);
-    detailsContainer.innerHTML = `<div class="text-red-500 text-center py-4">Lỗi tải dữ liệu</div>`;
+    detailsContainer.innerHTML =
+      `<div class="text-red-500 text-center py-4">Lỗi tải dữ liệu</div>`;
   }
 }
+
 
 
 
