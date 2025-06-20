@@ -650,108 +650,79 @@ async function renderSummarySection() {
   try {
     const res  = await fetch('/powerapp.json', { cache: 'no-store' });
     const data = await res.json();
-    const statusKey = `2.${selectedSection.toUpperCase()}`;
 
-    // Chọn cột plan và sheet
-    const planKey  = selectedSection === 'LEANLINE_DC'
-      ? 'LEANLINE PLAN'
+    // Map trạng thái theo section
+    const statusMap = {
+      LAMINATION:  '2.LAMINATION',
+      LEANLINE_DC: '5.LEAN LINE MOLD',
+    };
+    const statusKey = statusMap[selectedSection] || `2.${selectedSection.toUpperCase()}`;
+
+    // Chọn cột máy đúng
+    const planKey = selectedSection === 'LEANLINE_DC'
+      ? 'LEANLINE (REALTIME)'
       : 'LAMINATION MACHINE (PLAN)';
-    const sheetKey = 'DL PU';
 
-    // Gom nhóm
-    const machines = {}, sheets = {};
+    // Gom nhóm theo máy
+    const machines  = {};
     data.forEach(row => {
       const status  = (row['STATUS'] || '').toUpperCase();
       const machine = row[planKey];
       const qty     = Number(row['Total Qty']) || 0;
-      const sheet   = Number(row[sheetKey])    || 0;
 
-      if (status.includes(statusKey) && machine) {
+      if (status === statusKey && machine) {
         machines[machine] = (machines[machine] || 0) + qty;
-        sheets[machine]   = (sheets[machine]   || 0) + sheet;
       }
     });
 
-    // Sort theo số cuối
-    const entries = Object.entries(machines).sort((a, b) => {
-      const na = parseInt((a[0].match(/\d+$/) || ['0'])[0], 10);
-      const nb = parseInt((b[0].match(/\d+$/) || ['0'])[0], 10);
-      return na - nb;
-    });
-
-    // **Khai báo biến tổng ở đây**
-    let totalAllQty = 0;
-    let totalAllSheets = 0;
-
-    // Build header động
+    // Tạo HTML bảng
     let html = `
-      <table id="summary-table" class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+      <table class="min-w-full text-sm border border-gray-300 bg-white shadow">
+        <thead class="bg-gray-100">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Machine</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantity Pair Plan</th>
-            ${selectedSection === 'LAMINATION'
-              ? '<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Số Tấm (Sheet)</th>'
-              : ''}
+            <th class="px-6 py-3 text-left">MACHINE</th>
+            <th class="px-6 py-3 text-right">QUANTITY PAIR PLAN</th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody>
     `;
-
-    // Build các dòng row và cộng dồn tổng
-    entries.forEach(([m, qty]) => {
-      const sheetTotal = sheets[m] || 0;
-      totalAllQty    += qty;
-      totalAllSheets += sheetTotal;
-
+    let totalAll = 0;
+    Object.keys(machines).sort().forEach(machine => {
+      const qty = machines[machine];
+      totalAll += qty;
       html += `
-        <tr data-machine="${m}" class="hover:bg-gray-100 cursor-pointer">
-          <td class="px-6 py-4 text-sm text-gray-900">${m}</td>
-          <td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(qty)}</td>
-          ${selectedSection === 'LAMINATION'
-            ? `<td class="px-6 py-4 text-sm text-right text-gray-900">${formatNumber(sheetTotal)}</td>`
-            : ''}
+        <tr class="hover:bg-gray-50 cursor-pointer" data-machine="${machine}">
+          <td class="px-6 py-3 text-sm text-gray-700">${machine}</td>
+          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(qty)}</td>
         </tr>
       `;
     });
-
-    // Dòng tổng cộng
     html += `
         <tr class="font-bold bg-gray-100">
           <td class="px-6 py-3 text-sm text-gray-700 text-right">Tổng cộng:</td>
-          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAllQty)}</td>
-          ${selectedSection === 'LAMINATION'
-            ? `<td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAllSheets)}</td>`
-            : ''}
+          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(totalAll)}</td>
         </tr>
       </tbody>
     </table>
     `;
 
     container.innerHTML = html;
-    updateTimestamp();
 
-    // Bật sự kiện click vào row để show Detail
-    document
-      .querySelectorAll('#summary-table tbody tr[data-machine]')
-      .forEach(tr =>
-        tr.addEventListener('click', () => {
-          currentMachine = tr.dataset.machine;
-          loadDetailsClient(currentMachine, true);
-        })
-      );
-
+    // Click mở chi tiết
+    container.querySelectorAll('tbody tr[data-machine]').forEach(row =>
+      row.addEventListener('click', () => {
+        loadDetailsClient(row.dataset.machine, true);
+      })
+    );
   } catch (err) {
     console.error('[renderSummarySection error]', err);
-    container.innerHTML = `
-      <div class="text-red-500 py-4">
-        Lỗi tải dữ liệu section
-      </div>
-    `;
+    container.innerHTML = `<div class="text-red-500 py-4">Lỗi tải dữ liệu section</div>`;
   } finally {
     setBtnLoading(btnSummary, false);
   }
 }
+
+
 
 
 
