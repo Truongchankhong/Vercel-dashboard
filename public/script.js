@@ -393,7 +393,7 @@ const filtered = details.filter(d => {
 
     // 7) Tính % Verify
     const trueCount = details.filter(d =>
-      d['Check'] === true || d['Check'] === 'True'
+      d['verifyCol'] === true || d['verifyCol'] === 'True'
     ).length;
     const percentVerify = ((trueCount / details.length) * 100).toFixed(1);
 
