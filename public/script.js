@@ -44,7 +44,8 @@ const headerDisplayMap = {
   'LAMINATION MACHINE (REALTIME)': 'Actual Machine',
   'LEANLINE PLAN': 'Plan Machine',
   'LEANLINE (REALTIME)': 'Actual Machine',
-  'Check': 'Verify'
+  'Check': 'Verify',
+  'CheckLL': 'Verify'    // ← thêm dòng này
 };
 
 // Track view hiện tại: 'summary' | 'raw' | 'progress' | 'detail'
@@ -338,7 +339,10 @@ function shouldDisplayRow(d, isInitial) {
       ? 'LEANLINE (REALTIME)'
       : 'LAMINATION MACHINE (REALTIME)';
     // Cột cuối luôn lấy từ JSON["Check"], và sẽ hiển thị thành Verify
-    const verifyCol   = 'Check';
+    
+    const verifyCol   = selectedSection === 'LEANLINE_DC'
+      ? 'CheckLL'
+      : 'Check';
 
     // 3) Xác định statusKeys
     const statusKeys = selectedSection === 'LEANLINE_DC'
