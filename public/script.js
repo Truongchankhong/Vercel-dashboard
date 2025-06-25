@@ -392,10 +392,18 @@ const filtered = details.filter(d => {
 
 
     // 7) Tính % Verify
-    const trueCount = details.filter(d =>
-      d['verifyCol'] === true || d['verifyCol'] === 'True'
+    // Lọc ra chỉ những dòng có giá trị Boolean hoặc String “True”/“False”
+    const validRows = details.filter(d =>
+      d[verifyCol] === true  || d[verifyCol] === 'True'  ||
+      d[verifyCol] === false || d[verifyCol] === 'False'
+    );
+
+    const trueCount   = validRows.filter(d =>
+      d[verifyCol] === true || d[verifyCol] === 'True'
     ).length;
-    const percentVerify = ((trueCount / details.length) * 100).toFixed(1);
+
+    const percentVerify = ((trueCount / validRows.length) * 100).toFixed(1);
+
 
     // 8) Gán màu theo nhóm PU+FB
     const palette = ['#fef08a','#a7f3d0','#fca5a5','#c4b5fd','#f9a8d4','#fde68a','#bfdbfe','#6ee7b7'];
