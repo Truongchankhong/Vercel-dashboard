@@ -108,11 +108,19 @@ function renderOrder(rec, existing = null) {
   document.getElementById("order-info").classList.remove("hidden");
 
   // ✅ Lấy danh sách size có giá trị từ headersArr
-  const sizeKeys = headersArr
-    .filter(h => !isNaN(parseFloat(h)))
-    .map(s => s.trim())
-    .filter(Boolean)
-    .sort((a, b) => parseFloat(a) - parseFloat(b));
+  // ✅ SỬA LỖI: Bỏ qua headersArr để tạo sizeKeys đầy đủ tới 50
+  const allPossibleSizes = [];
+  // ✅ Chạy vòng lặp từ size 4 đến size 50
+  for (let i = 4; i <= 50; i++) {
+      allPossibleSizes.push(i.toString());
+      // Thêm size nửa số (0.5)
+      if (i < 50) { 
+          allPossibleSizes.push(i.toString() + ".5");
+      }
+  }
+
+  // ✅ Gán sizeKeys bằng danh sách đầy đủ
+  const sizeKeys = allPossibleSizes;
 
   console.log("📏 sizeKeys phát hiện:", sizeKeys);
 
