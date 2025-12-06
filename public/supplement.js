@@ -208,9 +208,10 @@ function renderOrder(rec, existing = null) {
     inp.addEventListener("input", updateTotal);
   });
 
-  console.log("✅ Rendered size inputs:",
-    [...document.querySelectorAll(".input-supp")].map(i => i.dataset.size)
-  );
+  console.log(
+  "✅ Rendered size inputs:",
+  [...document.querySelectorAll(".input-supp")].map(i => i.dataset.size)
+);
 
   updateTotal();
   document.getElementById("btn-confirm-supplement").disabled = false;
@@ -239,6 +240,7 @@ function updateTotal() {
     .reduce((acc, inp) => acc + Number(inp.value || 0), 0);
   document.getElementById("supp-total").textContent = sum;
 }
+
 
 // ==================== QUÉT HOẶC NHẬP RPRO ==================== //
 function handleScanned(text) {
