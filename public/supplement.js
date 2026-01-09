@@ -14,6 +14,7 @@ let removedSizeFix = false; // ✅ Đánh dấu đã bấm nút Bỏ giảm size
 function normalizeSizeKey(size) {
   return 'size_' + size.replace(/\./g, '_');
 }
+
 // ==================== HÀM KIỂM TRA SIZE FIX CÓ THẬT SỰ KHÁC KHÔNG ==================== //
 function checkHasRealSizeFix(originalSizes, femaleSizes) {
   if (!originalSizes || !femaleSizes) return false;
@@ -23,6 +24,7 @@ function checkHasRealSizeFix(originalSizes, femaleSizes) {
   }
   return false; // tất cả giống nhau → không giảm size
 }
+
 // ==================== GHI LOG VISIT ==================== //
 async function logVisit(page, button = null) {
   const today = new Date().toISOString().slice(0, 10);
@@ -37,10 +39,19 @@ async function logVisit(page, button = null) {
 // ==================== LOAD ĐƠN HÀNG ==================== //
 async function loadOrderInfo(rpro) {
   currentRpro = rpro;
+  
+  // 🔒 KHÓA NÚT LƯU NGAY LẬP TỨC ĐỂ TRÁNH LỖI "TAY NHANH HƠN MẠNG"
+  const btnSave = document.getElementById("btn-confirm-supplement");
+  if(btnSave) {
+      btnSave.disabled = true;
+      btnSave.textContent = "Đang tải dữ liệu...";
+  }
+
   const loadingEl = document.getElementById("loading-status");
   if (loadingEl) loadingEl.classList.remove("hidden");
 
   try {
+    // 1. Tải PowerApp JSON
     const res = await fetch("/powerapp.json?v=" + Date.now(), { cache: "no-store" });
     const { headers, data } = await res.json();
     headersArr = headers;
@@ -51,19 +62,31 @@ async function loadOrderInfo(rpro) {
     if (!rec) {
       alert("Không tìm thấy đơn " + rpro);
       if (loadingEl) loadingEl.classList.add("hidden");
+      if (btnSave) {
+          btnSave.disabled = false;
+          btnSave.textContent = "Lưu";
+      }
       return;
     }
 
-    const gender = rec["Giới tính"] || rec["GENDER"] || "";
+    // Chuẩn hóa giới tính để so sánh chính xác hơn
+    const genderRaw = rec["Giới tính"] || rec["GENDER"] || "";
+    const gender = genderRaw.trim(); 
+    
+    // Reset các biến cờ
     useSizeFix = false;
     showSizeFixValues = true;
     sizeFixData = {};
+    removedSizeFix = false; // Reset lại trạng thái bỏ giảm size
 
+    // 2. Nếu là Nữ, TẢI TIẾP file sizefix và CHỜ nó tải xong (await)
     if (gender === "Women's") {
       try {
         const resFix = await fetch("/sizefix.json?v=" + Date.now(), { cache: "no-store" });
         const sizefixJson = await resFix.json();
         sizeFixData = sizefixJson[rpro] || {};
+        
+        // Chỉ bật cờ dùng size fix nếu tìm thấy data
         if (Object.keys(sizeFixData).length > 0) {
           useSizeFix = true;
         }
@@ -72,6 +95,7 @@ async function loadOrderInfo(rpro) {
       }
     }
 
+    // 3. Tải dữ liệu cũ từ Supabase
     const { data: existingRows } = await supabase
       .from('supplement')
       .select('*')
@@ -81,6 +105,7 @@ async function loadOrderInfo(rpro) {
     existingRecord = (existingRows && existingRows.length > 0) ? existingRows[0] : null;
     rawRecord = rec;
 
+    // 4. Render giao diện (Lúc này data đã đầy đủ 100%)
     renderOrder(rec, existingRecord);
 
   } catch (err) {
@@ -88,6 +113,7 @@ async function loadOrderInfo(rpro) {
     alert("Lỗi khi tải dữ liệu!");
   } finally {
     if (loadingEl) loadingEl.classList.add("hidden");
+    // Mở lại nút lưu trong renderOrder hoặc ở đây nếu cần thiết
   }
 }
 
@@ -99,8 +125,10 @@ function renderOrder(rec, existing = null) {
   document.getElementById("info-rpro").textContent = rec["PRO ODER"] || "";
   document.getElementById("info-so").textContent = rec["SO"] || rec["Sales Order"] || "";
   document.getElementById("info-customers").textContent = rec["CUSTOMERS"] || "";
-  const gender = rec["Giới tính"] || rec["GENDER"] || "";
+  
+  const gender = (rec["Giới tính"] || rec["GENDER"] || "").trim();
   document.getElementById("info-gender").textContent = gender;
+  
   document.getElementById("info-mold").textContent = rec["Mã Khuôn"] || rec["#MOLD"] || "";
   document.getElementById("info-pu").textContent = rec["Mã dao"] || rec["PU"] || "";
   document.getElementById("info-fabric").textContent = rec["Tên vải"] || rec["FB DESCRIPTION"] || "";
@@ -147,6 +175,7 @@ function renderOrder(rec, existing = null) {
   }
 
   originalSizes.forEach((sizeOriginal, idx) => {
+    // Logic hiển thị size nữ
     const sizeFemale = (gender === "Women's" && femaleSizes[idx] && showSizeFixValues)
       ? femaleSizes[idx]
       : "";
@@ -154,6 +183,7 @@ function renderOrder(rec, existing = null) {
     const poQtyOriginal = Number(originalData[sizeOriginal]) || 0;
     const poQtyFemale = femaleSizes[idx] ? Number(femaleData[femaleSizes[idx]]) || 0 : 0;
 
+    // Logic hiển thị PO Qty
     const poQty = (gender === "Women's" && useSizeFix && showSizeFixValues)
       ? poQtyFemale
       : poQtyOriginal;
@@ -209,13 +239,20 @@ function renderOrder(rec, existing = null) {
   });
 
   console.log(
-  "✅ Rendered size inputs:",
-  [...document.querySelectorAll(".input-supp")].map(i => i.dataset.size)
-);
+    "✅ Rendered size inputs:",
+    [...document.querySelectorAll(".input-supp")].map(i => i.dataset.size)
+  );
 
   updateTotal();
-  document.getElementById("btn-confirm-supplement").disabled = false;
+  
+  // 🔓 MỞ LẠI NÚT LƯU KHI MỌI THỨ ĐÃ SẴN SÀNG
+  const btnSave = document.getElementById("btn-confirm-supplement");
+  if(btnSave) {
+      btnSave.disabled = false;
+      btnSave.textContent = "Lưu";
+  }
 }
+
 function cancelSizeFix() {
   removedSizeFix = true; // ✅ đánh dấu người dùng đã bỏ giảm size
   showSizeFixValues = false;
@@ -226,13 +263,10 @@ function cancelSizeFix() {
     if (cell.textContent?.includes("Size nữ") || cell.closest("thead")) return;
     cell.textContent = ""; // Xoá nội dung cột Size nữ
   });
-  
-  
+   
   alert("✅ Đã bỏ giảm size. Khi lưu, hệ thống sẽ không ghi chú 'Size fixed'.");
 }
 window.cancelSizeFix = cancelSizeFix;
-
-
 
 // ==================== CẬP NHẬT TOTAL ==================== //
 function updateTotal() {
@@ -240,7 +274,6 @@ function updateTotal() {
     .reduce((acc, inp) => acc + Number(inp.value || 0), 0);
   document.getElementById("supp-total").textContent = sum;
 }
-
 
 // ==================== QUÉT HOẶC NHẬP RPRO ==================== //
 function handleScanned(text) {
@@ -259,6 +292,7 @@ function handleScanned(text) {
   }
   loadOrderInfo(rpro);
 }
+
 async function askNextAction() {
   return new Promise((resolve) => {
     const dialog = document.createElement("div");
@@ -295,6 +329,7 @@ async function askNextAction() {
     });
   });
 }
+
 // ==================== DOM EVENT ==================== //
 window.addEventListener("DOMContentLoaded", () => {
   logVisit("Supplement");
@@ -307,33 +342,44 @@ window.addEventListener("DOMContentLoaded", () => {
       const genderVal = document.getElementById("info-gender").textContent.trim();
       const remarkNote = document.getElementById("note-textarea").value.trim();
 
+      // === DEBUG CHECK (Bật console lên xem nếu không lưu) ===
+      console.log("🔍 START SAVING...");
+      console.log("- Gender:", genderVal);
+      console.log("- showSizeFixValues:", showSizeFixValues);
+      console.log("- removedSizeFix:", removedSizeFix);
+
       // === Tạo remark đúng theo thực tế ===
+      let remarkValue = "";
+      if (
+        genderVal === "Women's" &&
+        showSizeFixValues &&
+        !removedSizeFix // ✅ nếu đã bấm "Bỏ giảm size" thì không ghi chú nữa
+      ){
+        const originalSizes = headersArr
+          .filter(h => !isNaN(parseFloat(h)))
+          .map(s => s.trim())
+          .filter(Boolean)
+          .sort((a, b) => parseFloat(a) - parseFloat(b))
+          .filter(s => Number(rawRecord[s]) > 0)
+          .map(s => s.toString());
 
-        let remarkValue = "";
-        if (
-          genderVal === "Women's" &&
-          showSizeFixValues &&
-          !removedSizeFix // ✅ nếu đã bấm "Bỏ giảm size" thì không ghi chú nữa
-        ){
-          const originalSizes = headersArr
-            .filter(h => !isNaN(parseFloat(h)))
-            .map(s => s.trim())
-            .filter(Boolean)
-            .sort((a, b) => parseFloat(a) - parseFloat(b))
-            .filter(s => Number(rawRecord[s]) > 0)
-            .map(s => s.toString());
+        const femaleSizes = Object.keys(sizeFixData)
+          .map(s => parseFloat(s))
+          .filter(n => !isNaN(n))
+          .sort((a, b) => a - b)
+          .map(n => n.toString());
+        
+        console.log("- So sánh size:", {originalSizes, femaleSizes});
 
-          const femaleSizes = Object.keys(sizeFixData)
-            .map(s => parseFloat(s))
-            .filter(n => !isNaN(n))
-            .sort((a, b) => a - b)
-            .map(n => n.toString());
-
-          if (checkHasRealSizeFix(originalSizes, femaleSizes)) {
-            remarkValue = "Size fixed";
-          }
+        if (checkHasRealSizeFix(originalSizes, femaleSizes)) {
+          remarkValue = "Size fixed";
+          console.log("=> QUYẾT ĐỊNH: CÓ GHI SIZE FIXED");
+        } else {
+            console.log("=> QUYẾT ĐỊNH: KHÔNG GHI (Size giống nhau)");
         }
-
+      } else {
+          console.log("=> QUYẾT ĐỊNH: KHÔNG GHI (Không thỏa đk Gender hoặc đã bỏ chọn)");
+      }
 
       const payload = {
         rpro: currentRpro,
@@ -349,10 +395,7 @@ window.addEventListener("DOMContentLoaded", () => {
         remark2: remarkNote
       };
 
-
       const inputs = document.querySelectorAll(".input-supp");
-      console.log("🔍 Số ô nhập tìm thấy:", inputs.length);
-
       const sizeArray = [];
       inputs.forEach(inp => {
         const size = inp.dataset.size;
@@ -362,7 +405,6 @@ window.addEventListener("DOMContentLoaded", () => {
         sizeArray.push({ size: key, value: numValue });
       });
 
-      console.table(sizeArray);
       console.log("📦 Payload gửi lên Supabase:", payload);
 
       try {
@@ -379,8 +421,12 @@ window.addEventListener("DOMContentLoaded", () => {
           document.getElementById("manualRpro").value = "";
           document.getElementById("size-table-container").innerHTML = "";
           document.getElementById("order-info").classList.add("hidden");
-          document.getElementById("btn-confirm-supplement").disabled = true;
           
+          // Reset nút lưu về trạng thái chờ
+          const btnSave = document.getElementById("btn-confirm-supplement");
+          btnSave.disabled = true;
+          btnSave.textContent = "Lưu"; 
+           
         } else {
           // ⏸ Ở lại đơn hiện tại
           console.log("🟢 Người dùng chọn ở lại đơn hiện tại.");
@@ -393,8 +439,6 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     });
 });
-
-
 
 // ==================== KHỞI TẠO QR ==================== //
 window.addEventListener("load", () => {
