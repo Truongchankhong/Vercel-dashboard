@@ -18,6 +18,10 @@ function normalizeSizeKey(size) {
 // ==================== HÀM KIỂM TRA SIZE FIX CÓ THẬT SỰ KHÁC KHÔNG ==================== //
 function checkHasRealSizeFix(originalSizes, femaleSizes) {
   if (!originalSizes || !femaleSizes) return false;
+  
+  // ✅ FIX: Nếu danh sách size nữ rỗng (không có data), thì KHÔNG được coi là Size fixed
+  if (femaleSizes.length === 0) return false;
+
   if (originalSizes.length !== femaleSizes.length) return true;
   for (let i = 0; i < originalSizes.length; i++) {
     if (originalSizes[i] !== femaleSizes[i]) return true; // chỉ cần 1 size khác là coi như có giảm size
@@ -40,7 +44,7 @@ async function logVisit(page, button = null) {
 async function loadOrderInfo(rpro) {
   currentRpro = rpro;
   
-  // 🔒 KHÓA NÚT LƯU NGAY LẬP TỨC ĐỂ TRÁNH LỖI "TAY NHANH HƠN MẠNG"
+  // 🔒 KHÓA NÚT LƯU NGAY LẬP TỨC
   const btnSave = document.getElementById("btn-confirm-supplement");
   if(btnSave) {
       btnSave.disabled = true;
@@ -56,8 +60,6 @@ async function loadOrderInfo(rpro) {
     const { headers, data } = await res.json();
     headersArr = headers;
 
-    console.log("📋 headersArr =", headersArr);
-
     const rec = data.find(r => (r["PRO ODER"] || "") === rpro);
     if (!rec) {
       alert("Không tìm thấy đơn " + rpro);
@@ -69,24 +71,21 @@ async function loadOrderInfo(rpro) {
       return;
     }
 
-    // Chuẩn hóa giới tính để so sánh chính xác hơn
     const genderRaw = rec["Giới tính"] || rec["GENDER"] || "";
     const gender = genderRaw.trim(); 
     
-    // Reset các biến cờ
     useSizeFix = false;
     showSizeFixValues = true;
     sizeFixData = {};
-    removedSizeFix = false; // Reset lại trạng thái bỏ giảm size
+    removedSizeFix = false; 
 
-    // 2. Nếu là Nữ, TẢI TIẾP file sizefix và CHỜ nó tải xong (await)
+    // 2. Nếu là Nữ, TẢI TIẾP file sizefix 
     if (gender === "Women's") {
       try {
         const resFix = await fetch("/sizefix.json?v=" + Date.now(), { cache: "no-store" });
         const sizefixJson = await resFix.json();
         sizeFixData = sizefixJson[rpro] || {};
         
-        // Chỉ bật cờ dùng size fix nếu tìm thấy data
         if (Object.keys(sizeFixData).length > 0) {
           useSizeFix = true;
         }
@@ -105,7 +104,6 @@ async function loadOrderInfo(rpro) {
     existingRecord = (existingRows && existingRows.length > 0) ? existingRows[0] : null;
     rawRecord = rec;
 
-    // 4. Render giao diện (Lúc này data đã đầy đủ 100%)
     renderOrder(rec, existingRecord);
 
   } catch (err) {
@@ -113,14 +111,11 @@ async function loadOrderInfo(rpro) {
     alert("Lỗi khi tải dữ liệu!");
   } finally {
     if (loadingEl) loadingEl.classList.add("hidden");
-    // Mở lại nút lưu trong renderOrder hoặc ở đây nếu cần thiết
   }
 }
 
 // ==================== HIỂN THỊ BẢNG SIZE ==================== //
 function renderOrder(rec, existing = null) {
-  console.log("🧩 renderOrder chạy, headersArr:", headersArr);
-
   // Gán metadata cơ bản
   document.getElementById("info-rpro").textContent = rec["PRO ODER"] || "";
   document.getElementById("info-so").textContent = rec["SO"] || rec["Sales Order"] || "";
@@ -135,14 +130,12 @@ function renderOrder(rec, existing = null) {
   document.getElementById("info-bom").textContent = rec["BOM"] || "";
   document.getElementById("order-info").classList.remove("hidden");
 
-  // ✅ Lấy danh sách size có giá trị từ headersArr
+  // ✅ Lấy danh sách size 
   const sizeKeys = headersArr
     .filter(h => !isNaN(parseFloat(h)))
     .map(s => s.trim())
     .filter(Boolean)
     .sort((a, b) => parseFloat(a) - parseFloat(b));
-
-  console.log("📏 sizeKeys phát hiện:", sizeKeys);
 
   const originalData = rec;
   const femaleData = sizeFixData || {};
@@ -175,7 +168,6 @@ function renderOrder(rec, existing = null) {
   }
 
   originalSizes.forEach((sizeOriginal, idx) => {
-    // Logic hiển thị size nữ
     const sizeFemale = (gender === "Women's" && femaleSizes[idx] && showSizeFixValues)
       ? femaleSizes[idx]
       : "";
@@ -183,7 +175,6 @@ function renderOrder(rec, existing = null) {
     const poQtyOriginal = Number(originalData[sizeOriginal]) || 0;
     const poQtyFemale = femaleSizes[idx] ? Number(femaleData[femaleSizes[idx]]) || 0 : 0;
 
-    // Logic hiển thị PO Qty
     const poQty = (gender === "Women's" && useSizeFix && showSizeFixValues)
       ? poQtyFemale
       : poQtyOriginal;
@@ -218,7 +209,6 @@ function renderOrder(rec, existing = null) {
     </table>
   `;
 
-  // ✅ Nếu là Women's thì hiển thị cảnh báo
   if (useSizeFix && showSizeFixValues) {
     html = `
       <div class="bg-yellow-200 text-yellow-800 p-2 mb-2 rounded">
@@ -238,14 +228,9 @@ function renderOrder(rec, existing = null) {
     inp.addEventListener("input", updateTotal);
   });
 
-  console.log(
-    "✅ Rendered size inputs:",
-    [...document.querySelectorAll(".input-supp")].map(i => i.dataset.size)
-  );
-
   updateTotal();
   
-  // 🔓 MỞ LẠI NÚT LƯU KHI MỌI THỨ ĐÃ SẴN SÀNG
+  // 🔓 MỞ LẠI NÚT LƯU 
   const btnSave = document.getElementById("btn-confirm-supplement");
   if(btnSave) {
       btnSave.disabled = false;
@@ -254,14 +239,13 @@ function renderOrder(rec, existing = null) {
 }
 
 function cancelSizeFix() {
-  removedSizeFix = true; // ✅ đánh dấu người dùng đã bỏ giảm size
+  removedSizeFix = true; 
   showSizeFixValues = false;
 
-  // Ẩn cột "Size nữ" ngay trên giao diện
   const femaleCells = document.querySelectorAll("td:nth-child(2), th:nth-child(2)");
   femaleCells.forEach(cell => {
     if (cell.textContent?.includes("Size nữ") || cell.closest("thead")) return;
-    cell.textContent = ""; // Xoá nội dung cột Size nữ
+    cell.textContent = ""; 
   });
    
   alert("✅ Đã bỏ giảm size. Khi lưu, hệ thống sẽ không ghi chú 'Size fixed'.");
@@ -342,18 +326,14 @@ window.addEventListener("DOMContentLoaded", () => {
       const genderVal = document.getElementById("info-gender").textContent.trim();
       const remarkNote = document.getElementById("note-textarea").value.trim();
 
-      // === DEBUG CHECK (Bật console lên xem nếu không lưu) ===
+      // === DEBUG CHECK ===
       console.log("🔍 START SAVING...");
-      console.log("- Gender:", genderVal);
-      console.log("- showSizeFixValues:", showSizeFixValues);
-      console.log("- removedSizeFix:", removedSizeFix);
 
-      // === Tạo remark đúng theo thực tế ===
       let remarkValue = "";
       if (
         genderVal === "Women's" &&
         showSizeFixValues &&
-        !removedSizeFix // ✅ nếu đã bấm "Bỏ giảm size" thì không ghi chú nữa
+        !removedSizeFix 
       ){
         const originalSizes = headersArr
           .filter(h => !isNaN(parseFloat(h)))
@@ -369,16 +349,13 @@ window.addEventListener("DOMContentLoaded", () => {
           .sort((a, b) => a - b)
           .map(n => n.toString());
         
-        console.log("- So sánh size:", {originalSizes, femaleSizes});
-
+        // Kiểm tra logic bằng hàm đã fix
         if (checkHasRealSizeFix(originalSizes, femaleSizes)) {
           remarkValue = "Size fixed";
           console.log("=> QUYẾT ĐỊNH: CÓ GHI SIZE FIXED");
         } else {
-            console.log("=> QUYẾT ĐỊNH: KHÔNG GHI (Size giống nhau)");
+            console.log("=> QUYẾT ĐỊNH: KHÔNG GHI");
         }
-      } else {
-          console.log("=> QUYẾT ĐỊNH: KHÔNG GHI (Không thỏa đk Gender hoặc đã bỏ chọn)");
       }
 
       const payload = {
@@ -391,7 +368,7 @@ window.addEventListener("DOMContentLoaded", () => {
         fabric: document.getElementById("info-fabric").textContent,
         bom: document.getElementById("info-bom").textContent,
         total: Number(document.getElementById("supp-total").textContent) || 0,
-        remark: remarkValue, // ✅ chỉ ghi "Size fixed" khi có giảm thật
+        remark: remarkValue, 
         remark2: remarkNote
       };
 
@@ -414,21 +391,17 @@ window.addEventListener("DOMContentLoaded", () => {
 
         if (error) throw error;
 
-        // ✅ Gọi popup xác nhận hành động tiếp theo
         const action = await askNextAction();
         if (action === "new") {
-          // 🧹 Reset form & quay về màn hình quét
           document.getElementById("manualRpro").value = "";
           document.getElementById("size-table-container").innerHTML = "";
           document.getElementById("order-info").classList.add("hidden");
           
-          // Reset nút lưu về trạng thái chờ
           const btnSave = document.getElementById("btn-confirm-supplement");
           btnSave.disabled = true;
           btnSave.textContent = "Lưu"; 
            
         } else {
-          // ⏸ Ở lại đơn hiện tại
           console.log("🟢 Người dùng chọn ở lại đơn hiện tại.");
         }
 
