@@ -1,8 +1,8 @@
 // Supabase client (global)
 const { createClient } = window.supabase;
 
-const SUPABASE_URL = "https://ixdtdrbytwdmnlqgunzu.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4ZHRkcmJ5dHdkbW5scWd1bnp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyMzkyODYsImV4cCI6MjA2ODgxNTI4Nn0.5FLdLDf0d1yA70UBmAbJYW95kVWdta31QmEjm9oX4jg";
+const SUPABASE_URL = "https://lowimtwtrqynycmuecfk.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxvd2ltdHd0cnF5bnljbXVlY2ZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzIzNzcsImV4cCI6MjA4Mzk0ODM3N30.RtYMSA913_mIaDaXgj7R9-GJd4t3rPQDI-UP7GywdFU";
 
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);

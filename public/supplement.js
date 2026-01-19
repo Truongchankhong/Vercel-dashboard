@@ -18,10 +18,6 @@ function normalizeSizeKey(size) {
 // ==================== HÀM KIỂM TRA SIZE FIX CÓ THẬT SỰ KHÁC KHÔNG ==================== //
 function checkHasRealSizeFix(originalSizes, femaleSizes) {
   if (!originalSizes || !femaleSizes) return false;
-  
-  // ✅ FIX: Nếu danh sách size nữ rỗng (không có data), thì KHÔNG được coi là Size fixed
-  if (femaleSizes.length === 0) return false;
-
   if (originalSizes.length !== femaleSizes.length) return true;
   for (let i = 0; i < originalSizes.length; i++) {
     if (originalSizes[i] !== femaleSizes[i]) return true; // chỉ cần 1 size khác là coi như có giảm size
@@ -30,62 +26,72 @@ function checkHasRealSizeFix(originalSizes, femaleSizes) {
 }
 
 // ==================== GHI LOG VISIT ==================== //
-async function logVisit(page, button = null) {
-  const today = new Date().toISOString().slice(0, 10);
-  const { error } = await supabase.rpc('increment_visit', {
-    p_date: today,
-    p_page: page || '',
-    p_button: button || 'unknown'
-  });
-  if (error) console.error("❌ logVisit error:", error);
+function logVisit(page, button = null) {
+  console.log(`[Mock] supplement logVisit: ${page} - ${button}`);
 }
 
 // ==================== LOAD ĐƠN HÀNG ==================== //
 async function loadOrderInfo(rpro) {
   currentRpro = rpro;
-  
-  // 🔒 KHÓA NÚT LƯU NGAY LẬP TỨC
+
+  // 🔒 KHÓA NÚT LƯU NGAY LẬP TỨC ĐỂ TRÁNH LỖI "TAY NHANH HƠN MẠNG"
   const btnSave = document.getElementById("btn-confirm-supplement");
-  if(btnSave) {
-      btnSave.disabled = true;
-      btnSave.textContent = "Đang tải dữ liệu...";
+  if (btnSave) {
+    btnSave.disabled = true;
+    btnSave.textContent = "Đang tải dữ liệu...";
   }
 
   const loadingEl = document.getElementById("loading-status");
   if (loadingEl) loadingEl.classList.remove("hidden");
 
   try {
-    // 1. Tải PowerApp JSON
-    const res = await fetch("/powerapp.json?v=" + Date.now(), { cache: "no-store" });
-    const { headers, data } = await res.json();
-    headersArr = headers;
+    // 1. Tải Data từ Supabase thay vì JSON static
+    // Chúng ta query bảng "powerapp" với key "PRO ODER"
+    const { data: recs, error } = await supabase
+      .from('powerapp')
+      .select('*')
+      .eq('PRO ODER', rpro)
+      .limit(1);
 
-    const rec = data.find(r => (r["PRO ODER"] || "") === rpro);
+    if (error) {
+      throw error;
+    }
+
+    const rec = (recs && recs.length > 0) ? recs[0] : null;
+
     if (!rec) {
       alert("Không tìm thấy đơn " + rpro);
       if (loadingEl) loadingEl.classList.add("hidden");
       if (btnSave) {
-          btnSave.disabled = false;
-          btnSave.textContent = "Lưu";
+        btnSave.disabled = false;
+        btnSave.textContent = "Lưu";
       }
       return;
     }
 
+    // Lấy headers từ keys của record
+    headersArr = Object.keys(rec);
+
+    console.log("📋 headersArr derived from Supabase:", headersArr);
+
+    // Chuẩn hóa giới tính để so sánh chính xác hơn
     const genderRaw = rec["Giới tính"] || rec["GENDER"] || "";
-    const gender = genderRaw.trim(); 
-    
+    const gender = genderRaw.trim();
+
+    // Reset các biến cờ
     useSizeFix = false;
     showSizeFixValues = true;
     sizeFixData = {};
-    removedSizeFix = false; 
+    removedSizeFix = false; // Reset lại trạng thái bỏ giảm size
 
-    // 2. Nếu là Nữ, TẢI TIẾP file sizefix 
+    // 2. Nếu là Nữ, TẢI TIẾP file sizefix và CHỜ nó tải xong (await)
     if (gender === "Women's") {
       try {
         const resFix = await fetch("/sizefix.json?v=" + Date.now(), { cache: "no-store" });
         const sizefixJson = await resFix.json();
         sizeFixData = sizefixJson[rpro] || {};
-        
+
+        // Chỉ bật cờ dùng size fix nếu tìm thấy data
         if (Object.keys(sizeFixData).length > 0) {
           useSizeFix = true;
         }
@@ -104,38 +110,44 @@ async function loadOrderInfo(rpro) {
     existingRecord = (existingRows && existingRows.length > 0) ? existingRows[0] : null;
     rawRecord = rec;
 
+    // 4. Render giao diện (Lúc này data đã đầy đủ 100%)
     renderOrder(rec, existingRecord);
 
   } catch (err) {
     console.error("loadOrderInfo:", err);
-    alert("Lỗi khi tải dữ liệu!");
+    alert("Lỗi khi tải dữ liệu: " + (err.message || err));
   } finally {
     if (loadingEl) loadingEl.classList.add("hidden");
+    // Mở lại nút lưu trong renderOrder hoặc ở đây nếu cần thiết
   }
 }
 
 // ==================== HIỂN THỊ BẢNG SIZE ==================== //
 function renderOrder(rec, existing = null) {
+  console.log("🧩 renderOrder chạy, headersArr:", headersArr);
+
   // Gán metadata cơ bản
   document.getElementById("info-rpro").textContent = rec["PRO ODER"] || "";
   document.getElementById("info-so").textContent = rec["SO"] || rec["Sales Order"] || "";
   document.getElementById("info-customers").textContent = rec["CUSTOMERS"] || "";
-  
+
   const gender = (rec["Giới tính"] || rec["GENDER"] || "").trim();
   document.getElementById("info-gender").textContent = gender;
-  
+
   document.getElementById("info-mold").textContent = rec["Mã Khuôn"] || rec["#MOLD"] || "";
   document.getElementById("info-pu").textContent = rec["Mã dao"] || rec["PU"] || "";
   document.getElementById("info-fabric").textContent = rec["Tên vải"] || rec["FB DESCRIPTION"] || "";
   document.getElementById("info-bom").textContent = rec["BOM"] || "";
   document.getElementById("order-info").classList.remove("hidden");
 
-  // ✅ Lấy danh sách size 
+  // ✅ Lấy danh sách size có giá trị từ headersArr
   const sizeKeys = headersArr
     .filter(h => !isNaN(parseFloat(h)))
     .map(s => s.trim())
     .filter(Boolean)
     .sort((a, b) => parseFloat(a) - parseFloat(b));
+
+  console.log("📏 sizeKeys phát hiện:", sizeKeys);
 
   const originalData = rec;
   const femaleData = sizeFixData || {};
@@ -168,6 +180,7 @@ function renderOrder(rec, existing = null) {
   }
 
   originalSizes.forEach((sizeOriginal, idx) => {
+    // Logic hiển thị size nữ
     const sizeFemale = (gender === "Women's" && femaleSizes[idx] && showSizeFixValues)
       ? femaleSizes[idx]
       : "";
@@ -175,6 +188,7 @@ function renderOrder(rec, existing = null) {
     const poQtyOriginal = Number(originalData[sizeOriginal]) || 0;
     const poQtyFemale = femaleSizes[idx] ? Number(femaleData[femaleSizes[idx]]) || 0 : 0;
 
+    // Logic hiển thị PO Qty
     const poQty = (gender === "Women's" && useSizeFix && showSizeFixValues)
       ? poQtyFemale
       : poQtyOriginal;
@@ -209,6 +223,7 @@ function renderOrder(rec, existing = null) {
     </table>
   `;
 
+  // ✅ Nếu là Women's thì hiển thị cảnh báo
   if (useSizeFix && showSizeFixValues) {
     html = `
       <div class="bg-yellow-200 text-yellow-800 p-2 mb-2 rounded">
@@ -228,26 +243,32 @@ function renderOrder(rec, existing = null) {
     inp.addEventListener("input", updateTotal);
   });
 
+  console.log(
+    "✅ Rendered size inputs:",
+    [...document.querySelectorAll(".input-supp")].map(i => i.dataset.size)
+  );
+
   updateTotal();
-  
-  // 🔓 MỞ LẠI NÚT LƯU 
+
+  // 🔓 MỞ LẠI NÚT LƯU KHI MỌI THỨ ĐÃ SẴN SÀNG
   const btnSave = document.getElementById("btn-confirm-supplement");
-  if(btnSave) {
-      btnSave.disabled = false;
-      btnSave.textContent = "Lưu";
+  if (btnSave) {
+    btnSave.disabled = false;
+    btnSave.textContent = "Lưu";
   }
 }
 
 function cancelSizeFix() {
-  removedSizeFix = true; 
+  removedSizeFix = true; // ✅ đánh dấu người dùng đã bỏ giảm size
   showSizeFixValues = false;
 
+  // Ẩn cột "Size nữ" ngay trên giao diện
   const femaleCells = document.querySelectorAll("td:nth-child(2), th:nth-child(2)");
   femaleCells.forEach(cell => {
     if (cell.textContent?.includes("Size nữ") || cell.closest("thead")) return;
-    cell.textContent = ""; 
+    cell.textContent = ""; // Xoá nội dung cột Size nữ
   });
-   
+
   alert("✅ Đã bỏ giảm size. Khi lưu, hệ thống sẽ không ghi chú 'Size fixed'.");
 }
 window.cancelSizeFix = cancelSizeFix;
@@ -326,15 +347,19 @@ window.addEventListener("DOMContentLoaded", () => {
       const genderVal = document.getElementById("info-gender").textContent.trim();
       const remarkNote = document.getElementById("note-textarea").value.trim();
 
-      // === DEBUG CHECK ===
+      // === DEBUG CHECK (Bật console lên xem nếu không lưu) ===
       console.log("🔍 START SAVING...");
+      console.log("- Gender:", genderVal);
+      console.log("- showSizeFixValues:", showSizeFixValues);
+      console.log("- removedSizeFix:", removedSizeFix);
 
+      // === Tạo remark đúng theo thực tế ===
       let remarkValue = "";
       if (
         genderVal === "Women's" &&
         showSizeFixValues &&
-        !removedSizeFix 
-      ){
+        !removedSizeFix // ✅ nếu đã bấm "Bỏ giảm size" thì không ghi chú nữa
+      ) {
         const originalSizes = headersArr
           .filter(h => !isNaN(parseFloat(h)))
           .map(s => s.trim())
@@ -348,14 +373,17 @@ window.addEventListener("DOMContentLoaded", () => {
           .filter(n => !isNaN(n))
           .sort((a, b) => a - b)
           .map(n => n.toString());
-        
-        // Kiểm tra logic bằng hàm đã fix
+
+        console.log("- So sánh size:", { originalSizes, femaleSizes });
+
         if (checkHasRealSizeFix(originalSizes, femaleSizes)) {
           remarkValue = "Size fixed";
           console.log("=> QUYẾT ĐỊNH: CÓ GHI SIZE FIXED");
         } else {
-            console.log("=> QUYẾT ĐỊNH: KHÔNG GHI");
+          console.log("=> QUYẾT ĐỊNH: KHÔNG GHI (Size giống nhau)");
         }
+      } else {
+        console.log("=> QUYẾT ĐỊNH: KHÔNG GHI (Không thỏa đk Gender hoặc đã bỏ chọn)");
       }
 
       const payload = {
@@ -368,7 +396,7 @@ window.addEventListener("DOMContentLoaded", () => {
         fabric: document.getElementById("info-fabric").textContent,
         bom: document.getElementById("info-bom").textContent,
         total: Number(document.getElementById("supp-total").textContent) || 0,
-        remark: remarkValue, 
+        remark: remarkValue, // ✅ chỉ ghi "Size fixed" khi có giảm thật
         remark2: remarkNote
       };
 
@@ -391,17 +419,21 @@ window.addEventListener("DOMContentLoaded", () => {
 
         if (error) throw error;
 
+        // ✅ Gọi popup xác nhận hành động tiếp theo
         const action = await askNextAction();
         if (action === "new") {
+          // 🧹 Reset form & quay về màn hình quét
           document.getElementById("manualRpro").value = "";
           document.getElementById("size-table-container").innerHTML = "";
           document.getElementById("order-info").classList.add("hidden");
-          
+
+          // Reset nút lưu về trạng thái chờ
           const btnSave = document.getElementById("btn-confirm-supplement");
           btnSave.disabled = true;
-          btnSave.textContent = "Lưu"; 
-           
+          btnSave.textContent = "Lưu";
+
         } else {
+          // ⏸ Ở lại đơn hiện tại
           console.log("🟢 Người dùng chọn ở lại đơn hiện tại.");
         }
 

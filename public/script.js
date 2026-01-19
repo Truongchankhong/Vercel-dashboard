@@ -2,26 +2,90 @@
 const { createClient } = window.supabase;
 
 // Khai báo Supabase
-const supabaseUrl = 'https://ixdtdrbytwdmnlqgunzu.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4ZHRkcmJ5dHdkbW5scWd1bnp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyMzkyODYsImV4cCI6MjA2ODgxNTI4Nn0.5FLdLDf0d1yA70UBmAbJYW95kVWdta31QmEjm9oX4jg'; // Anon key từ Supabase
+const supabaseUrl = 'https://lowimtwtrqynycmuecfk.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxvd2ltdHd0cnF5bnljbXVlY2ZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzIzNzcsImV4cCI6MjA4Mzk0ODM3N30.RtYMSA913_mIaDaXgj7R9-GJd4t3rPQDI-UP7GywdFU'; // Anon key từ Supabase
 export const supabase = createClient(supabaseUrl, supabaseKey);
 window.supabaseClient = supabase;
 
+// --- Helper: Fetch all data from Supabase (pagination) ---
+async function fetchAllPowerAppData() {
+  let allRows = [];
+  let from = 0;
+  const step = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from('powerapp')
+      .select('*')
+      .range(from, from + step - 1);
+
+    if (error) {
+      console.error('Supabase fetch error:', error);
+      throw error;
+    }
+    if (!data || data.length === 0) break;
+
+    allRows = allRows.concat(data);
+
+    if (data.length < step) break;
+    from += step;
+  }
+  return { data: allRows };
+}
+
 
 // --- DOM elements chung ---
-const container        = document.getElementById('table-container');
+const container = document.getElementById('table-container');
 const detailsContainer = document.getElementById('details-container');
-const searchResult     = document.getElementById('searchResult');
-const lastUpdatedEl    = document.getElementById('last-updated');
+const searchResult = document.getElementById('searchResult');
+const lastUpdatedEl = document.getElementById('lastPushTime'); // Corrected ID
 
-const btnRaw           = document.getElementById('btn-raw');
-const btnSummary       = document.getElementById('btn-summary');
-const btnProgress      = document.getElementById('btn-progress');
-const btnRefresh       = document.getElementById('btn-refresh');
+// --- Fetch Last Update Time ---
+async function fetchLastPushTime() {
+  if (!lastUpdatedEl) return;
+  try {
+    const { data, error } = await supabase
+      .from('powerapp')
+      .select('"Finish date"') // Use existing column
+      .eq('STT', -1) // Metadata record (Numeric)
+      .limit(1);
+
+    if (error) throw error;
+
+    if (data && data.length > 0 && data[0]['Finish date']) {
+      // Format time
+      const date = new Date(data[0]['Finish date']);
+      // Format: Wed 01/14/2026 11:01:43
+      const formatted = date.toLocaleString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      lastUpdatedEl.textContent = formatted;
+    } else {
+      lastUpdatedEl.textContent = "Chưa có dữ liệu";
+    }
+  } catch (err) {
+    console.error("Error fetching last update:", err);
+    lastUpdatedEl.textContent = "Lỗi tải thời gian";
+  }
+}
+// Call immediately
+fetchLastPushTime();
+
+
+const btnRaw = document.getElementById('btn-raw');
+const btnSummary = document.getElementById('btn-summary');
+const btnProgress = document.getElementById('btn-progress');
+const btnRefresh = document.getElementById('btn-refresh');
 const btnDelayUrgent = document.getElementById('btn-delay-urgent');      // nút đỏ chuyển view
 const btnDelayTab = document.getElementById('btn-delay-tab');      // nút tab "Delay"
 const btnUrgentTab = document.getElementById('btn-urgent-tab');    // nút tab "Xuất gấp"
-const delayTabs      = document.getElementById('delay-tabs');
+const delayTabs = document.getElementById('delay-tabs');
 
 const delaySearchBox = document.getElementById('delaySearchBox');
 const delayColumnSelect = document.getElementById('delayColumnSelect');
@@ -34,7 +98,7 @@ const delayAdvancedFilter = document.getElementById('delay-advanced-filter');
 const progressSearchBar = document.getElementById('progress-search-bar');
 const progressSearchBox = document.getElementById('progressSearchBox');
 const progressBtnSearch = document.getElementById('progressBtnSearch');
-const progressBtnClear  = document.getElementById('progressBtnClear');
+const progressBtnClear = document.getElementById('progressBtnClear');
 
 // Xử lý khi quét QR Progress
 function handleProgressQR(text) {
@@ -120,7 +184,7 @@ const headerDisplayMap = {
 
 
 // Track view hiện tại: 'summary' | 'raw' | 'progress' | 'detail'
-let currentView   = 'summary';
+let currentView = 'summary';
 let currentMachine = null;
 
 // --- Utility functions ---
@@ -220,18 +284,18 @@ async function loadProgress() {
   hideAllViews();
   currentMachine = null;
   showProgressSearchBar();
-   // Hiện tiêu đề tìm kiếm cơ bản và nâng cao
-    document.getElementById('basic-search-title').classList.remove('hidden');
-    document.getElementById('advanced-search-title').classList.remove('hidden');
+  // Hiện tiêu đề tìm kiếm cơ bản và nâng cao
+  document.getElementById('basic-search-title').classList.remove('hidden');
+  document.getElementById('advanced-search-title').classList.remove('hidden');
 
-   // Hiện thanh tìm kiếm cơ bản & nâng cao
-   showProgressSearchBar();
-   showProgressAdvancedFilter();
+  // Hiện thanh tìm kiếm cơ bản & nâng cao
+  showProgressSearchBar();
+  showProgressAdvancedFilter();
   // Ẩn các view khác:
   hideDetails();
   container.innerHTML = '';
   searchResult.innerHTML = '';
-  
+
   hideSectionBar();
   // Hiện thanh tìm kiếm Progress:
   showProgressSearchBar();
@@ -261,14 +325,15 @@ async function searchProgress() {
   });
 
   try {
-    // → fetch và chỉ lấy mảng data
-    const res  = await fetch('/powerapp.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
+    // → fetch data from Supabase
+    // const res  = await fetch('/powerapp.json', { cache: 'no-store' });
+    // if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // const json = await res.json();
+    const json = await fetchAllPowerAppData();
     const data = json.data;
 
     const fields = [
-      'PRO ODER', 'Total Qty','Finish date','Molding (PPC)','Molding Pro (IN)', 'Molding Pro','STATUS','Brand Code', '#MOLD', 'BOM' ,'PU','FB', ,
+      'PRO ODER', 'Total Qty', 'Finish date', 'Molding (PPC)', 'Molding Pro (IN)', 'Molding Pro', 'STATUS', 'Brand Code', '#MOLD', 'BOM', 'PU', 'FB', ,
       'RECEIVED (MATERIAL)', 'RECEIVED (LOGO)', 'Laminating (Pro)',
       'Prefitting (Pro)', 'Slipting (Pro)', 'Bào (Pro)', 'IN lean Line (Pro)',
       'IN lean Line (MACHINE)', 'Out lean Line (Pro)',
@@ -287,8 +352,8 @@ async function searchProgress() {
       const base = new Date(1899, 11, 30);
       const date = new Date(base.getTime() + Math.floor(serial) * 86400000);
       return `${String(date.getDate()).padStart(2, '0')}/` +
-             `${String(date.getMonth() + 1).padStart(2, '0')}/` +
-             `${date.getFullYear()}`;
+        `${String(date.getMonth() + 1).padStart(2, '0')}/` +
+        `${date.getFullYear()}`;
     };
 
     // Lọc dữ liệu theo: chọn 1 cột + checkbox nâng cao
@@ -343,7 +408,7 @@ async function searchProgress() {
 
     html += '</tbody></table>';
     container.innerHTML = html;
-    
+
 
   } catch (err) {
     console.error('[searchProgress error]', err);
@@ -381,7 +446,7 @@ function shouldDisplayRow(d, isInitial) {
 
   // Nếu chọn cột cụ thể và có từ khóa → lọc theo từ khóa
   return (d[selectedField] || '').toString().toUpperCase().includes(keyword);
-}async function loadDetailsClient(
+} async function loadDetailsClient(
   machine,
   isInitial = false,
   rememberedField = 'ALL',
@@ -394,20 +459,21 @@ function shouldDisplayRow(d, isInitial) {
   detailsContainer.innerHTML = '<div class="text-center py-4">Loading chi tiết…</div>';
 
   try {
-    // 1) Fetch và chỉ lấy mảng data
-    const res = await fetch('/powerapp.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json     = await res.json();
+    // 1) Fetch data from Supabase
+    // const res = await fetch('/powerapp.json', { cache: 'no-store' });
+    // if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // const json     = await res.json();
+    const json = await fetchAllPowerAppData();
     const fullData = json.data;
 
     // 2) Xác định các cột Plan / Actual / Verify
-    const planCol     = selectedSection === 'LEANLINE_DC'
+    const planCol = selectedSection === 'LEANLINE_DC'
       ? 'LEANLINE PLAN'
       : 'LAMINATION MACHINE (PLAN)';
     const realtimeCol = selectedSection === 'LEANLINE_DC'
       ? 'LEANLINE (REALTIME)'
       : 'LAMINATION MACHINE (REALTIME)';
-    const verifyCol   = selectedSection === 'LEANLINE_DC'
+    const verifyCol = selectedSection === 'LEANLINE_DC'
       ? 'CheckLL'
       : 'Check';
 
@@ -468,18 +534,18 @@ function shouldDisplayRow(d, isInitial) {
 
     // 8) Tính phần trăm Verify
     const validRows = details.filter(d =>
-      d[verifyCol] === true  || d[verifyCol] === 'True'  ||
+      d[verifyCol] === true || d[verifyCol] === 'True' ||
       d[verifyCol] === false || d[verifyCol] === 'False'
     );
-    const trueCount      = validRows.filter(d =>
+    const trueCount = validRows.filter(d =>
       d[verifyCol] === true || d[verifyCol] === 'True'
     ).length;
-    const percentVerify  = validRows.length
+    const percentVerify = validRows.length
       ? ((trueCount / validRows.length) * 100).toFixed(1)
       : '0.0';
 
     // 9) Gán màu nhóm theo PU + FB
-    const palette = ['#fef08a','#a7f3d0','#fca5a5','#c4b5fd','#f9a8d4','#fde68a','#bfdbfe','#6ee7b7'];
+    const palette = ['#fef08a', '#a7f3d0', '#fca5a5', '#c4b5fd', '#f9a8d4', '#fde68a', '#bfdbfe', '#6ee7b7'];
     const groups = [...new Set(details.map(d => `${d.PU}_${d.FB}`))];
     const colorMap = {};
     groups.forEach((g, idx) => {
@@ -489,9 +555,9 @@ function shouldDisplayRow(d, isInitial) {
     // 10) Build HTML chi tiết
     const headerMap = {
       ...headerDisplayMap,
-      [planCol]:     'Plan Machine',
+      [planCol]: 'Plan Machine',
       [realtimeCol]: 'Actual Machine',
-      [verifyCol]:   'Verify'
+      [verifyCol]: 'Verify'
     };
 
     let tbodyHTML = '';
@@ -509,7 +575,7 @@ function shouldDisplayRow(d, isInitial) {
 
     const optionsHTML = selectedColumns.map(opt => {
       const sel = rememberedField === opt ? ' selected' : '';
-      return `<option value="${opt}"${sel}>${headerMap[opt]||opt}</option>`;
+      return `<option value="${opt}"${sel}>${headerMap[opt] || opt}</option>`;
     }).join('');
 
     detailsContainer.innerHTML = `
@@ -522,7 +588,7 @@ function shouldDisplayRow(d, isInitial) {
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
         <select id="detailsColumnSelect" class="col-span-3 border px-2 py-1 rounded">
-          <option value="ALL"${rememberedField==='ALL'?' selected':''}>Tất cả (All)</option>
+          <option value="ALL"${rememberedField === 'ALL' ? ' selected' : ''}>Tất cả (All)</option>
           ${optionsHTML}
         </select>
         <input id="detailsSearchInput" type="text" placeholder="Nhập từ khóa..."
@@ -538,13 +604,13 @@ function shouldDisplayRow(d, isInitial) {
             <tr>
               <th class="border px-2 py-1">STT</th>
               ${selectedColumns.map(col => {
-                const extra = (col===planCol||col===realtimeCol)
-                  ? ' max-w-[150px] truncate'
-                  : (col==='FB DESCRIPTION'
-                    ? ' max-w-[180px] break-words'
-                    : '');
-                return `<th class="border px-2 py-1${extra}">${headerMap[col]||col}</th>`;
-              }).join('')}
+      const extra = (col === planCol || col === realtimeCol)
+        ? ' max-w-[150px] truncate'
+        : (col === 'FB DESCRIPTION'
+          ? ' max-w-[180px] break-words'
+          : '');
+      return `<th class="border px-2 py-1${extra}">${headerMap[col] || col}</th>`;
+    }).join('')}
             </tr>
           </thead>
           <tbody>${tbodyHTML}</tbody>
@@ -555,7 +621,7 @@ function shouldDisplayRow(d, isInitial) {
     // 11) Gắn event cho Tìm / Xóa
     document.getElementById('detailsSearchBtn')
       .addEventListener('click', () => {
-        const f  = document.getElementById('detailsColumnSelect').value;
+        const f = document.getElementById('detailsColumnSelect').value;
         const kw = document.getElementById('detailsSearchInput').value.trim();
         loadDetailsClient(machine, false, f, kw);
       });
@@ -585,7 +651,7 @@ btnProgress.addEventListener('click', loadProgress);
 btnDelayUrgent.addEventListener('click', () => {
   hideAllViews();
   delayTabs.classList.remove('hidden');
-    // Hiện tiêu đề & thanh tìm kiếm cơ bản + nâng cao
+  // Hiện tiêu đề & thanh tìm kiếm cơ bản + nâng cao
   document.getElementById('delay-basic-search-title').classList.remove('hidden');
   document.getElementById('delay-advanced-search-title').classList.remove('hidden');
 
@@ -611,10 +677,10 @@ btnDelayTab.addEventListener('click', () => {
   loadDelayUrgentData('DELAY');
 
   // highlight nút
-  btnDelayTab.classList.add('bg-yellow-400','text-white');
-  btnDelayTab.classList.remove('bg-gray-300','text-black');
-  btnUrgentTab.classList.remove('bg-yellow-400','text-white');
-  btnUrgentTab.classList.add('bg-gray-300','text-black');
+  btnDelayTab.classList.add('bg-yellow-400', 'text-white');
+  btnDelayTab.classList.remove('bg-gray-300', 'text-black');
+  btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
+  btnUrgentTab.classList.add('bg-gray-300', 'text-black');
 });
 
 // Sự kiện nút Xuất gấp
@@ -626,10 +692,10 @@ btnUrgentTab.addEventListener('click', () => {
   loadDelayUrgentData('URGENT');
 
   // highlight nút
-  btnUrgentTab.classList.add('bg-yellow-400','text-white');
-  btnUrgentTab.classList.remove('bg-gray-300','text-black');
-  btnDelayTab.classList.remove('bg-yellow-400','text-white');
-  btnDelayTab.classList.add('bg-gray-300','text-black');
+  btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
+  btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
+  btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
+  btnDelayTab.classList.add('bg-gray-300', 'text-black');
 });
 
 
@@ -662,13 +728,12 @@ const sectionButtons = [
 function renderSectionButtons() {
   const bar = document.getElementById('section-bar');
   bar.innerHTML = '';
-  sectionButtons.forEach(({id, label, value}) => {
+  sectionButtons.forEach(({ id, label, value }) => {
     const btn = document.createElement('button');
     btn.id = id;
     btn.textContent = label;
-    btn.className = `px-4 py-1 rounded font-medium text-white ${
-      selectedSection===value ? 'bg-green-600' : 'bg-gray-400'
-    }`;
+    btn.className = `px-4 py-1 rounded font-medium text-white ${selectedSection === value ? 'bg-green-600' : 'bg-gray-400'
+      }`;
     btn.onclick = () => {
       selectedSection = value;
       renderSectionButtons();
@@ -676,9 +741,9 @@ function renderSectionButtons() {
     };
     bar.appendChild(btn);
   });
- 
+
 }
- function getDelayUrgentQty(machine, data) {
+function getDelayUrgentQty(machine, data) {
   const planKey = selectedSection === 'LEANLINE_DC'
     ? 'LEANLINE PLAN'
     : 'LAMINATION MACHINE (PLAN)';
@@ -699,7 +764,7 @@ function renderSectionButtons() {
     }
     return sum;
   }, 0);
-}async function renderSummarySection() {
+} async function renderSummarySection() {
   setBtnLoading(btnSummary, true);
   hideDetails();
   hideProgressSearchBar();
@@ -711,9 +776,10 @@ function renderSectionButtons() {
   renderSectionButtons();
 
   try {
-    const res = await fetch('/powerapp.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
+    // const res = await fetch('/powerapp.json', { cache: 'no-store' });
+    // if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // const json = await res.json();
+    const json = await fetchAllPowerAppData();
     const data = json.data;
 
     // 🧩 Chọn cột máy và trạng thái cần lọc
@@ -768,8 +834,8 @@ function renderSectionButtons() {
             <th class="px-6 py-3 text-right">QUANTITY PAIR PLAN</th>
             <th class="px-6 py-3 text-right text-red-600">Delay/Urgent</th>
             ${selectedSection === 'LAMINATION'
-              ? `<th class="px-6 py-3 text-right">SỐ TẤM (SHEET)</th>`
-              : ''}
+        ? `<th class="px-6 py-3 text-right">SỐ TẤM (SHEET)</th>`
+        : ''}
           </tr>
         </thead>
         <tbody>
@@ -795,11 +861,10 @@ function renderSectionButtons() {
             <td class="px-6 py-3 text-sm text-gray-700">${machine}</td>
             <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(qty)}</td>
             <td class="px-6 py-3 text-sm text-right text-red-600 font-semibold">${formatNumber(delay)}</td>
-            ${
-              selectedSection === 'LAMINATION'
-                ? `<td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(sheets)}</td>`
-                : ''
-            }
+            ${selectedSection === 'LAMINATION'
+            ? `<td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(sheets)}</td>`
+            : ''
+          }
           </tr>
         `;
       });
@@ -809,11 +874,10 @@ function renderSectionButtons() {
           <td class="px-6 py-3 text-right">Tổng cộng:</td>
           <td class="px-6 py-3 text-right">${formatNumber(totalQty)}</td>
           <td class="px-6 py-3 text-right text-red-600 font-semibold">${formatNumber(totalDelay)}</td>
-          ${
-            selectedSection === 'LAMINATION'
-              ? `<td class="px-6 py-3 text-right">${formatNumber(totalSheets)}</td>`
-              : ''
-          }
+          ${selectedSection === 'LAMINATION'
+        ? `<td class="px-6 py-3 text-right">${formatNumber(totalSheets)}</td>`
+        : ''
+      }
         </tr>
       </tbody>
       </table>
@@ -882,9 +946,9 @@ window.addEventListener('DOMContentLoaded', () => {
     delayAdvancedFilter.classList.remove('hidden');
     loadDelayUrgentData('DELAY');
 
-   delayTabs.classList.remove('hidden');
-   delaySearchBar.classList.remove('hidden');
-   delayAdvancedFilter.classList.remove('hidden');
+    delayTabs.classList.remove('hidden');
+    delaySearchBar.classList.remove('hidden');
+    delayAdvancedFilter.classList.remove('hidden');
 
     btnDelayTab.classList.add('bg-yellow-400', 'text-white');
     btnDelayTab.classList.remove('bg-gray-300', 'text-black');
@@ -893,34 +957,34 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   // Sự kiện nút Delay
-btnDelayTab.addEventListener('click', () => {
-  currentDelayType = 'DELAY';
-  hideAllViews();
-  delayTabs.classList.remove('hidden');
-  showDelaySearchWidgets();
-  loadDelayUrgentData('DELAY');
+  btnDelayTab.addEventListener('click', () => {
+    currentDelayType = 'DELAY';
+    hideAllViews();
+    delayTabs.classList.remove('hidden');
+    showDelaySearchWidgets();
+    loadDelayUrgentData('DELAY');
 
-  // highlight nút
-  btnDelayTab.classList.add('bg-yellow-400','text-white');
-  btnDelayTab.classList.remove('bg-gray-300','text-black');
-  btnUrgentTab.classList.remove('bg-yellow-400','text-white');
-  btnUrgentTab.classList.add('bg-gray-300','text-black');
-});
+    // highlight nút
+    btnDelayTab.classList.add('bg-yellow-400', 'text-white');
+    btnDelayTab.classList.remove('bg-gray-300', 'text-black');
+    btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
+    btnUrgentTab.classList.add('bg-gray-300', 'text-black');
+  });
 
-// Sự kiện nút Xuất gấp
-btnUrgentTab.addEventListener('click', () => {
-  currentDelayType = 'URGENT';
-  hideAllViews();
-  delayTabs.classList.remove('hidden');
-  showDelaySearchWidgets();
-  loadDelayUrgentData('URGENT');
+  // Sự kiện nút Xuất gấp
+  btnUrgentTab.addEventListener('click', () => {
+    currentDelayType = 'URGENT';
+    hideAllViews();
+    delayTabs.classList.remove('hidden');
+    showDelaySearchWidgets();
+    loadDelayUrgentData('URGENT');
 
-  // highlight nút
-  btnUrgentTab.classList.add('bg-yellow-400','text-white');
-  btnUrgentTab.classList.remove('bg-gray-300','text-black');
-  btnDelayTab.classList.remove('bg-yellow-400','text-white');
-  btnDelayTab.classList.add('bg-gray-300','text-black');
-});
+    // highlight nút
+    btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
+    btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
+    btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
+    btnDelayTab.classList.add('bg-gray-300', 'text-black');
+  });
 
 
   progressBtnSearch.addEventListener('click', searchProgress);
@@ -958,8 +1022,8 @@ function formatExcelDate(serial) {
   const base = new Date(1899, 11, 30);
   const date = new Date(base.getTime() + serial * 86400000);
   return `${String(date.getDate()).padStart(2, '0')}/` +
-         `${String(date.getMonth() + 1).padStart(2, '0')}/` +
-         `${date.getFullYear()}`;
+    `${String(date.getMonth() + 1).padStart(2, '0')}/` +
+    `${date.getFullYear()}`;
 }
 
 
@@ -971,18 +1035,18 @@ function loadDelayUrgentData(type) {
       return res.json();
     })
     .then(json => {
-      const data           = json.data;  
-      const keyword        = delaySearchBox.value.trim().toLowerCase();
-      const selectedField  = delayColumnSelect.value;
-      const errorOnly      = delayErrorOnly.checked;
+      const data = json.data;
+      const keyword = delaySearchBox.value.trim().toLowerCase();
+      const selectedField = delayColumnSelect.value;
+      const errorOnly = delayErrorOnly.checked;
 
       // Lọc theo điều kiện nâng cao
-      const inputs  = document.querySelectorAll('.delay-input');
-      const checks  = document.querySelectorAll('.delay-check');
+      const inputs = document.querySelectorAll('.delay-input');
+      const checks = document.querySelectorAll('.delay-check');
       const filters = {};
       checks.forEach(chk => {
         if (chk.checked) {
-          const key   = chk.dataset.key;
+          const key = chk.dataset.key;
           const input = [...inputs].find(i => i.dataset.key === key);
           if (input && input.value.trim()) {
             filters[key] = input.value.trim().toLowerCase();
@@ -994,8 +1058,8 @@ function loadDelayUrgentData(type) {
       let filtered = data.filter(row => {
         const delayVal = (row['Delay/Urgent'] || '').toUpperCase();
         // Chọn DELAY hay URGENT
-        if ((type === 'DELAY'  && delayVal !== 'PRODUCTION DELAY') ||
-            (type === 'URGENT' && delayVal !== 'URGENT')) {
+        if ((type === 'DELAY' && delayVal !== 'PRODUCTION DELAY') ||
+          (type === 'URGENT' && delayVal !== 'URGENT')) {
           return false;
         }
 
@@ -1021,33 +1085,33 @@ function loadDelayUrgentData(type) {
 
       // Tạo table
       const headers = [
-        'STT','PRO ODER','Brand Code','Loại hàng','Mã khuôn',
-        'BOM','Total Qty','Finish date','PPC Confirm','STORED','STATUS'
+        'STT', 'PRO ODER', 'Brand Code', 'Loại hàng', 'Mã khuôn',
+        'BOM', 'Total Qty', 'Finish date', 'PPC Confirm', 'STORED', 'STATUS'
       ];
       let html = `
         <table class="min-w-full text-sm text-left border">
           <thead class="bg-gray-200">
             <tr>${headers
-              .map(h => `<th class="px-2 py-1 border">${h}</th>`)
-              .join('')}
+          .map(h => `<th class="px-2 py-1 border">${h}</th>`)
+          .join('')}
             </tr>
           </thead>
           <tbody>
       `;
       html += filtered.map((row, i) => {
-        const status    = row['STATUS'] || '';
+        const status = row['STATUS'] || '';
         const highlight = (!errorOnly && status !== '7.PACKING' && status !== '9.STORED')
-                          ? 'bg-red-100'
-                          : '';
+          ? 'bg-red-100'
+          : '';
         return `
           <tr class="${highlight}">
             <td class="border px-2 py-1">${i + 1}</td>
-            <td class="border px-2 py-1">${row['PRO ODER']    || ''}</td>
-            <td class="border px-2 py-1">${row['Brand Code']  || ''}</td>
-            <td class="border px-2 py-1">${row['#MOLDED']      || ''}</td>
-            <td class="border px-2 py-1">${row['#MOLD']        || ''}</td>
-            <td class="border px-2 py-1">${row['BOM']          || ''}</td>
-            <td class="border px-2 py-1">${row['Total Qty']   || ''}</td>
+            <td class="border px-2 py-1">${row['PRO ODER'] || ''}</td>
+            <td class="border px-2 py-1">${row['Brand Code'] || ''}</td>
+            <td class="border px-2 py-1">${row['#MOLDED'] || ''}</td>
+            <td class="border px-2 py-1">${row['#MOLD'] || ''}</td>
+            <td class="border px-2 py-1">${row['BOM'] || ''}</td>
+            <td class="border px-2 py-1">${row['Total Qty'] || ''}</td>
             <td class="border px-2 py-1">${formatExcelDate(Number(row['Finish date']))}</td>
             <td class="border px-2 py-1">${formatExcelDate(Number(row['PPC Confirm']))}</td>
             <td class="border px-2 py-1">${formatExcelDate(Number(row['STORED']))}</td>
@@ -1084,24 +1148,24 @@ function hideDelayUrgentButtons() {
 }
 // ==== Load Delay hoặc Urgent View ====
 function loadDelayUrgentView(type) {
- // 1. Ẩn sạch mọi view cũ
+  // 1. Ẩn sạch mọi view cũ
   hideAllViews();
 
   // 2. Hiện tiêu đề tìm kiếm
   document.getElementById('basic-search-title').classList.remove('hidden');
   document.getElementById('advanced-search-title').classList.remove('hidden');
-  
+
   delayTabs.classList.remove('hidden');
   delaySearchBar.classList.remove('hidden');
   delayAdvancedFilter.classList.remove('hidden');
   // Ẩn các phần khác
 
-    document.getElementById('progress-search-bar').classList.add('hidden');
-    document.getElementById('progress-advanced-filter').classList.add('hidden');
-    document.getElementById('section-bar').classList.add('hidden');
-    document.getElementById('details-container').classList.add('hidden');
-    document.getElementById('searchResult').innerHTML = '';
-    document.getElementById('table-container').innerHTML = '';
+  document.getElementById('progress-search-bar').classList.add('hidden');
+  document.getElementById('progress-advanced-filter').classList.add('hidden');
+  document.getElementById('section-bar').classList.add('hidden');
+  document.getElementById('details-container').classList.add('hidden');
+  document.getElementById('searchResult').innerHTML = '';
+  document.getElementById('table-container').innerHTML = '';
 
 
   // Hiện bảng chính
@@ -1175,10 +1239,10 @@ btnDelayTab.addEventListener('click', () => {
   loadDelayUrgentData('DELAY');
 
   // highlight nút Delay
-  btnDelayTab.classList.add('bg-yellow-400','text-white');
-  btnDelayTab.classList.remove('bg-gray-300','text-black');
-  btnUrgentTab.classList.remove('bg-yellow-400','text-white');
-  btnUrgentTab.classList.add('bg-gray-300','text-black');
+  btnDelayTab.classList.add('bg-yellow-400', 'text-white');
+  btnDelayTab.classList.remove('bg-gray-300', 'text-black');
+  btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
+  btnUrgentTab.classList.add('bg-gray-300', 'text-black');
 });
 
 // Sự kiện nút Xuất gấp
@@ -1190,10 +1254,10 @@ btnUrgentTab.addEventListener('click', () => {
   loadDelayUrgentData('URGENT');
 
   // highlight nút Xuất gấp
-  btnUrgentTab.classList.add('bg-yellow-400','text-white');
-  btnUrgentTab.classList.remove('bg-gray-300','text-black');
-  btnDelayTab.classList.remove('bg-yellow-400','text-white');
-  btnDelayTab.classList.add('bg-gray-300','text-black');
+  btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
+  btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
+  btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
+  btnDelayTab.classList.add('bg-gray-300', 'text-black');
 });
 delayErrorOnly.addEventListener('change', () => {
   loadDelayUrgentData(currentDelayType);
@@ -1218,18 +1282,9 @@ document.addEventListener("DOMContentLoaded", showLastPush);
 // === Import supabase client ===
 
 // === Hàm ghi nhận lượt truy cập ===
-async function logVisit(page, button) {
-    const today = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase.rpc('increment_visit', {
-        p_date: today,
-        p_page: page,
-        p_button: button
-    });
-    if (error) {
-        console.error(`logVisit error for page=${page}, button=${button}:`, error);
-    } else {
-        console.log(`Visit logged: ${page} - ${button}`);
-    }
+// Mock logVisit to stop errors
+function logVisit(page, button) {
+  console.log(`[Mock] Visit: ${page} - ${button}`);
 }
 
 // Ghi nhận khi mở trang Summary View
