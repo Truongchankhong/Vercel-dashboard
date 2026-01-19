@@ -98,7 +98,8 @@ if (-not (Test-Path $excelPath)) {
     $files = Get-ChildItem "$PSScriptRoot\data\Powerapp*.xlsx"
     if ($files.Count -gt 0) {
         $excelPath = $files[0].FullName
-    } else {
+    }
+    else {
         Write-Error "!!! Excel file not found in data folder."
         exit 1
     }
@@ -110,7 +111,8 @@ $excel.Visible = $false
 $excel.DisplayAlerts = $false
 
 try {
-    $wb = $excel.Workbooks.Open($excelPath)
+    # Open(FileName, UpdateLinks, ReadOnly) -> Set ReadOnly = $true to avoid access errors if file is open
+    $wb = $excel.Workbooks.Open($excelPath, 0, $true)
     $ws = $wb.Sheets.Item("Data Power app")
     
     $range = $ws.UsedRange
@@ -144,23 +146,25 @@ try {
             $oldH = $mapping[$h]
             $mappedHeaders += $oldH
             $headerIndices[$oldH] = $i + 1 
-        } elseif ($targetCols -contains $h) {
+        }
+        elseif ($targetCols -contains $h) {
             # Identity Mapping: Header is already a target column name
             $mappedHeaders += $h
             $headerIndices[$h] = $i + 1
         }
         # Handle specific Delay case seen in logs
         elseif ($h -eq "Delay/Urgent") {
-             $target = "Delay-Urgent"
-             $mappedHeaders += $target
-             $headerIndices[$target] = $i + 1
+            $target = "Delay-Urgent"
+            $mappedHeaders += $target
+            $headerIndices[$target] = $i + 1
         }
     }
     
     if (-not $headerIndices.ContainsKey('STT')) {
         Write-Warning "!!! 'Index' (mapped to STT) NOT FOUND in Excel headers. Check column name."
         Write-Host "All Headers Found: $($headers -join ', ')"
-    } else {
+    }
+    else {
         Write-Host "--- STT Column Index: $($headerIndices['STT'])"
     }
     
@@ -177,37 +181,41 @@ try {
             # --- NUMERIC SANITIZATION ---
             # Identify numeric columns: STT, Total Qty, all 'DL *', and Size columns (numbers)
             $isNumericCol = ($oldH -eq "STT") -or 
-                            ($oldH -eq "Total Qty") -or 
-                            ($oldH -like "DL *") -or
-                            ($oldH -match "^\d+(\.\d+)?$") # Matches size keys like '3', '3.5'
+            ($oldH -eq "Total Qty") -or 
+            ($oldH -like "DL *") -or
+            ($oldH -match "^\d+(\.\d+)?$") # Matches size keys like '3', '3.5'
 
             if ($isNumericCol) {
                 # If null, empty, or "NONE" (case-insensitive), or not a number -> set to null
                 if ($null -eq $val -or $val -eq "" -or "$val" -eq "NONE") {
                     $rowObj[$oldH] = $null
-                } else {
+                }
+                else {
                     # Try to parse as double to verify it's a number
                     $num = 0
                     if ([double]::TryParse("$val", [ref]$num)) {
-                         $rowObj[$oldH] = $val
-                    } else {
-                         # Valid string but not a number (e.g. some text comment) -> set to null
-                         $rowObj[$oldH] = $null
+                        $rowObj[$oldH] = $val
+                    }
+                    else {
+                        # Valid string but not a number (e.g. some text comment) -> set to null
+                        $rowObj[$oldH] = $null
                     }
                 }
-            } else {
+            }
+            else {
                 # Normal Text/Date Columns
                 if ($null -eq $val) { 
-                     $rowObj[$oldH] = $null
-                } else {
-                     $rowObj[$oldH] = $val
+                    $rowObj[$oldH] = $null
+                }
+                else {
+                    $rowObj[$oldH] = $val
                 }
             }
         }
         
         if ([string]::IsNullOrWhiteSpace($rowObj['STT'])) {
-             if ($r -le 5) { Write-Host "--- Row $r SKIPPED because STT is null/empty. (Raw Val: '$($data[$r, $headerIndices['STT']])')" }
-             continue;
+            if ($r -le 5) { Write-Host "--- Row $r SKIPPED because STT is null/empty. (Raw Val: '$($data[$r, $headerIndices['STT']])')" }
+            continue;
         }
 
         $jsonData += $rowObj
@@ -215,13 +223,15 @@ try {
     
     Write-Host "--- Processed $($jsonData.Count) rows."
 
-} finally {
+}
+finally {
     try {
         if ($wb) { $wb.Close($false) }
         if ($excel) { $excel.Quit() }
         [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
         Remove-Variable excel -ErrorAction SilentlyContinue
-    } catch {
+    }
+    catch {
         Write-Warning "Warning closing Excel: $_"
     }
 }
@@ -251,14 +261,15 @@ function Send-BatchToSupabase {
             $response = Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/powerapp" `
                 -Method Post `
                 -Headers @{ 
-                    "apikey" = "$supabaseKey"; 
-                    "Authorization" = "Bearer $supabaseKey"; 
-                    "Content-Type" = "application/json; charset=utf-8";
-                    "Prefer" = "resolution=merge-duplicates"
-                } `
+                "apikey"        = "$supabaseKey"; 
+                "Authorization" = "Bearer $supabaseKey"; 
+                "Content-Type"  = "application/json; charset=utf-8";
+                "Prefer"        = "resolution=merge-duplicates"
+            } `
                 -InFile $tempFile
             $success = $true
-        } catch {
+        }
+        catch {
             $retryCount++
             $errBody = $_.ErrorDetails.Message
             if (-not $errBody) { 
@@ -286,10 +297,11 @@ try {
     Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/powerapp?STT=neq.null" `
         -Method Delete `
         -Headers @{ 
-            "apikey" = "$supabaseKey"; 
-            "Authorization" = "Bearer $supabaseKey" 
-        } | Out-Null
-} catch {
+        "apikey"        = "$supabaseKey"; 
+        "Authorization" = "Bearer $supabaseKey" 
+    } | Out-Null
+}
+catch {
     Write-Warning "!!! Clear data warning: $_"
 }
 
@@ -304,8 +316,8 @@ for ($i = 0; $i -lt $jsonData.Count; $i += $chunkSize) {
 # 3. WRITE METADATA (Last Updated)
 Write-Host "--- Writing metadata..."
 $metadata = @{
-    "STT" = -1;
-    "PRO ODER" = "METADATA_LAST_UPDATE";
+    "STT"         = -1;
+    "PRO ODER"    = "METADATA_LAST_UPDATE";
     "Finish date" = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
 }
 # Wrap in array for the generic function or sending logic
