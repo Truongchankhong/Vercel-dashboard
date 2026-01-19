@@ -99,6 +99,7 @@ const progressSearchBar = document.getElementById('progress-search-bar');
 const progressSearchBox = document.getElementById('progressSearchBox');
 const progressBtnSearch = document.getElementById('progressBtnSearch');
 const progressBtnClear = document.getElementById('progressBtnClear');
+const progressBtnExport = document.getElementById('progressBtnExport');
 
 // Xử lý khi quét QR Progress
 function handleProgressQR(text) {
@@ -415,6 +416,102 @@ async function searchProgress() {
     container.innerHTML = `<div class="text-red-500 text-center py-4">Lỗi tìm tiến trình</div>`;
   } finally {
     setBtnLoading(progressBtnSearch, false);
+  }
+}
+
+async function exportProgressToExcel() {
+  setBtnLoading(progressBtnExport, true);
+
+  const keyword = progressSearchBox.value.trim().toLowerCase();
+  const selectedField = document.getElementById('progressColumnSelect').value;
+  const inputs = document.querySelectorAll('.progress-input');
+  const checks = document.querySelectorAll('.progress-check');
+  const filters = {};
+  checks.forEach((checkbox) => {
+    if (checkbox.checked) {
+      const key = checkbox.dataset.key;
+      const input = Array.from(inputs).find(i => i.dataset.key === key);
+      if (input && input.value.trim()) {
+        filters[key] = input.value.trim().toLowerCase();
+      }
+    }
+  });
+
+  try {
+    const json = await fetchAllPowerAppData();
+    const data = json.data;
+
+    const fields = [
+      'PRO ODER', 'Total Qty', 'Finish date', 'Molding (PPC)', 'Molding Pro (IN)', 'Molding Pro', 'STATUS', 'Brand Code', '#MOLD', 'BOM', 'PU', 'FB',
+      'RECEIVED (MATERIAL)', 'RECEIVED (LOGO)', 'Laminating (Pro)',
+      'Prefitting (Pro)', 'Slipting (Pro)', 'Bào (Pro)', 'IN lean Line (Pro)',
+      'IN lean Line (MACHINE)', 'Out lean Line (Pro)',
+      'PACKING PRO', 'Packing date', 'STORED'
+    ];
+
+    const dateFields = [
+      'RECEIVED (MATERIAL)', 'RECEIVED (LOGO)', 'Laminating (Pro)',
+      'Prefitting (Pro)', 'Slipting (Pro)', 'Bào (Pro)', 'Molding (PPC)',
+      'Molding Pro (IN)', 'Molding Pro', 'IN lean Line (Pro)',
+      'IN lean Line (MACHINE)', 'Out lean Line (Pro)',
+      'PACKING PRO', 'Packing date', 'Finish date', 'STORED'
+    ];
+
+    const excelDateToString = (serial) => {
+      const base = new Date(1899, 11, 30);
+      const date = new Date(base.getTime() + Math.floor(serial) * 86400000);
+      return `${String(date.getDate()).padStart(2, '0')}/` +
+        `${String(date.getMonth() + 1).padStart(2, '0')}/` +
+        `${date.getFullYear()}`;
+    };
+
+    // Lọc dữ liệu
+    const filtered = data.filter(row => {
+      const cell = row[selectedField];
+      const cellValue = cell !== undefined && cell !== null ? cell.toString().toLowerCase() : '';
+      const matchBasic = cellValue.includes(keyword);
+      const matchAdvanced = Object.entries(filters).every(([key, val]) => {
+        const v = (row[key] || '').toString().toLowerCase();
+        return v.includes(val);
+      });
+      return matchBasic && matchAdvanced;
+    });
+
+    if (filtered.length === 0 && (keyword || Object.keys(filters).length > 0)) {
+      alert("Không có dữ liệu để xuất!");
+      return;
+    }
+
+    // Chuẩn bị dữ liệu cho ExcelJS/SheetJS
+    // SheetJS hoạt động tốt với mảng các mảng (AoA) hoặc mảng các đối tượng
+    const excelData = filtered.map((row, idx) => {
+      const newRow = { 'STT': idx + 1 };
+      fields.forEach(key => {
+        let val = row[key] ?? '';
+        if (dateFields.includes(key) && val) {
+          const serial = Number(val);
+          if (!isNaN(serial) && serial > 0) {
+            val = excelDateToString(serial);
+          }
+        }
+        newRow[key] = val;
+      });
+      return newRow;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Progress");
+
+    // Xuất file
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(workbook, `Progress_Export_${dateStr}.xlsx`);
+
+  } catch (err) {
+    console.error('[exportProgress error]', err);
+    alert('Lỗi xuất Excel: ' + err.message);
+  } finally {
+    setBtnLoading(progressBtnExport, false);
   }
 }
 
@@ -916,6 +1013,7 @@ btnRefresh.addEventListener('click', () => window.location.reload());
 
 progressBtnSearch.addEventListener('click', searchProgress);
 progressBtnClear.addEventListener('click', clearProgressSearch);
+progressBtnExport.addEventListener('click', exportProgressToExcel);
 // ✅ STEP 5: Bind button tìm kiếm Delay-Urgent
 delayBtnSearch.addEventListener('click', () => loadDelayUrgentData('DELAY'));
 
@@ -989,6 +1087,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   progressBtnSearch.addEventListener('click', searchProgress);
   progressBtnClear.addEventListener('click', clearProgressSearch);
+  progressBtnExport.addEventListener('click', exportProgressToExcel);
 
   delayBtnSearch.addEventListener('click', () => loadDelayUrgentData('DELAY'));
   delayBtnClear.addEventListener('click', () => {

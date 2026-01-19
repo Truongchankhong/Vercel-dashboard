@@ -293,8 +293,8 @@ function Send-BatchToSupabase {
 
 Write-Host "--- Clearing existing data..."
 try {
-    # Delete ALL data (STT is not null)
-    Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/powerapp?STT=neq.null" `
+    # Delete ALL data (STT is not null) using standard PostgREST syntax
+    Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/powerapp?STT=not.is.null" `
         -Method Delete `
         -Headers @{ 
         "apikey"        = "$supabaseKey"; 

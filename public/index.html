@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard Tổng Hợp</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Thêm thư viện SheetJS để xuất Excel -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
 <h2 id="basic-search-title" class="text-lg font-semibold mb-1 hidden">TÌM KIẾM ĐƠN GIẢN-BASIC SEARCH</h2>
@@ -24,6 +26,7 @@
     <div class="flex gap-2">
       <button id="progressBtnSearch" class="bg-blue-600 text-white px-4 py-1 rounded">Tìm Progress</button>
       <button id="progressBtnClear" class="bg-red-500 text-white px-4 py-1 rounded">Xóa Progress</button>
+      <button id="progressBtnExport" class="bg-green-700 text-white px-4 py-1 rounded">Xuất Excel</button>
     </div>
     <div class="flex gap-2 mt-2">
       <button id="progressBtnScan" class="bg-green-600 text-white px-4 py-1 rounded">
