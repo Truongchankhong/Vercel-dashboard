@@ -1,9 +1,9 @@
 // Lấy createClient từ global supabase (đã load bằng <script> trong index.html)
 const { createClient } = window.supabase;
 
-// Khai báo Supabase
-const supabaseUrl = 'https://lowimtwtrqynycmuecfk.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxvd2ltdHd0cnF5bnljbXVlY2ZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzNzIzNzcsImV4cCI6MjA4Mzk0ODM3N30.RtYMSA913_mIaDaXgj7R9-GJd4t3rPQDI-UP7GywdFU'; // Anon key từ Supabase
+// Khai báo Supabase (Phải khớp với dự án mới)
+const supabaseUrl = 'https://ixdtdrbytwdmnlqgunzu.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4ZHRkcmJ5dHdkbW5scWd1bnp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyMzkyODYsImV4cCI6MjA2ODgxNTI4Nn0.5FLdLDf0d1yA70UBmAbJYW95kVWdta31QmEjm9oX4jg';
 export const supabase = createClient(supabaseUrl, supabaseKey);
 window.supabaseClient = supabase;
 
@@ -1266,17 +1266,8 @@ document.getElementById("btn-supplement")?.addEventListener("click", () => {
   window.location.href = "/supplement.html";
 });
 
-async function showLastPush() {
-  try {
-    const res = await fetch("/last_push.json?_=" + Date.now()); // tránh cache
-    const json = await res.json();
-    document.getElementById("lastPushTime").textContent = json.last_push;
-  } catch (e) {
-    document.getElementById("lastPushTime").textContent = "Chưa có dữ liệu!";
-  }
-}
-
-document.addEventListener("DOMContentLoaded", showLastPush);
+// Gọi cập nhật Last Push từ Supabase khi load trang
+document.addEventListener("DOMContentLoaded", fetchLastPushTime);
 
 
 // === Import supabase client ===
