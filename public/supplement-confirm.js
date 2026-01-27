@@ -222,7 +222,7 @@ async function fetchStatsData() {
 
   const { data, error } = await supabase
     .from('supplement_confirm')
-    .select('created_at, confirm')
+    .select('created_at, confirm, total, available_supplement')
     .gte('created_at', startOfMonth.toISOString());
 
   if (error) {
@@ -237,8 +237,10 @@ function processStats(data) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   const dailyLabels = [];
-  const dailyCó = [];
-  const dailyKhông = [];
+  const dailyCóCount = [];
+  const dailyKhôngCount = [];
+  const dailyCóQty = [];
+  const dailyKhôngQty = [];
 
   for (let i = 6; i >= 0; i--) {
     const d = new Date(today);
@@ -251,43 +253,100 @@ function processStats(data) {
       return rDate.getDate() === d.getDate() && rDate.getMonth() === d.getMonth();
     });
 
-    dailyCó.push(dayData.filter(r => r.confirm === 'Có liệu').length);
-    dailyKhông.push(dayData.filter(r => r.confirm === 'Không có liệu').length);
+    const cóItems = dayData.filter(r => r.confirm === 'Có liệu');
+    const khôngItems = dayData.filter(r => r.confirm === 'Không có liệu');
+
+    dailyCóCount.push(cóItems.length);
+    dailyKhôngCount.push(khôngItems.length);
+
+    dailyCóQty.push(cóItems.reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0));
+    dailyKhôngQty.push(khôngItems.reduce((sum, r) => sum + Number(r.total), 0));
   }
 
+  // 2. Weekly Stats (Current Week - QTY)
   const dayOfWeek = now.getDay() || 7;
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - (dayOfWeek - 1));
 
   const weekData = data.filter(r => new Date(r.created_at) >= startOfWeek);
-  const weekCó = weekData.filter(r => r.confirm === 'Có liệu').length;
-  const weekKhông = weekData.filter(r => r.confirm === 'Không có liệu').length;
+  const weekCóQty = weekData.filter(r => r.confirm === 'Có liệu').reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+  const weekKhôngQty = weekData.filter(r => r.confirm === 'Không có liệu').reduce((sum, r) => sum + Number(r.total), 0);
 
-  const monthCó = data.filter(r => r.confirm === 'Có liệu').length;
-  const monthKhông = data.filter(r => r.confirm === 'Không có liệu').length;
+  // 3. Monthly Stats (Current Month - QTY)
+  const monthCóQty = data.filter(r => r.confirm === 'Có liệu').reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+  const monthKhôngQty = data.filter(r => r.confirm === 'Không có liệu').reduce((sum, r) => sum + Number(r.total), 0);
 
   return {
-    daily: { labels: dailyLabels, có: dailyCó, không: dailyKhông },
-    weekly: [weekCó, weekKhông],
-    monthly: [monthCó, monthKhông]
+    daily: {
+      labels: dailyLabels,
+      count: { có: dailyCóCount, không: dailyKhôngCount },
+      qty: { có: dailyCóQty, không: dailyKhôngQty }
+    },
+    weekly: [weekCóQty, weekKhôngQty],
+    monthly: [monthCóQty, monthKhôngQty]
   };
 }
 
 function initCharts(stats) {
+  // Register plugin globally or for these specific charts
+  Chart.register(ChartDataLabels);
+
   Object.values(charts).forEach(c => c.destroy());
 
-  charts.daily = new Chart(document.getElementById('chart-daily'), {
+  const piePluginConfig = {
+    datalabels: {
+      color: '#fff',
+      font: { weight: 'bold', size: 14 },
+      formatter: (value, ctx) => {
+        const sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+        if (sum === 0) return '';
+        const percentage = (value * 100 / sum).toFixed(1) + "%";
+        return percentage;
+      }
+    }
+  };
+
+  // Daily Qty Bar Chart
+  charts.dailyQty = new Chart(document.getElementById('chart-daily-qty'), {
     type: 'bar',
     data: {
       labels: stats.daily.labels,
       datasets: [
-        { label: '🟢 Có liệu', data: stats.daily.có, backgroundColor: '#22c55e' },
-        { label: '🔴 Không có liệu', data: stats.daily.không, backgroundColor: '#ef4444' }
+        { label: '🟢 Qty Có liệu', data: stats.daily.qty.có, backgroundColor: '#16a34a' },
+        { label: '🔴 Qty Không có liệu', data: stats.daily.qty.không, backgroundColor: '#dc2626' }
       ]
     },
-    options: { responsive: true, maintainAspectRatio: false }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: 'Tổng số đôi (Qty) theo ngày' },
+        datalabels: { display: false } // Hide labels for bar chart for clarity
+      }
+    }
   });
 
+  // Daily Count Bar Chart
+  charts.dailyCount = new Chart(document.getElementById('chart-daily'), {
+    type: 'bar',
+    data: {
+      labels: stats.daily.labels,
+      datasets: [
+        { label: '🟢 Đơn Có liệu', data: stats.daily.count.có, backgroundColor: '#22c55e' },
+        { label: '🔴 Đơn Không có liệu', data: stats.daily.count.không, backgroundColor: '#ef4444' }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        title: { display: true, text: 'Tổng số đơn theo ngày' },
+        datalabels: { display: false }
+      }
+    }
+  });
+
+  // Weekly Pie Chart
   charts.weekly = new Chart(document.getElementById('chart-weekly'), {
     type: 'pie',
     data: {
@@ -297,9 +356,15 @@ function initCharts(stats) {
         backgroundColor: ['#22c55e', '#ef4444']
       }]
     },
-    options: { plugins: { legend: { position: 'bottom' } } }
+    options: {
+      plugins: {
+        legend: { position: 'bottom' },
+        ...piePluginConfig
+      }
+    }
   });
 
+  // Monthly Pie Chart
   charts.monthly = new Chart(document.getElementById('chart-monthly'), {
     type: 'pie',
     data: {
@@ -309,7 +374,12 @@ function initCharts(stats) {
         backgroundColor: ['#22c55e', '#ef4444']
       }]
     },
-    options: { plugins: { legend: { position: 'bottom' } } }
+    options: {
+      plugins: {
+        legend: { position: 'bottom' },
+        ...piePluginConfig
+      }
+    }
   });
 }
 
