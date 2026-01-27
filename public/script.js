@@ -1100,9 +1100,17 @@ function formatExcelDate(serial) {
 
 
 async function loadDelayUrgentData(type) {
+  console.log(`[loadDelayUrgentData] Started filtering for type: ${type}`);
+  const btn = document.getElementById('delayBtnSearch');
+  if (btn) setBtnLoading(btn, true);
+
   try {
     const json = await fetchAllPowerAppData();
     const data = json.data;
+    console.log(`[loadDelayUrgentData] Total data rows: ${data.length}`);
+    const heading = document.getElementById('delay-basic-search-title');
+    if (heading) heading.textContent = (type === 'DELAY' ? 'TÌM KIẾM DELAY' : 'TÌM KIẾM XUẤT GẤP');
+
     const keyword = delaySearchBox.value.trim().toLowerCase();
     const selectedField = delayColumnSelect.value;
     const errorOnly = delayErrorOnly.checked;
@@ -1123,7 +1131,7 @@ async function loadDelayUrgentData(type) {
 
     // Lọc chính
     let filtered = data.filter(row => {
-      const delayVal = (row['Delay/Urgent'] || '').toUpperCase();
+      const delayVal = (row['Delay-Urgent'] || '').toUpperCase();
       // Chọn DELAY hay URGENT
       if ((type === 'DELAY' && delayVal !== 'PRODUCTION DELAY') ||
         (type === 'URGENT' && delayVal !== 'URGENT')) {
@@ -1191,160 +1199,24 @@ async function loadDelayUrgentData(type) {
         </table>
       `;
 
-    document.getElementById('table-container').innerHTML = html;
+    if (filtered.length === 0) {
+      document.getElementById('table-container').innerHTML = '<div class="text-center py-4 text-red-500 font-semibold">❌ Không tìm thấy dữ liệu phù hợp!</div>';
+    } else {
+      document.getElementById('table-container').innerHTML = html;
+    }
+    console.log(`[loadDelayUrgentData] Rendered ${filtered.length} rows.`);
   } catch (err) {
     console.error('Lỗi loadDelayUrgentData:', err);
     document.getElementById('table-container').innerHTML =
       '<div class="text-red-500 p-4">Không tải được dữ liệu</div>';
+  } finally {
+    if (btn) setBtnLoading(btn, false);
   }
 }
 
 
 // Sau khi định nghĩa hàm, đừng quên gắn sự kiện để khi check/uncheck “Chỉ lỗi” lại load lại bảng:
-delayErrorOnly.addEventListener('change', () => {
-  // Giữ lại type hiện tại (DELAY hay URGENT), ví dụ bạn lưu ở biến global currentDelayType
-  loadDelayUrgentData(currentDelayType);
-});
-
-
-
-function hideDelayUrgentButtons() {
-  btnDelay.classList.add('hidden');
-  btnUrgent.classList.add('hidden');
-}
-// ==== Load Delay hoặc Urgent View ====
-function loadDelayUrgentView(type) {
-  // 1. Ẩn sạch mọi view cũ
-  hideAllViews();
-
-  // 2. Hiện tiêu đề tìm kiếm
-  document.getElementById('basic-search-title').classList.remove('hidden');
-  document.getElementById('advanced-search-title').classList.remove('hidden');
-
-  delayTabs.classList.remove('hidden');
-  delaySearchBar.classList.remove('hidden');
-  delayAdvancedFilter.classList.remove('hidden');
-  // Ẩn các phần khác
-
-  document.getElementById('progress-search-bar').classList.add('hidden');
-  document.getElementById('progress-advanced-filter').classList.add('hidden');
-  document.getElementById('section-bar').classList.add('hidden');
-  document.getElementById('details-container').classList.add('hidden');
-  document.getElementById('searchResult').innerHTML = '';
-  document.getElementById('table-container').innerHTML = '';
-
-
-  // Hiện bảng chính
-  const container = document.getElementById('table-container');
-  container.innerHTML = '';
-
-  // Đổi màu nút
-  document.getElementById('btn-delay').classList.remove('bg-red-500');
-  document.getElementById('btn-urgent').classList.remove('bg-red-500');
-  if (type === 'DELAY') {
-    document.getElementById('btn-delay').classList.add('bg-red-500');
-  } else {
-    document.getElementById('btn-urgent').classList.add('bg-red-500');
-  }
-
-  // Lọc dữ liệu
-  const table = document.createElement('table');
-  table.className = 'min-w-full table-auto border border-gray-300';
-  const thead = document.createElement('thead');
-  thead.innerHTML = `
-    <tr class="bg-gray-200 text-left">
-      <th class="border px-2 py-1">STT</th>
-      <th class="border px-2 py-1 w-[180px]">Tên Vải</th>
-      <th class="border px-2 py-1">PRO ODER</th>
-      <th class="border px-2 py-1">Brand Code</th>
-      <th class="border px-2 py-1">#MOLDED</th>
-      <th class="border px-2 py-1">BOM</th>
-      <th class="border px-2 py-1">Total Qty</th>
-      <th class="px-2 py-1 text-[12px] font-bold text-gray-700 border">Delay/Urgent</th>
-      <th class="border px-2 py-1">Finish Date</th>
-      <th class="border px-2 py-1">PPC Confirm</th>
-      <th class="border px-2 py-1">STORED</th>
-      <th class="border px-2 py-1">STATUS</th>
-    </tr>
-  `;
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  let filtered = jsonData.filter(row => (row['Delay/Urgent'] || '').toUpperCase() === type);
-
-  filtered.forEach((row, i) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="border px-2 py-1">${i + 1}</td>
-      <td class="border px-2 py-1">${row['PRO ODER'] || ''}</td>
-      <td class="border px-2 py-1">${row['Brand Code'] || ''}</td>
-      <td class="border px-2 py-1">${row['#MOLDED'] || ''}</td>
-      <td class="border px-2 py-1">${row['BOM'] || ''}</td>
-      <td class="border px-2 py-1">${row['Total Qty'] || ''}</td>
-      <td class="px-2 py-1 text-[12px] border text-red-600 font-semibold">${row['Delay/Urgent'] || ''}</td>
-      <td class="border px-2 py-1">${row['Finish date'] || ''}</td>
-      <td class="border px-2 py-1">${row['PPC Confirm'] || ''}</td>
-      <td class="border px-2 py-1">${row['STORED'] || ''}</td>
-      <td class="border px-2 py-1">${row['STATUS'] || ''}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  table.appendChild(tbody);
-  container.appendChild(table);
-}
-// Xử lý đổi màu khi chọn Delay hoặc Xuất gấp
-
-
-// Sự kiện nút Delay
-btnDelayTab.addEventListener('click', () => {
-  currentDelayType = 'DELAY';
-  hideAllViews();
-  delayTabs.classList.remove('hidden');
-  showDelaySearchWidgets();
-  loadDelayUrgentData('DELAY');
-
-  // highlight nút Delay
-  btnDelayTab.classList.add('bg-yellow-400', 'text-white');
-  btnDelayTab.classList.remove('bg-gray-300', 'text-black');
-  btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
-  btnUrgentTab.classList.add('bg-gray-300', 'text-black');
-});
-
-// Sự kiện nút Xuất gấp
-btnUrgentTab.addEventListener('click', () => {
-  currentDelayType = 'URGENT';
-  hideAllViews();
-  delayTabs.classList.remove('hidden');
-  showDelaySearchWidgets();
-  loadDelayUrgentData('URGENT');
-
-  // highlight nút Xuất gấp
-  btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
-  btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
-  btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
-  btnDelayTab.classList.add('bg-gray-300', 'text-black');
-});
-delayErrorOnly.addEventListener('change', () => {
-  loadDelayUrgentData(currentDelayType);
-});
+// Đảm bảo nút Bù hàng luôn hoạt động
 document.getElementById("btn-supplement")?.addEventListener("click", () => {
   window.location.href = "/supplement.html";
 });
-
-// Gọi cập nhật Last Push từ Supabase khi load trang
-document.addEventListener("DOMContentLoaded", fetchLastPushTime);
-
-
-// === Import supabase client ===
-
-// === Hàm ghi nhận lượt truy cập ===
-// Mock logVisit to stop errors
-function logVisit(page, button) {
-  console.log(`[Mock] Visit: ${page} - ${button}`);
-}
-
-// Ghi nhận khi mở trang Summary View
-logVisit('Summary View', 'page-load');
-logVisit('Progress', 'page-load');
-logVisit('Delay-Xuất gấp', 'page-load');
