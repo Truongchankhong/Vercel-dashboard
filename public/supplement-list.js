@@ -68,17 +68,25 @@ window.handleSend = async (rpro) => {
         return;
     }
 
-    // Copy everything except created_at (auto-generated)
-    const { created_at, ...dataToCopy } = row;
+    // Copy everything except auto-generated/managed columns
+    const { created_at, id, updated_at, ...dataToCopy } = row;
+
+    console.log("📤 Sending data to supplement_confirm:", dataToCopy);
 
     const { error: insertError } = await supabase
         .from('supplement_confirm')
         .upsert([dataToCopy]);
 
     if (insertError) {
-        console.error('Error sending:', insertError);
-        alert('Lỗi khi gửi dữ liệu');
+        console.error('❌ Detailed Error sending:', {
+            message: insertError.message,
+            hint: insertError.hint,
+            details: insertError.details,
+            code: insertError.code
+        });
+        alert('Lỗi khi gửi dữ liệu: ' + insertError.message);
     } else {
+        console.log("✅ Send successful for RPRO:", rpro);
         loadSupplementList();
     }
 };
