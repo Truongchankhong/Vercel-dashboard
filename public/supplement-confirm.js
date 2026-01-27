@@ -162,11 +162,24 @@ async function exportToZalo() {
   const todayStr = new Date().toLocaleDateString('vi-VN');
   let message = `🛒 *XÁC NHẬN BÙ HÀNG - [Ngày ${todayStr}]*\n\n`;
 
+  const formatSizeBreakdown = (r) => {
+    let sizes = [];
+    Object.keys(r).forEach(key => {
+      if (key.startsWith('size_') && Number(r[key]) > 0) {
+        // Format key: size_3_5 -> 3.5
+        const sizeName = key.replace('size_', '').replace(/_/g, '.');
+        sizes.push(`${sizeName}: ${r[key]}`);
+      }
+    });
+    return sizes.join(', ');
+  };
+
   if (hasLiệu.length > 0) {
     message += `🟢 *NHÓM CÓ LIỆU:*\n`;
     hasLiệu.forEach(r => {
       const avail = r.available_supplement !== null ? r.available_supplement : r.total;
-      message += `- ${r.rpro} (${r.so || 'N/A'} | Qty bù: *${avail}/${r.total}*)\n`;
+      const sizeText = formatSizeBreakdown(r);
+      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Qty đáp ứng: *${avail}/${r.total}*\n`;
     });
     message += `\n`;
   }
@@ -174,7 +187,8 @@ async function exportToZalo() {
   if (noLiệu.length > 0) {
     message += `🔴 *NHÓM KHÔNG CÓ LIỆU:*\n`;
     noLiệu.forEach(r => {
-      message += `- ${r.rpro} (${r.so || 'N/A'} | Cần bù: ${r.total})\n`;
+      const sizeText = formatSizeBreakdown(r);
+      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Tổng cần bù: ${r.total}\n`;
     });
     message += `\n`;
   }
@@ -182,7 +196,7 @@ async function exportToZalo() {
   if (other.length > 0) {
     message += `⏳ *CHƯA XÁC NHẬN:*\n`;
     other.forEach(r => {
-      message += `- ${r.rpro} (${r.so || 'N/A'})\n`;
+      message += `- ${r.rpro}\n`;
     });
     message += `\n`;
   }
@@ -191,8 +205,7 @@ async function exportToZalo() {
 
   try {
     await navigator.clipboard.writeText(message);
-    alert("🚀 Đã copy thông tin vào bộ nhớ đệm!\nBây giờ Zalo Web sẽ được mở, bạn chỉ cần nhấn Ctrl+V để dán vào khung chat và gửi.");
-    window.open("https://chat.zalo.me/", "_blank");
+    alert("🚀 Đã copy thông tin vào bộ nhớ đệm!\nBây giờ bạn chỉ cần vào Zalo dán (Ctrl+V) và gửi.");
   } catch (err) {
     console.error("Clipboard error:", err);
     alert("Lỗi khi copy vào clipboard. Vui lòng copy thủ công.");
