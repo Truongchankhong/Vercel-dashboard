@@ -13,6 +13,10 @@
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold text-purple-700">🛒 Bù hàng - Xác nhận (Confirm)</h1>
             <div class="flex gap-2">
+                <button id="btn-export-excel"
+                    class="px-4 py-1 bg-green-700 text-white rounded hover:bg-green-800 font-bold shadow-md">
+                    Excel
+                </button>
                 <button id="btn-show-stats"
                     class="px-4 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-bold shadow-md">
                     📊 Xem thống kê
@@ -114,6 +118,8 @@
         </div>
     </div>
 
+    <!-- SheetJS -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>

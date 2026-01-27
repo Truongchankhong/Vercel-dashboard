@@ -6,6 +6,7 @@ const dateFromInput = document.getElementById('date-from');
 const dateToInput = document.getElementById('date-to');
 const btnFilter = document.getElementById('btn-filter');
 const btnExportZalo = document.getElementById('btn-export-zalo');
+const btnExportExcel = document.getElementById('btn-export-excel');
 const checkAll = document.getElementById('check-all');
 const btnShowStats = document.getElementById('btn-show-stats');
 const btnCloseStats = document.getElementById('btn-close-stats');
@@ -151,6 +152,17 @@ window.handleConfirmation = async (rpro, newStatus, currentStatus) => {
   }
 };
 
+const formatSizeBreakdown = (r) => {
+  let sizes = [];
+  Object.keys(r).forEach(key => {
+    if (key.startsWith('size_') && Number(r[key]) > 0) {
+      const sizeName = key.replace('size_', '').replace(/_/g, '.');
+      sizes.push(`${sizeName}: ${r[key]}`);
+    }
+  });
+  return sizes.join(', ');
+};
+
 async function exportToZalo() {
   if (selectedRpros.size === 0) {
     alert("Vui lòng tích chọn ít nhất 1 đơn hàng để gửi!");
@@ -164,17 +176,6 @@ async function exportToZalo() {
 
   const todayStr = new Date().toLocaleDateString('vi-VN');
   let message = `🛒 *XÁC NHẬN BÙ HÀNG - [Ngày ${todayStr}]*\n\n`;
-
-  const formatSizeBreakdown = (r) => {
-    let sizes = [];
-    Object.keys(r).forEach(key => {
-      if (key.startsWith('size_') && Number(r[key]) > 0) {
-        const sizeName = key.replace('size_', '').replace(/_/g, '.');
-        sizes.push(`${sizeName}: ${r[key]}`);
-      }
-    });
-    return sizes.join(', ');
-  };
 
   if (hasLiệu.length > 0) {
     message += `🟢 *NHÓM CÓ LIỆU:*\n`;
@@ -214,6 +215,40 @@ async function exportToZalo() {
   }
 }
 
+async function exportToExcel() {
+  if (currentData.length === 0) {
+    alert("Không có dữ liệu trong khoảng ngày đã chọn!");
+    return;
+  }
+
+  const excelData = currentData.map(r => {
+    return {
+      'Ngày': new Date(r.created_at).toLocaleDateString('vi-VN'),
+      'RPRO': r.rpro,
+      'SO': r.so || '',
+      'Khách hàng': r.customers || '',
+      'Gender': r.gender || '',
+      'Mold': r.mold || '',
+      'PU': r.pu || '',
+      'Fabric': r.fabric || '',
+      'BOM': r.bom || '',
+      'Qty': r.total,
+      'Available_supplement': r.available_supplement !== null ? r.available_supplement : r.total,
+      'Size': formatSizeBreakdown(r),
+      'Xác nhận': r.confirm || 'Chưa xác nhận',
+      'Ghi chú': r.remark || ''
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Xác nhận Bù hàng");
+
+  // File name based on filter dates
+  const filename = `Xac_nhan_Bu_hang_${dateFromInput.value}_den_${dateToInput.value}.xlsx`;
+  XLSX.writeFile(workbook, filename);
+}
+
 // ================= STATS LOGIC ================= //
 
 async function fetchStatsData() {
@@ -222,7 +257,7 @@ async function fetchStatsData() {
 
   const { data, error } = await supabase
     .from('supplement_confirm')
-    .select('created_at, confirm, total, available_supplement')
+    .select('*')
     .gte('created_at', startOfMonth.toISOString());
 
   if (error) {
@@ -288,10 +323,13 @@ function processStats(data) {
 }
 
 function initCharts(stats) {
-  // Register plugin globally or for these specific charts
-  Chart.register(ChartDataLabels);
+  if (typeof ChartDataLabels !== 'undefined') {
+    Chart.register(ChartDataLabels);
+  }
 
-  Object.values(charts).forEach(c => c.destroy());
+  Object.values(charts).forEach(c => {
+    if (c && typeof c.destroy === 'function') c.destroy();
+  });
 
   const piePluginConfig = {
     datalabels: {
@@ -306,7 +344,6 @@ function initCharts(stats) {
     }
   };
 
-  // Daily Qty Bar Chart
   charts.dailyQty = new Chart(document.getElementById('chart-daily-qty'), {
     type: 'bar',
     data: {
@@ -321,12 +358,11 @@ function initCharts(stats) {
       maintainAspectRatio: false,
       plugins: {
         title: { display: true, text: 'Tổng số đôi (Qty) theo ngày' },
-        datalabels: { display: false } // Hide labels for bar chart for clarity
+        datalabels: { display: false }
       }
     }
   });
 
-  // Daily Count Bar Chart
   charts.dailyCount = new Chart(document.getElementById('chart-daily'), {
     type: 'bar',
     data: {
@@ -346,7 +382,6 @@ function initCharts(stats) {
     }
   });
 
-  // Weekly Pie Chart
   charts.weekly = new Chart(document.getElementById('chart-weekly'), {
     type: 'pie',
     data: {
@@ -364,7 +399,6 @@ function initCharts(stats) {
     }
   });
 
-  // Monthly Pie Chart
   charts.monthly = new Chart(document.getElementById('chart-monthly'), {
     type: 'pie',
     data: {
@@ -395,6 +429,7 @@ async function showStats() {
 if (btnShowStats) btnShowStats.addEventListener('click', showStats);
 if (btnCloseStats) btnCloseStats.addEventListener('click', () => statsModal.classList.add('hidden'));
 if (btnExportZalo) btnExportZalo.addEventListener('click', exportToZalo);
+if (btnExportExcel) btnExportExcel.addEventListener('click', exportToExcel);
 if (btnFilter) btnFilter.addEventListener('click', loadConfirmList);
 
 document.addEventListener('DOMContentLoaded', () => {
