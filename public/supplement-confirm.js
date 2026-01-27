@@ -7,9 +7,13 @@ const dateToInput = document.getElementById('date-to');
 const btnFilter = document.getElementById('btn-filter');
 const btnExportZalo = document.getElementById('btn-export-zalo');
 const checkAll = document.getElementById('check-all');
+const btnShowStats = document.getElementById('btn-show-stats');
+const btnCloseStats = document.getElementById('btn-close-stats');
+const statsModal = document.getElementById('stats-modal');
 
 let currentData = [];
 let selectedRpros = new Set();
+let charts = {}; // Store Chart instances
 
 function setInitialDates() {
   const today = new Date();
@@ -44,6 +48,7 @@ async function loadConfirmList() {
 }
 
 function renderTable() {
+  if (!confirmBody) return;
   confirmBody.innerHTML = currentData.map(row => {
     const isSelected = selectedRpros.has(row.rpro);
     return `
@@ -86,8 +91,7 @@ function renderTable() {
 window.toggleSelect = (rpro, checked) => {
   if (checked) selectedRpros.add(rpro);
   else selectedRpros.delete(rpro);
-  // Find row element and highlight
-  renderTable(); // Re-render simple for data consistency
+  renderTable();
 };
 
 if (checkAll) {
@@ -134,7 +138,6 @@ window.handleConfirmation = async (rpro, newStatus, currentStatus) => {
     console.error('Error updating status:', error);
     alert('Lỗi khi lưu xác nhận');
   } else {
-    // Auto-select row if a status is set
     if (statusToSave) selectedRpros.add(rpro);
 
     const savedEl = document.getElementById(`saved-${rpro}`);
@@ -166,7 +169,6 @@ async function exportToZalo() {
     let sizes = [];
     Object.keys(r).forEach(key => {
       if (key.startsWith('size_') && Number(r[key]) > 0) {
-        // Format key: size_3_5 -> 3.5
         const sizeName = key.replace('size_', '').replace(/_/g, '.');
         sizes.push(`${sizeName}: ${r[key]}`);
       }
@@ -212,6 +214,116 @@ async function exportToZalo() {
   }
 }
 
+// ================= STATS LOGIC ================= //
+
+async function fetchStatsData() {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const { data, error } = await supabase
+    .from('supplement_confirm')
+    .select('created_at, confirm')
+    .gte('created_at', startOfMonth.toISOString());
+
+  if (error) {
+    console.error("Error fetching stats:", error);
+    return [];
+  }
+  return data;
+}
+
+function processStats(data) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const dailyLabels = [];
+  const dailyCó = [];
+  const dailyKhông = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    dailyLabels.push(dateStr);
+
+    const dayData = data.filter(r => {
+      const rDate = new Date(r.created_at);
+      return rDate.getDate() === d.getDate() && rDate.getMonth() === d.getMonth();
+    });
+
+    dailyCó.push(dayData.filter(r => r.confirm === 'Có liệu').length);
+    dailyKhông.push(dayData.filter(r => r.confirm === 'Không có liệu').length);
+  }
+
+  const dayOfWeek = now.getDay() || 7;
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - (dayOfWeek - 1));
+
+  const weekData = data.filter(r => new Date(r.created_at) >= startOfWeek);
+  const weekCó = weekData.filter(r => r.confirm === 'Có liệu').length;
+  const weekKhông = weekData.filter(r => r.confirm === 'Không có liệu').length;
+
+  const monthCó = data.filter(r => r.confirm === 'Có liệu').length;
+  const monthKhông = data.filter(r => r.confirm === 'Không có liệu').length;
+
+  return {
+    daily: { labels: dailyLabels, có: dailyCó, không: dailyKhông },
+    weekly: [weekCó, weekKhông],
+    monthly: [monthCó, monthKhông]
+  };
+}
+
+function initCharts(stats) {
+  Object.values(charts).forEach(c => c.destroy());
+
+  charts.daily = new Chart(document.getElementById('chart-daily'), {
+    type: 'bar',
+    data: {
+      labels: stats.daily.labels,
+      datasets: [
+        { label: '🟢 Có liệu', data: stats.daily.có, backgroundColor: '#22c55e' },
+        { label: '🔴 Không có liệu', data: stats.daily.không, backgroundColor: '#ef4444' }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
+
+  charts.weekly = new Chart(document.getElementById('chart-weekly'), {
+    type: 'pie',
+    data: {
+      labels: ['Có liệu', 'Không có liệu'],
+      datasets: [{
+        data: stats.weekly,
+        backgroundColor: ['#22c55e', '#ef4444']
+      }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+  });
+
+  charts.monthly = new Chart(document.getElementById('chart-monthly'), {
+    type: 'pie',
+    data: {
+      labels: ['Có liệu', 'Không có liệu'],
+      datasets: [{
+        data: stats.monthly,
+        backgroundColor: ['#22c55e', '#ef4444']
+      }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+  });
+}
+
+async function showStats() {
+  statsModal.classList.remove('hidden');
+  const data = await fetchStatsData();
+  const stats = processStats(data);
+  initCharts(stats);
+}
+
+// ================= EVENT LISTENERS ================= //
+
+if (btnShowStats) btnShowStats.addEventListener('click', showStats);
+if (btnCloseStats) btnCloseStats.addEventListener('click', () => statsModal.classList.add('hidden'));
 if (btnExportZalo) btnExportZalo.addEventListener('click', exportToZalo);
 if (btnFilter) btnFilter.addEventListener('click', loadConfirmList);
 
