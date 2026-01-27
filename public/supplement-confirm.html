@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bù hàng - Xác nhận</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-6">
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-lg">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-purple-700">🛒 Bù hàng - Xác nhận (Confirm)</h1>
+            <div class="flex gap-2">
+                <button onclick="window.history.back()" class="px-3 py-1 bg-gray-300 hover:bg-gray-400 rounded">
+                    ← Quay lại
+                </button>
+            </div>
+        </div>
+
+        <!-- Date filtering -->
+        <div class="flex flex-wrap gap-4 mb-6 bg-purple-50 p-4 rounded border border-purple-200">
+            <div>
+                <label class="block text-sm font-medium">Từ ngày:</label>
+                <input type="date" id="date-from" class="border px-2 py-1 rounded">
+            </div>
+            <div>
+                <label class="block text-sm font-medium">Đến ngày:</label>
+                <input type="date" id="date-to" class="border px-2 py-1 rounded">
+            </div>
+            <div class="flex items-end">
+                <button id="btn-filter" class="px-4 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">
+                    Lọc
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border">
+                <thead class="bg-gray-200">
+                    <tr>
+                        <th class="px-4 py-2 border">Ngày tạo</th>
+                        <th class="px-4 py-2 border">RPRO</th>
+                        <th class="px-4 py-2 border">SO</th>
+                        <th class="px-4 py-2 border">Khách hàng</th>
+                        <th class="px-4 py-2 border">Qty</th>
+                        <th class="px-4 py-2 border">Xác nhận của Kho</th>
+                    </tr>
+                </thead>
+                <tbody id="confirm-body">
+                    <!-- Data rows -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./supabaseClient.js"></script>
+    <script type="module" src="./supplement-confirm.js"></script>
+</body>
+
+</html>

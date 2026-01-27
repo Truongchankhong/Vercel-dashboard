@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh sách Bù hàng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-6">
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-lg">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Danh sách đã scan (3 ngày gần nhất)</h1>
+            <div class="flex gap-2">
+                <button id="btn-confirm-page" class="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded">
+                    Bù hàng - Xác nhận
+                </button>
+                <button onclick="window.history.back()" class="px-3 py-1 bg-gray-300 hover:bg-gray-400 rounded">
+                    ← Quay lại
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border">
+                <thead class="bg-gray-200">
+                    <tr>
+                        <th class="px-4 py-2 border">Thời gian</th>
+                        <th class="px-4 py-2 border">RPRO</th>
+                        <th class="px-4 py-2 border">SO</th>
+                        <th class="px-4 py-2 border">Khách hàng</th>
+                        <th class="px-4 py-2 border">Tổng Qty</th>
+                        <th class="px-4 py-2 border">Ghi chú</th>
+                        <th class="px-4 py-2 border">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="list-body">
+                    <!-- Data rows will be injected here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./supabaseClient.js"></script>
+    <script type="module" src="./supplement-list.js"></script>
+    <script>
+        document.getElementById("btn-confirm-page").addEventListener("click", () => {
+            window.location.href = "/supplement-confirm.html";
+        });
+    </script>
+</body>
+
+</html>
