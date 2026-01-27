@@ -1004,7 +1004,11 @@ window.addEventListener('DOMContentLoaded', () => {
   progressBtnClear.addEventListener('click', clearProgressSearch);
   progressBtnExport.addEventListener('click', exportProgressToExcel);
 
-  delayBtnSearch.addEventListener('click', () => loadDelayUrgentData(currentDelayType));
+  delayBtnSearch.addEventListener('click', () => {
+    console.log("Searching for:", currentDelayType);
+    loadDelayUrgentData(currentDelayType);
+  });
+
   delayBtnClear.addEventListener('click', () => {
     delaySearchBox.value = '';
     document.querySelectorAll('.delay-input').forEach(i => i.value = '');
