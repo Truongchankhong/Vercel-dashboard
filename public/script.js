@@ -798,21 +798,6 @@ btnUrgentTab.addEventListener('click', () => {
 
 
 
-progressBtnSearch.addEventListener('click', searchProgress);
-progressBtnClear.addEventListener('click', clearProgressSearch);
-// ✅ STEP 5: Bind button tìm kiếm Delay-Urgent
-delayBtnSearch.addEventListener('click', () => loadDelayUrgentData('DELAY'));
-
-delayBtnClear.addEventListener('click', () => {
-  delaySearchBox.value = '';
-  document.querySelectorAll('.delay-input').forEach(i => i.value = '');
-  document.querySelectorAll('.delay-check').forEach(c => c.checked = false);
-  loadDelayUrgentData('DELAY');
-});
-// **Chèn ngay đây** để khi check/uncheck “Chỉ lỗi” tự load lại
-delayErrorOnly.addEventListener('change', () => {
-  loadDelayUrgentData(currentDelayType);
-});
 // Biến toàn cục
 let selectedSection = 'LAMINATION';
 const sectionButtons = [
@@ -1005,36 +990,32 @@ function getDelayUrgentQty(machine, data) {
 }
 
 
-// ==== Đăng ký sự kiện ====
-
-btnSummary.addEventListener('click', loadSummary);
-btnProgress.addEventListener('click', loadProgress);
-btnRefresh.addEventListener('click', () => window.location.reload());
-
-progressBtnSearch.addEventListener('click', searchProgress);
-progressBtnClear.addEventListener('click', clearProgressSearch);
-progressBtnExport.addEventListener('click', exportProgressToExcel);
-// ✅ STEP 5: Bind button tìm kiếm Delay-Urgent
-delayBtnSearch.addEventListener('click', () => loadDelayUrgentData('DELAY'));
-
-delayBtnClear.addEventListener('click', () => {
-  delaySearchBox.value = '';
-  document.querySelectorAll('.delay-input').forEach(i => i.value = '');
-  document.querySelectorAll('.delay-check').forEach(c => c.checked = false);
-  loadDelayUrgentData('DELAY');
-});
 
 // ✅ Gọi khi load trang xong
 window.addEventListener('DOMContentLoaded', () => {
   loadSummary();
+  fetchLastPushTime();
 
   btnSummary.addEventListener('click', loadSummary);
   btnProgress.addEventListener('click', loadProgress);
   btnRefresh.addEventListener('click', () => window.location.reload());
 
+  progressBtnSearch.addEventListener('click', searchProgress);
+  progressBtnClear.addEventListener('click', clearProgressSearch);
+  progressBtnExport.addEventListener('click', exportProgressToExcel);
+
+  delayBtnSearch.addEventListener('click', () => loadDelayUrgentData(currentDelayType));
+  delayBtnClear.addEventListener('click', () => {
+    delaySearchBox.value = '';
+    document.querySelectorAll('.delay-input').forEach(i => i.value = '');
+    document.querySelectorAll('.delay-check').forEach(c => c.checked = false);
+    loadDelayUrgentData(currentDelayType);
+  });
+
   btnDelayUrgent.addEventListener('click', () => {
     hideAllViews();
     delayTabs.classList.remove('hidden');
+    currentDelayType = 'DELAY';
 
     // Hiện tiêu đề tìm kiếm cơ bản & nâng cao cho Delay
     document.getElementById('delay-basic-search-title').classList.remove('hidden');
@@ -1043,10 +1024,6 @@ window.addEventListener('DOMContentLoaded', () => {
     delaySearchBar.classList.remove('hidden');
     delayAdvancedFilter.classList.remove('hidden');
     loadDelayUrgentData('DELAY');
-
-    delayTabs.classList.remove('hidden');
-    delaySearchBar.classList.remove('hidden');
-    delayAdvancedFilter.classList.remove('hidden');
 
     btnDelayTab.classList.add('bg-yellow-400', 'text-white');
     btnDelayTab.classList.remove('bg-gray-300', 'text-black');
@@ -1084,17 +1061,8 @@ window.addEventListener('DOMContentLoaded', () => {
     btnDelayTab.classList.add('bg-gray-300', 'text-black');
   });
 
-
-  progressBtnSearch.addEventListener('click', searchProgress);
-  progressBtnClear.addEventListener('click', clearProgressSearch);
-  progressBtnExport.addEventListener('click', exportProgressToExcel);
-
-  delayBtnSearch.addEventListener('click', () => loadDelayUrgentData('DELAY'));
-  delayBtnClear.addEventListener('click', () => {
-    delaySearchBox.value = '';
-    document.querySelectorAll('.delay-input').forEach(i => i.value = '');
-    document.querySelectorAll('.delay-check').forEach(c => c.checked = false);
-    loadDelayUrgentData('DELAY');
+  delayErrorOnly.addEventListener('change', () => {
+    loadDelayUrgentData(currentDelayType);
   });
 });
 
@@ -1127,82 +1095,78 @@ function formatExcelDate(serial) {
 
 
 
-function loadDelayUrgentData(type) {
-  fetch('/powerapp.json', { cache: 'no-store' })
-    .then(res => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    })
-    .then(json => {
-      const data = json.data;
-      const keyword = delaySearchBox.value.trim().toLowerCase();
-      const selectedField = delayColumnSelect.value;
-      const errorOnly = delayErrorOnly.checked;
+async function loadDelayUrgentData(type) {
+  try {
+    const json = await fetchAllPowerAppData();
+    const data = json.data;
+    const keyword = delaySearchBox.value.trim().toLowerCase();
+    const selectedField = delayColumnSelect.value;
+    const errorOnly = delayErrorOnly.checked;
 
-      // Lọc theo điều kiện nâng cao
-      const inputs = document.querySelectorAll('.delay-input');
-      const checks = document.querySelectorAll('.delay-check');
-      const filters = {};
-      checks.forEach(chk => {
-        if (chk.checked) {
-          const key = chk.dataset.key;
-          const input = [...inputs].find(i => i.dataset.key === key);
-          if (input && input.value.trim()) {
-            filters[key] = input.value.trim().toLowerCase();
-          }
+    // Lọc theo điều kiện nâng cao
+    const inputs = document.querySelectorAll('.delay-input');
+    const checks = document.querySelectorAll('.delay-check');
+    const filters = {};
+    checks.forEach(chk => {
+      if (chk.checked) {
+        const key = chk.dataset.key;
+        const input = [...inputs].find(i => i.dataset.key === key);
+        if (input && input.value.trim()) {
+          filters[key] = input.value.trim().toLowerCase();
         }
-      });
+      }
+    });
 
-      // Lọc chính
-      let filtered = data.filter(row => {
-        const delayVal = (row['Delay/Urgent'] || '').toUpperCase();
-        // Chọn DELAY hay URGENT
-        if ((type === 'DELAY' && delayVal !== 'PRODUCTION DELAY') ||
-          (type === 'URGENT' && delayVal !== 'URGENT')) {
+    // Lọc chính
+    let filtered = data.filter(row => {
+      const delayVal = (row['Delay/Urgent'] || '').toUpperCase();
+      // Chọn DELAY hay URGENT
+      if ((type === 'DELAY' && delayVal !== 'PRODUCTION DELAY') ||
+        (type === 'URGENT' && delayVal !== 'URGENT')) {
+        return false;
+      }
+
+      // Basic search
+      const main = (row[selectedField] || '').toString().toLowerCase();
+      if (keyword && !main.includes(keyword)) return false;
+
+      // Advanced filters
+      for (let [k, v] of Object.entries(filters)) {
+        if (!(row[k] || '').toString().toLowerCase().includes(v)) {
           return false;
         }
+      }
 
-        // Basic search
-        const main = (row[selectedField] || '').toString().toLowerCase();
-        if (keyword && !main.includes(keyword)) return false;
+      // Nếu check “Chỉ lỗi” thì chỉ lấy status ≠ 7.PACKING & ≠ 9.STORED
+      if (errorOnly) {
+        const st = (row['STATUS'] || '').toUpperCase();
+        if (st === '7.PACKING' || st === '9.STORED') return false;
+      }
 
-        // Advanced filters
-        for (let [k, v] of Object.entries(filters)) {
-          if (!(row[k] || '').toString().toLowerCase().includes(v)) {
-            return false;
-          }
-        }
+      return true;
+    });
 
-        // Nếu check “Chỉ lỗi” thì chỉ lấy status ≠ 7.PACKING & ≠ 9.STORED
-        if (errorOnly) {
-          const st = (row['STATUS'] || '').toUpperCase();
-          if (st === '7.PACKING' || st === '9.STORED') return false;
-        }
-
-        return true;
-      });
-
-      // Tạo table
-      const headers = [
-        'STT', 'PRO ODER', 'Brand Code', 'Loại hàng', 'Mã khuôn',
-        'BOM', 'Total Qty', 'Finish date', 'PPC Confirm', 'STORED', 'STATUS'
-      ];
-      let html = `
+    // Tạo table
+    const headers = [
+      'STT', 'PRO ODER', 'Brand Code', 'Loại hàng', 'Mã khuôn',
+      'BOM', 'Total Qty', 'Finish date', 'PPC Confirm', 'STORED', 'STATUS'
+    ];
+    let html = `
         <table class="min-w-full text-sm text-left border">
           <thead class="bg-gray-200">
             <tr>${headers
-          .map(h => `<th class="px-2 py-1 border">${h}</th>`)
-          .join('')}
+        .map(h => `<th class="px-2 py-1 border">${h}</th>`)
+        .join('')}
             </tr>
           </thead>
           <tbody>
       `;
-      html += filtered.map((row, i) => {
-        const status = row['STATUS'] || '';
-        const highlight = (!errorOnly && status !== '7.PACKING' && status !== '9.STORED')
-          ? 'bg-red-100'
-          : '';
-        return `
+    html += filtered.map((row, i) => {
+      const status = row['STATUS'] || '';
+      const highlight = (!errorOnly && status !== '7.PACKING' && status !== '9.STORED')
+        ? 'bg-red-100'
+        : '';
+      return `
           <tr class="${highlight}">
             <td class="border px-2 py-1">${i + 1}</td>
             <td class="border px-2 py-1">${row['PRO ODER'] || ''}</td>
@@ -1217,19 +1181,18 @@ function loadDelayUrgentData(type) {
             <td class="border px-2 py-1">${status}</td>
           </tr>
         `;
-      }).join('');
-      html += `
+    }).join('');
+    html += `
           </tbody>
         </table>
       `;
 
-      document.getElementById('table-container').innerHTML = html;
-    })
-    .catch(err => {
-      console.error('Lỗi loadDelayUrgentData:', err);
-      document.getElementById('table-container').innerHTML =
-        '<div class="text-red-500 p-4">Không tải được dữ liệu</div>';
-    });
+    document.getElementById('table-container').innerHTML = html;
+  } catch (err) {
+    console.error('Lỗi loadDelayUrgentData:', err);
+    document.getElementById('table-container').innerHTML =
+      '<div class="text-red-500 p-4">Không tải được dữ liệu</div>';
+  }
 }
 
 
