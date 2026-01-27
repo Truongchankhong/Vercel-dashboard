@@ -1220,3 +1220,8 @@ async function loadDelayUrgentData(type) {
 document.getElementById("btn-supplement")?.addEventListener("click", () => {
   window.location.href = "/supplement.html";
 });
+
+// Nút Bù hàng - Xác nhận trên trang chính
+document.getElementById("btn-confirm-page")?.addEventListener("click", () => {
+  window.location.href = "/supplement-confirm.html";
+});
