@@ -204,7 +204,11 @@ async function exportToZalo() {
     message += `\n`;
   }
 
-  message += `_Trạng thái: Đã cập nhật trên Dashboard._`;
+  const totalSelectedQty = selectedData.reduce((sum, r) => sum + Number(r.total), 0);
+  const totalCóQty = hasLiệu.reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+  const fulfillmentRate = totalSelectedQty > 0 ? (totalCóQty * 100 / totalSelectedQty).toFixed(1) : 0;
+
+  message += `*Tỷ lệ % có liệu: ${fulfillmentRate}%*`;
 
   try {
     await navigator.clipboard.writeText(message);
