@@ -13,6 +13,10 @@
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold text-purple-700">🛒 Bù hàng - Xác nhận (Confirm)</h1>
             <div class="flex gap-2">
+                <button id="btn-export-zalo"
+                    class="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold shadow-md">
+                    🚀 Gửi Zalo (Copy)
+                </button>
                 <button onclick="window.history.back()" class="px-3 py-1 bg-gray-300 hover:bg-gray-400 rounded">
                     ← Quay lại
                 </button>
@@ -20,7 +24,7 @@
         </div>
 
         <!-- Date filtering -->
-        <div class="flex flex-wrap gap-4 mb-6 bg-purple-50 p-4 rounded border border-purple-200">
+        <div class="flex flex-wrap gap-4 mb-6 bg-purple-50 p-4 rounded border border-purple-200 items-center">
             <div>
                 <label class="block text-sm font-medium">Từ ngày:</label>
                 <input type="date" id="date-from" class="border px-2 py-1 rounded">
@@ -47,6 +51,10 @@
                         <th class="px-4 py-2 border">Qty</th>
                         <th class="px-4 py-2 border">Số đôi có thể bù</th>
                         <th class="px-4 py-2 border">Xác nhận của Kho</th>
+                        <th class="px-4 py-2 border text-center">
+                            <input type="checkbox" id="check-all" class="w-4 h-4">
+                            <br><span class="text-[10px]">Chọn gửi</span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody id="confirm-body">
