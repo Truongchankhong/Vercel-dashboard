@@ -46,16 +46,16 @@ async function loadConfirmList() {
         <input type="number" min="0" max="${row.total}" 
                value="${row.available_supplement !== null ? row.available_supplement : ''}" 
                placeholder="Full (${row.total})"
-               onchange="handleAvailableUpdate('${row.rpro}', this.value)"
+               onchange="handleAvailableUpdate('${row.rpro}', this.value, ${row.total})"
                class="w-24 border px-2 py-1 rounded text-center">
       </td>
       <td class="px-4 py-2 border text-center">
         <div class="flex items-center justify-center gap-2">
-          <button onclick="handleConfirmation('${row.rpro}', 'Có liệu')" 
+          <button onclick="handleConfirmation('${row.rpro}', 'Có liệu', '${row.confirm || ''}')" 
                   class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600 ${row.confirm === 'Có liệu' ? 'ring-4 ring-red-500' : ''}">
             Có liệu
           </button>
-          <button onclick="handleConfirmation('${row.rpro}', 'Không có liệu')" 
+          <button onclick="handleConfirmation('${row.rpro}', 'Không có liệu', '${row.confirm || ''}')" 
                   class="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 ${row.confirm === 'Không có liệu' ? 'ring-4 ring-red-500' : ''}">
             Không có liệu
           </button>
@@ -66,8 +66,9 @@ async function loadConfirmList() {
   `).join('');
 }
 
-window.handleAvailableUpdate = async (rpro, value) => {
-  const numValue = value === '' ? null : Number(value);
+window.handleAvailableUpdate = async (rpro, value, total) => {
+  // If empty, default to total
+  const numValue = value === '' ? total : Number(value);
   const { error } = await supabase
     .from('supplement_confirm')
     .update({ available_supplement: numValue })
@@ -79,16 +80,21 @@ window.handleAvailableUpdate = async (rpro, value) => {
   } else {
     const savedEl = document.getElementById(`saved-${rpro}`);
     if (savedEl) {
+      savedEl.textContent = value === '' ? "✅ Đã lưu (Full)" : "✅ Đã lưu";
       savedEl.classList.remove('hidden');
       setTimeout(() => savedEl.classList.add('hidden'), 2000);
+      if (value === '') loadConfirmList(); // Reload to show numeric value in input
     }
   }
 };
 
-window.handleConfirmation = async (rpro, status) => {
+window.handleConfirmation = async (rpro, newStatus, currentStatus) => {
+  // Toggle feature: if same status, clear it
+  const statusToSave = (newStatus === currentStatus) ? null : newStatus;
+
   const { error } = await supabase
     .from('supplement_confirm')
-    .update({ confirm: status })
+    .update({ confirm: statusToSave })
     .eq('rpro', rpro);
 
   if (error) {
@@ -97,6 +103,7 @@ window.handleConfirmation = async (rpro, status) => {
   } else {
     const savedEl = document.getElementById(`saved-${rpro}`);
     if (savedEl) {
+      savedEl.textContent = statusToSave ? "✅ Đã lưu" : "🔄 Đã hủy chọn";
       savedEl.classList.remove('hidden');
       setTimeout(() => {
         loadConfirmList();
