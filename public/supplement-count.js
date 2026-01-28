@@ -23,20 +23,30 @@ async function startScanner() {
 
     html5QrScanner = new Html5Qrcode("qr-reader");
 
+    // Config optimized for iOS and Zalo Browser
     const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
+        fps: 15, // Higher FPS for smoother detection
+        qrbox: (viewWidth, viewHeight) => {
+            const minEdge = Math.min(viewWidth, viewHeight);
+            const boxSize = Math.floor(minEdge * 0.7); // 70% of screen
+            return { width: boxSize, height: boxSize };
+        },
+        aspectRatio: 1.0,
+        // Force inline playback for iOS
+        videoConstraints: {
+            facingMode: "environment",
+            focusMode: "continuous"
+        }
     };
 
     html5QrScanner.start(
-        { facingMode: "environment" },
+        config.videoConstraints, // Pass videoConstraints directly
         config,
         onScanSuccess,
         onScanFailure
     ).catch(err => {
         console.error("Camera start error:", err);
-        showFeedback("❌ Không thể mở Camera. Vui lòng cấp quyền!", "text-red-600");
+        showFeedback("❌ Lỗi: Có thể ứng dụng khác đang dùng Camera hoặc bạn chưa cấp quyền.", "text-red-600 font-normal text-xs");
     });
 }
 
