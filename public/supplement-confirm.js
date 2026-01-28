@@ -56,8 +56,8 @@ function renderTable() {
     <tr class="${isSelected ? 'bg-blue-50' : ''}">
       <td class="px-4 py-2 border text-[12px]">${new Date(row.created_at).toLocaleString('vi-VN')}</td>
       <td class="px-4 py-2 border font-mono text-[12px] font-bold">${row.rpro}</td>
-      <td class="px-4 py-2 border text-[12px]">${row.so || ''}</td>
-      <td class="px-4 py-2 border text-[12px]">${row.customers || ''}</td>
+      <td class="px-4 py-2 border text-[12px]">${row.pu || ''}</td>
+      <td class="px-4 py-2 border text-[12px]">${row.fabric || ''}</td>
       <td class="px-4 py-2 border text-right font-bold">${row.total}</td>
       <td class="px-4 py-2 border">
         <input type="number" min="0" max="${row.total}" 
@@ -208,7 +208,8 @@ async function exportToZalo() {
   const totalCóQty = hasLiệu.reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
   const fulfillmentRate = totalSelectedQty > 0 ? (totalCóQty * 100 / totalSelectedQty).toFixed(1) : 0;
 
-  message += `*Tỷ lệ % có liệu: ${fulfillmentRate}%*`;
+  message += `*Tỷ lệ % có liệu: ${fulfillmentRate}%*\n`;
+  message += `🔗 _Link Excel Online:_ https://truong-nx-ovn.github.io/vercel-dashboard/public/supplement-report.html`;
 
   try {
     await navigator.clipboard.writeText(message);
