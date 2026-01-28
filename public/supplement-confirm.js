@@ -45,6 +45,12 @@ async function loadConfirmList() {
   }
 
   currentData = data;
+
+  // Calculate Pending Count (Not confirmed yet)
+  const pendingRows = data.filter(r => !r.confirm);
+  const pendingEl = document.getElementById('pending-count');
+  if (pendingEl) pendingEl.innerText = pendingRows.length;
+
   renderTable();
 }
 

@@ -42,94 +42,95 @@
                 <input type="date" id="date-to" class="border px-2 py-1 rounded">
             </div>
             <div class="flex items-end">
-                <button id="btn-filter" class="px-4 py-1 bg-purple-600 text-white rounded hover:bg-purple-700">
+                <button id="btn-filter"
+                    class="px-6 py-1.5 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition shadow-md">
                     Lọc
                 </button>
+                <div class="ml-4 px-3 py-1 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                    <span class="text-xs font-bold text-red-600 uppercase">Chưa xác nhận:</span>
+                    <span id="pending-count" class="text-lg font-black text-red-700">0</span>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                <table class="min-w-full bg-white divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 border">Ngày tạo</th>
+                            <th class="px-4 py-2 border font-bold">RPRO</th>
+                            <th class="px-4 py-2 border font-bold">Mã PU</th>
+                            <th class="px-4 py-2 border font-bold">Mã Vải</th>
+                            <th class="px-4 py-2 border">Qty</th>
+                            <th class="px-4 py-2 border">Số đôi có thể bù</th>
+                            <th class="px-4 py-2 border">Xác nhận của Kho</th>
+                            <th class="px-4 py-2 border text-center">
+                                <input type="checkbox" id="check-all" class="w-4 h-4">
+                                <br><span class="text-[10px]">Chọn gửi</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="confirm-body">
+                        <!-- Data rows -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="min-w-full bg-white border">
-                <thead class="bg-gray-200">
-                    <tr>
-                        <th class="px-4 py-2 border">Ngày tạo</th>
-                        <th class="px-4 py-2 border">RPRO</th>
-                        <th
-                            class="px-4 py-2 border text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Mã PU</th>
-                        <th
-                            class="px-4 py-2 border text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Mã Vải</th>
-                        <th class="px-4 py-2 border">Qty</th>
-                        <th class="px-4 py-2 border">Số đôi có thể bù</th>
-                        <th class="px-4 py-2 border">Xác nhận của Kho</th>
-                        <th class="px-4 py-2 border text-center">
-                            <input type="checkbox" id="check-all" class="w-4 h-4">
-                            <br><span class="text-[10px]">Chọn gửi</span>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody id="confirm-body">
-                    <!-- Data rows -->
-                </tbody>
-            </table>
-        </div>
-    </div>
+        <!-- Stats Modal -->
+        <div id="stats-modal"
+            class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6 relative">
+                <button id="btn-close-stats"
+                    class="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl font-bold">×</button>
 
-    <!-- Stats Modal -->
-    <div id="stats-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6 relative">
-            <button id="btn-close-stats"
-                class="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl font-bold">×</button>
+                <h2 class="text-2xl font-extrabold text-indigo-800 mb-6 flex items-center gap-2">
+                    📊 Thống kê tình trạng Bù hàng
+                </h2>
 
-            <h2 class="text-2xl font-extrabold text-indigo-800 mb-6 flex items-center gap-2">
-                📊 Thống kê tình trạng Bù hàng
-            </h2>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <!-- Daily Qty Bar Chart (New) -->
-                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 shadow-sm lg:col-span-2">
-                    <h3 class="text-lg font-bold text-indigo-700 mb-3">Số lượng Qty theo ngày (7 ngày gần nhất)</h3>
-                    <div class="h-[250px]">
-                        <canvas id="chart-daily-qty"></canvas>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Daily Qty Bar Chart (New) -->
+                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 shadow-sm lg:col-span-2">
+                        <h3 class="text-lg font-bold text-indigo-700 mb-3">Số lượng Qty theo ngày (7 ngày gần nhất)</h3>
+                        <div class="h-[250px]">
+                            <canvas id="chart-daily-qty"></canvas>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Daily Bar Chart -->
-                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 shadow-sm lg:col-span-2">
-                    <h3 class="text-lg font-bold text-indigo-700 mb-3">Số lượng đơn theo ngày (7 ngày gần nhất)</h3>
-                    <div class="h-[250px]">
-                        <canvas id="chart-daily"></canvas>
+                    <!-- Daily Bar Chart -->
+                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 shadow-sm lg:col-span-2">
+                        <h3 class="text-lg font-bold text-indigo-700 mb-3">Số lượng đơn theo ngày (7 ngày gần nhất)</h3>
+                        <div class="h-[250px]">
+                            <canvas id="chart-daily"></canvas>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Weekly Pie Chart -->
-                <div class="bg-green-50 p-4 rounded-lg border border-green-100 shadow-sm">
-                    <h3 class="text-lg font-bold text-green-700 mb-3">Tỷ lệ theo Tuần này (%)</h3>
-                    <div class="h-[250px] flex justify-center">
-                        <canvas id="chart-weekly"></canvas>
+                    <!-- Weekly Pie Chart -->
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-100 shadow-sm">
+                        <h3 class="text-lg font-bold text-green-700 mb-3">Tỷ lệ theo Tuần này (%)</h3>
+                        <div class="h-[250px] flex justify-center">
+                            <canvas id="chart-weekly"></canvas>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Monthly Pie Chart -->
-                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 shadow-sm">
-                    <h3 class="text-lg font-bold text-blue-700 mb-3">Tỷ lệ theo Tháng này (%)</h3>
-                    <div class="h-[250px] flex justify-center">
-                        <canvas id="chart-monthly"></canvas>
+                    <!-- Monthly Pie Chart -->
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 shadow-sm">
+                        <h3 class="text-lg font-bold text-blue-700 mb-3">Tỷ lệ theo Tháng này (%)</h3>
+                        <div class="h-[250px] flex justify-center">
+                            <canvas id="chart-monthly"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- SheetJS -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="./supabaseClient.js"></script>
-    <script type="module" src="./supplement-confirm.js"></script>
+        <!-- SheetJS -->
+        <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+        <!-- Chart.js -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script type="module" src="./supabaseClient.js"></script>
+        <script type="module" src="./supplement-confirm.js"></script>
 </body>
 
 </html>
