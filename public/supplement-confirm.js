@@ -215,7 +215,7 @@ async function exportToZalo() {
   const fulfillmentRate = totalSelectedQty > 0 ? (totalCóQty * 100 / totalSelectedQty).toFixed(1) : 0;
 
   message += `*Tỷ lệ % có liệu: ${fulfillmentRate}%*\n`;
-  message += `🔗 *Link xem báo cáo Online (Dạng Sheet):*\nhttps://Truongchankhong.github.io/vercel-dashboard/public/supplement-report.html`;
+  message += `🔗 *Link Google Sheet (Báo cáo Online):*\nhttps://docs.google.com/spreadsheets/d/15VO02nvCbJYBx2ITs5FBUhCeB9jt_tIBLQMz0RAGbuo/edit?usp=sharing`;
 
   try {
     await navigator.clipboard.writeText(message);
