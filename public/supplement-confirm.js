@@ -73,24 +73,24 @@ function renderTable() {
                class="w-24 border px-2 py-1 rounded text-center">
       </td>
       <td class="px-4 py-2 border text-center">
-        <div class="flex items-center justify-center gap-2">
+        <div class="grid grid-cols-2 lg:flex lg:flex-nowrap items-center justify-center gap-2 min-w-[200px] lg:min-w-0">
           <button onclick="handleConfirmation('${row.rpro}', 'Có liệu', '${row.confirm || ''}')" 
-                  class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600 ${row.confirm === 'Có liệu' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
+                  class="px-2 py-1 bg-green-500 text-white rounded text-[10px] sm:text-xs hover:bg-green-600 ${row.confirm === 'Có liệu' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
             Có liệu
           </button>
           <button onclick="handleConfirmation('${row.rpro}', 'Có PU - ko Vải', '${row.confirm || ''}')" 
-                  class="px-3 py-1 bg-amber-500 text-white rounded text-sm hover:bg-amber-600 ${row.confirm === 'Có PU - ko Vải' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
+                  class="px-2 py-1 bg-amber-500 text-white rounded text-[10px] sm:text-xs hover:bg-amber-600 ${row.confirm === 'Có PU - ko Vải' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
             Có PU-Ko Vải
           </button>
           <button onclick="handleConfirmation('${row.rpro}', 'Có Vải - ko PU', '${row.confirm || ''}')" 
-                  class="px-3 py-1 bg-cyan-500 text-white rounded text-sm hover:bg-cyan-600 ${row.confirm === 'Có Vải - ko PU' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
+                  class="px-2 py-1 bg-cyan-500 text-white rounded text-[10px] sm:text-xs hover:bg-cyan-600 ${row.confirm === 'Có Vải - ko PU' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
             Có Vải-Ko PU
           </button>
           <button onclick="handleConfirmation('${row.rpro}', 'Không có liệu', '${row.confirm || ''}')" 
-                  class="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 ${row.confirm === 'Không có liệu' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
-            Không có liệu
+                  class="px-2 py-1 bg-gray-600 text-white rounded text-[10px] sm:text-xs hover:bg-gray-700 ${row.confirm === 'Không có liệu' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
+            Không liệu
           </button>
-          <span id="saved-${row.rpro}" class="text-xs text-blue-600 font-bold hidden">✅ Đã lưu</span>
+          <span id="saved-${row.rpro}" class="text-[10px] text-blue-600 font-bold hidden col-span-2">✅ Đã lưu</span>
         </div>
       </td>
       <td class="px-4 py-2 border text-center">
