@@ -78,6 +78,14 @@ function renderTable() {
                   class="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600 ${row.confirm === 'Có liệu' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
             Có liệu
           </button>
+          <button onclick="handleConfirmation('${row.rpro}', 'Có PU - ko Vải', '${row.confirm || ''}')" 
+                  class="px-3 py-1 bg-amber-500 text-white rounded text-sm hover:bg-amber-600 ${row.confirm === 'Có PU - ko Vải' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
+            Có PU-Ko Vải
+          </button>
+          <button onclick="handleConfirmation('${row.rpro}', 'Có Vải - ko PU', '${row.confirm || ''}')" 
+                  class="px-3 py-1 bg-cyan-500 text-white rounded text-sm hover:bg-cyan-600 ${row.confirm === 'Có Vải - ko PU' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
+            Có Vải-Ko PU
+          </button>
           <button onclick="handleConfirmation('${row.rpro}', 'Không có liệu', '${row.confirm || ''}')" 
                   class="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 ${row.confirm === 'Không có liệu' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
             Không có liệu
@@ -177,6 +185,8 @@ async function exportToZalo() {
 
   const selectedData = currentData.filter(row => selectedRpros.has(row.rpro));
   const hasLiệu = selectedData.filter(r => r.confirm === 'Có liệu');
+  const hasPUOnly = selectedData.filter(r => r.confirm === 'Có PU - ko Vải');
+  const hasFabricOnly = selectedData.filter(r => r.confirm === 'Có Vải - ko PU');
   const noLiệu = selectedData.filter(r => r.confirm === 'Không có liệu');
   const other = selectedData.filter(r => !r.confirm);
 
@@ -186,6 +196,26 @@ async function exportToZalo() {
   if (hasLiệu.length > 0) {
     message += `🟢 *NHÓM CÓ LIỆU:*\n`;
     hasLiệu.forEach(r => {
+      const avail = r.available_supplement !== null ? r.available_supplement : r.total;
+      const sizeText = formatSizeBreakdown(r);
+      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Qty đáp ứng: *${avail}/${r.total}*\n`;
+    });
+    message += `\n`;
+  }
+
+  if (hasPUOnly.length > 0) {
+    message += `🟠 *CÓ PU - KHÔNG CÓ VẢI:*\n`;
+    hasPUOnly.forEach(r => {
+      const avail = r.available_supplement !== null ? r.available_supplement : r.total;
+      const sizeText = formatSizeBreakdown(r);
+      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Qty đáp ứng: *${avail}/${r.total}*\n`;
+    });
+    message += `\n`;
+  }
+
+  if (hasFabricOnly.length > 0) {
+    message += `🔵 *CÓ VẢI - KHÔNG CÓ PU:*\n`;
+    hasFabricOnly.forEach(r => {
       const avail = r.available_supplement !== null ? r.available_supplement : r.total;
       const sizeText = formatSizeBreakdown(r);
       message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Qty đáp ứng: *${avail}/${r.total}*\n`;
@@ -211,7 +241,9 @@ async function exportToZalo() {
   }
 
   const totalSelectedQty = selectedData.reduce((sum, r) => sum + Number(r.total), 0);
-  const totalCóQty = hasLiệu.reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+  const totalCóQty = selectedData
+    .filter(r => r.confirm && r.confirm !== 'Không có liệu')
+    .reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
   const fulfillmentRate = totalSelectedQty > 0 ? (totalCóQty * 100 / totalSelectedQty).toFixed(1) : 0;
 
   message += `*Tỷ lệ % có liệu: ${fulfillmentRate}%*\n`;
@@ -299,7 +331,7 @@ function processStats(data) {
       return rDate.getDate() === d.getDate() && rDate.getMonth() === d.getMonth();
     });
 
-    const cóItems = dayData.filter(r => r.confirm === 'Có liệu');
+    const cóItems = dayData.filter(r => r.confirm === 'Có liệu' || r.confirm === 'Có PU - ko Vải' || r.confirm === 'Có Vải - ko PU');
     const khôngItems = dayData.filter(r => r.confirm === 'Không có liệu');
 
     dailyCóCount.push(cóItems.length);
@@ -315,11 +347,11 @@ function processStats(data) {
   startOfWeek.setDate(today.getDate() - (dayOfWeek - 1));
 
   const weekData = data.filter(r => new Date(r.created_at) >= startOfWeek);
-  const weekCóQty = weekData.filter(r => r.confirm === 'Có liệu').reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+  const weekCóQty = weekData.filter(r => r.confirm && r.confirm !== 'Không có liệu').reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
   const weekKhôngQty = weekData.filter(r => r.confirm === 'Không có liệu').reduce((sum, r) => sum + Number(r.total), 0);
 
   // 3. Monthly Stats (Current Month - QTY)
-  const monthCóQty = data.filter(r => r.confirm === 'Có liệu').reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+  const monthCóQty = data.filter(r => r.confirm && r.confirm !== 'Không có liệu').reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
   const monthKhôngQty = data.filter(r => r.confirm === 'Không có liệu').reduce((sum, r) => sum + Number(r.total), 0);
 
   return {
