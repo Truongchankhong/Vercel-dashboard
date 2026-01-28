@@ -215,7 +215,7 @@ async function exportToZalo() {
   const fulfillmentRate = totalSelectedQty > 0 ? (totalCóQty * 100 / totalSelectedQty).toFixed(1) : 0;
 
   message += `*Tỷ lệ % có liệu: ${fulfillmentRate}%*\n`;
-  message += `🔗 _Link Excel Online:_ https://truong-nx-ovn.github.io/vercel-dashboard/public/supplement-report.html`;
+  message += `🔗 _Link Excel Online:_ https://Truongchankhong.github.io/vercel-dashboard/public/supplement-report.html`;
 
   try {
     await navigator.clipboard.writeText(message);
