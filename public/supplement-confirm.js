@@ -198,7 +198,7 @@ async function exportToZalo() {
     hasLiệu.forEach(r => {
       const avail = r.available_supplement !== null ? r.available_supplement : r.total;
       const sizeText = formatSizeBreakdown(r);
-      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Qty đáp ứng: *${avail}/${r.total}*\n`;
+      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Số lượng OK: *${avail}/${r.total}*\n`;
     });
     message += `\n`;
   }
@@ -208,7 +208,7 @@ async function exportToZalo() {
     hasPUOnly.forEach(r => {
       const avail = r.available_supplement !== null ? r.available_supplement : r.total;
       const sizeText = formatSizeBreakdown(r);
-      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Qty đáp ứng: *${avail}/${r.total}*\n`;
+      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Số lượng OK: *${avail}/${r.total}*\n`;
     });
     message += `\n`;
   }
@@ -218,7 +218,7 @@ async function exportToZalo() {
     hasFabricOnly.forEach(r => {
       const avail = r.available_supplement !== null ? r.available_supplement : r.total;
       const sizeText = formatSizeBreakdown(r);
-      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Qty đáp ứng: *${avail}/${r.total}*\n`;
+      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Số lượng OK: *${avail}/${r.total}*\n`;
     });
     message += `\n`;
   }
