@@ -58,6 +58,10 @@
                     <label class="text-[10px] font-bold text-gray-400 mb-1">ĐẾN NGÀY</label>
                     <input type="date" id="date-to" class="text-sm border rounded px-2 py-1 outline-none">
                 </div>
+                <button id="btn-export-excel"
+                    class="px-4 py-1.5 bg-green-600 text-white rounded font-bold hover:bg-green-700 transition shadow-md flex items-center gap-1">
+                    <span>📗 Xuất Excel</span>
+                </button>
                 <button id="btn-filter"
                     class="px-4 py-1.5 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 transition shadow-md">
                     Lọc
@@ -101,6 +105,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import { supabase } from './supabaseClient.js';
@@ -109,7 +114,9 @@
         const dateFromInput = document.getElementById('date-from');
         const dateToInput = document.getElementById('date-to');
         const btnFilter = document.getElementById('btn-filter');
+        const btnExportExcel = document.getElementById('btn-export-excel');
         const rowCountEl = document.getElementById('row-count');
+        let currentData = [];
 
         const formatSizeBreakdown = (r) => {
             let sizes = [];
@@ -140,7 +147,44 @@
                 return;
             }
 
+            currentData = data;
             renderReport(data);
+        }
+
+        function exportToExcel() {
+            if (!currentData || currentData.length === 0) {
+                alert("Không có dữ liệu để xuất!");
+                return;
+            }
+
+            // Flatten data for Excel
+            const excelData = currentData.map(r => {
+                const row = {
+                    "Ngày tạo": new Date(r.created_at).toLocaleString('vi-VN'),
+                    "RPRO ID": r.rpro,
+                    "S.O": r.so || "",
+                    "Khách hàng": r.customers || "",
+                    "Gender": r.gender || "",
+                    "Mã Khuôn": r.mold || "",
+                    "Mã PU": r.pu || "",
+                    "Mã Vải": r.fabric || "",
+                    "BOM": r.bom || "",
+                    "Tổng Qty": r.total,
+                    "Đáp ứng": r.available_supplement !== null ? r.available_supplement : r.total,
+                    "Chi tiết Size": formatSizeBreakdown(r),
+                    "Trạng thái": r.confirm || "CHƯƠNG P/A",
+                    "Ghi chú": r.remark || ""
+                };
+                return row;
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "BaoCaoBuHang");
+
+            // Build filename with date range
+            const filename = `Bao_cao_Bu_hang_${dateFromInput.value}_den_${dateToInput.value}.xlsx`;
+            XLSX.writeFile(workbook, filename);
         }
 
         function renderReport(data) {
@@ -178,6 +222,7 @@
         }
 
         btnFilter.addEventListener('click', loadReport);
+        btnExportExcel.addEventListener('click', exportToExcel);
         document.addEventListener('DOMContentLoaded', () => {
             setInitialDates();
             loadReport();
