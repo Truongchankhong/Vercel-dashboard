@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tổng hợp Đếm hàng bù</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen p-6">
+    <div class="max-w-7xl mx-auto bg-white p-6 rounded-2xl shadow-xl">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-gray-800 flex items-center gap-2">
+                    📊 Tổng hợp Đếm hàng bù
+                </h1>
+                <p class="text-gray-500 mt-1">So sánh số lượng quét (RPRO) giữa các bộ phận</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="window.history.back()"
+                    class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold transition">
+                    ← Quay lại
+                </button>
+            </div>
+        </div>
+
+        <!-- Date Filtering -->
+        <div class="flex flex-wrap gap-4 mb-8 bg-blue-50 p-6 rounded-xl border border-blue-100 items-end">
+            <div>
+                <label class="block text-sm font-bold text-blue-900 mb-1">Từ ngày:</label>
+                <input type="date" id="date-from"
+                    class="border px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-blue-900 mb-1">Đến ngày:</label>
+                <input type="date" id="date-to"
+                    class="border px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none">
+            </div>
+            <button id="btn-filter"
+                class="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md">
+                Lọc dữ liệu
+            </button>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+            <table class="min-w-full bg-white divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-4 font-bold text-indigo-700 border-r">Dán (Lamination)</th>
+                        <th class="px-4 py-4 font-bold text-green-700 border-r">Cắt (Prefitting)</th>
+                        <th class="px-4 py-4 font-bold text-blue-700 border-r">Molding</th>
+                        <th class="px-4 py-4 font-bold text-purple-700 border-r">Leanline DC</th>
+                        <th class="px-4 py-4 font-bold text-pink-700">Leanline Molded</th>
+                    </tr>
+                </thead>
+                <tbody id="summary-body" class="divide-y divide-gray-100">
+                    <!-- Rows will be injected here -->
+                </tbody>
+                <tfoot class="bg-gray-100 font-black text-lg">
+                    <tr id="summary-footer">
+                        <td id="total-Dán" class="px-4 py-4 text-center border-r">0</td>
+                        <td id="total-Cắt" class="px-4 py-2 text-center border-r">0</td>
+                        <td id="total-Molding" class="px-4 py-2 text-center border-r">0</td>
+                        <td id="total-DC" class="px-4 py-2 text-center border-r">0</td>
+                        <td id="total-Molded" class="px-4 py-2 text-center">0</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./supabaseClient.js"></script>
+    <script type="module" src="./supplement-count-summary.js"></script>
+</body>
+
+</html>

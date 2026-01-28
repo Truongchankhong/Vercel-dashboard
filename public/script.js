@@ -745,6 +745,13 @@ btnRefresh.addEventListener('click', () => {
 btnSummary.addEventListener('click', loadSummary);
 btnProgress.addEventListener('click', loadProgress);
 
+const btnSupplementCount = document.getElementById('btn-supplement-count');
+if (btnSupplementCount) {
+  btnSupplementCount.addEventListener('click', () => {
+    window.location.href = 'supplement-count.html';
+  });
+}
+
 btnDelayUrgent.addEventListener('click', () => {
   hideAllViews();
   delayTabs.classList.remove('hidden');
