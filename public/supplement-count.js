@@ -7,6 +7,9 @@ const activeSectionLabel = document.getElementById('active-section-name');
 const scanFeedback = document.getElementById('scan-feedback');
 const btnViewSummary = document.getElementById('btn-view-summary');
 
+const manualRproInput = document.getElementById('manual-rpro');
+const btnSaveManual = document.getElementById('btn-save-manual');
+
 const undoContainer = document.getElementById('undo-container');
 const btnUndoScan = document.getElementById('btn-undo-scan');
 
@@ -23,47 +26,58 @@ async function startScanner() {
 
     html5QrScanner = new Html5Qrcode("qr-reader");
 
-    // Config optimized for iOS and Zalo Browser
+    // High-Resolution config for iOS/iPhone focus issues
     const config = {
-        fps: 15, // Higher FPS for smoother detection
+        fps: 20,
         qrbox: (viewWidth, viewHeight) => {
             const minEdge = Math.min(viewWidth, viewHeight);
-            const boxSize = Math.floor(minEdge * 0.7); // 70% of screen
+            const boxSize = Math.floor(minEdge * 0.8); // Larger box
             return { width: boxSize, height: boxSize };
         },
         aspectRatio: 1.0,
-        // Force inline playback for iOS
+        // Request high resolution to help focus from further away
         videoConstraints: {
             facingMode: "environment",
+            width: { min: 1280, ideal: 1920 },
+            height: { min: 720, ideal: 1080 },
             focusMode: "continuous"
         }
     };
 
     html5QrScanner.start(
-        config.videoConstraints, // Pass videoConstraints directly
+        { facingMode: "environment" },
         config,
         onScanSuccess,
         onScanFailure
     ).catch(err => {
         console.error("Camera start error:", err);
-        showFeedback("❌ Lỗi: Có thể ứng dụng khác đang dùng Camera hoặc bạn chưa cấp quyền.", "text-red-600 font-normal text-xs");
+        showFeedback("❌ Lỗi Camera: Vui lòng cấp quyền hoặc thử trình duyệt/điện thoại khác.", "text-red-600 font-normal text-xs");
     });
 }
 
 function onScanSuccess(decodedText) {
     if (isProcessing) return;
-    handleScannedRPRO(decodedText);
+    saveRPRO(decodedText, "SCAN");
 }
 
 function onScanFailure(error) {
-    // Usual errors during scan cycle, ignore for smoothness
+    // Usual errors during scan cycle, ignore
 }
 
-async function handleScannedRPRO(text) {
-    isProcessing = true;
-    const rpro = text.trim();
+async function handleManualSave() {
+    if (isProcessing) return;
+    const val = manualRproInput.value.trim().toUpperCase();
+    if (!val) return;
 
-    // Reset undo state for new scan
+    await saveRPRO(val, "MANUAL");
+    manualRproInput.value = ""; // Clear after success
+}
+
+async function saveRPRO(text, mode) {
+    isProcessing = true;
+    const rpro = text.trim().toUpperCase();
+
+    // Reset undo state for new record
     lastScanId = null;
     undoContainer.classList.add('hidden');
 
@@ -71,12 +85,12 @@ async function handleScannedRPRO(text) {
     if (!rpro.startsWith("RPRO")) {
         showFeedback(`❌ Mã không hợp lệ: ${rpro}`, "text-red-600");
         playAudioFeedback(false);
-        setTimeout(() => isProcessing = false, 2000);
+        setTimeout(() => isProcessing = false, 1500);
         return;
     }
 
     try {
-        // 2. Duplicate Check (Today & Section) using the dedicated scan_date column
+        // 2. Duplicate Check using dedicated scan_date
         const today = new Date().toISOString().split('T')[0];
         const { data, error: checkError } = await supabase
             .from('supplement_counting')
@@ -88,13 +102,13 @@ async function handleScannedRPRO(text) {
         if (checkError) throw checkError;
 
         if (data && data.length > 0) {
-            showFeedback(`⚠️ Trùng mã: ${rpro} đã quét rồi!`, "text-yellow-600 font-black");
+            showFeedback(`⚠️ Trùng mã: ${rpro} (${activeSection})`, "text-yellow-600 font-black");
             playAudioFeedback(false);
-            setTimeout(() => isProcessing = false, 2500);
+            setTimeout(() => isProcessing = false, 2000);
             return;
         }
 
-        // 3. Save to Supabase (returning the ID for Undo)
+        // 3. Save to Supabase
         const { data: insertData, error: insertError } = await supabase
             .from('supplement_counting')
             .insert([{ rpro, section: activeSection }])
@@ -103,7 +117,7 @@ async function handleScannedRPRO(text) {
         if (insertError) throw insertError;
 
         lastScanId = insertData[0].id;
-        showFeedback(`✅ Thành công: ${rpro}`, "text-green-600");
+        showFeedback(`✅ ${mode === 'SCAN' ? 'Đã quét' : 'Đã lưu'}: ${rpro}`, "text-green-600");
         playAudioFeedback(true);
         undoContainer.classList.remove('hidden');
 
@@ -113,7 +127,7 @@ async function handleScannedRPRO(text) {
     } finally {
         setTimeout(() => {
             isProcessing = false;
-            if (scanFeedback.innerText.includes("Thành công")) {
+            if (scanFeedback.innerText.includes("✅")) {
                 scanFeedback.innerText = "Sẵn sàng cho mã tiếp theo...";
             }
         }, 1500);
@@ -180,6 +194,16 @@ sectionBtns.forEach(btn => {
         startScanner();
     });
 });
+
+if (btnSaveManual) {
+    btnSaveManual.addEventListener('click', handleManualSave);
+}
+
+if (manualRproInput) {
+    manualRproInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleManualSave();
+    });
+}
 
 if (btnUndoScan) {
     btnUndoScan.addEventListener('click', undoLastScan);
