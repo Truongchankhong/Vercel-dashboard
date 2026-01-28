@@ -58,15 +58,14 @@ async function handleScannedRPRO(text) {
     }
 
     try {
-        // 2. Duplicate Check (Today & Section)
+        // 2. Duplicate Check (Today & Section) using the dedicated scan_date column
         const today = new Date().toISOString().split('T')[0];
         const { data, error: checkError } = await supabase
             .from('supplement_counting')
             .select('id')
             .eq('rpro', rpro)
             .eq('section', activeSection)
-            .gte('created_at', `${today}T00:00:00`)
-            .lte('created_at', `${today}T23:59:59`);
+            .eq('scan_date', today);
 
         if (checkError) throw checkError;
 

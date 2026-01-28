@@ -27,8 +27,8 @@ async function loadSummary() {
     const { data, error } = await supabase
         .from('supplement_counting')
         .select('*')
-        .gte('created_at', new Date(from).toISOString())
-        .lte('created_at', toDate.toISOString())
+        .gte('scan_date', from)
+        .lte('scan_date', to)
         .order('created_at', { ascending: true });
 
     if (error) {
