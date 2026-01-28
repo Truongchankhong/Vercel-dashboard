@@ -7,14 +7,18 @@ const activeSectionLabel = document.getElementById('active-section-name');
 const scanFeedback = document.getElementById('scan-feedback');
 const btnViewSummary = document.getElementById('btn-view-summary');
 
+const undoContainer = document.getElementById('undo-container');
+const btnUndoScan = document.getElementById('btn-undo-scan');
+
 let activeSection = null;
 let html5QrScanner = null;
 let isProcessing = false;
+let lastScanId = null;
 
 // Initialize camera
 async function startScanner() {
     if (html5QrScanner) {
-        await html5QrScanner.stop();
+        try { await html5QrScanner.stop(); } catch (e) { }
     }
 
     html5QrScanner = new Html5Qrcode("qr-reader");
@@ -49,6 +53,10 @@ async function handleScannedRPRO(text) {
     isProcessing = true;
     const rpro = text.trim();
 
+    // Reset undo state for new scan
+    lastScanId = null;
+    undoContainer.classList.add('hidden');
+
     // 1. Validation
     if (!rpro.startsWith("RPRO")) {
         showFeedback(`❌ Mã không hợp lệ: ${rpro}`, "text-red-600");
@@ -76,15 +84,18 @@ async function handleScannedRPRO(text) {
             return;
         }
 
-        // 3. Save to Supabase
-        const { error: insertError } = await supabase
+        // 3. Save to Supabase (returning the ID for Undo)
+        const { data: insertData, error: insertError } = await supabase
             .from('supplement_counting')
-            .insert([{ rpro, section: activeSection }]);
+            .insert([{ rpro, section: activeSection }])
+            .select('id');
 
         if (insertError) throw insertError;
 
+        lastScanId = insertData[0].id;
         showFeedback(`✅ Thành công: ${rpro}`, "text-green-600");
         playAudioFeedback(true);
+        undoContainer.classList.remove('hidden');
 
     } catch (err) {
         console.error("Supabase Error:", err);
@@ -96,6 +107,27 @@ async function handleScannedRPRO(text) {
                 scanFeedback.innerText = "Sẵn sàng cho mã tiếp theo...";
             }
         }, 1500);
+    }
+}
+
+async function undoLastScan() {
+    if (!lastScanId) return;
+
+    if (!confirm("Bạn có chắc chắn muốn xóa mã vừa quét không?")) return;
+
+    try {
+        const { error } = await supabase
+            .from('supplement_counting')
+            .delete()
+            .eq('id', lastScanId);
+
+        if (error) throw error;
+
+        showFeedback("↩️ Đã xóa mã vừa quét!", "text-blue-600");
+        lastScanId = null;
+        undoContainer.classList.add('hidden');
+    } catch (err) {
+        alert("Lỗi khi xóa: " + err.message);
     }
 }
 
@@ -138,6 +170,10 @@ sectionBtns.forEach(btn => {
         startScanner();
     });
 });
+
+if (btnUndoScan) {
+    btnUndoScan.addEventListener('click', undoLastScan);
+}
 
 if (btnViewSummary) {
     btnViewSummary.addEventListener('click', () => {
