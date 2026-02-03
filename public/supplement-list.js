@@ -38,7 +38,7 @@ async function loadSupplementList() {
         return `
       <tr>
         <td class="px-4 py-2 border text-sm">${new Date(row.created_at).toLocaleString('vi-VN')}</td>
-        <td class="px-4 py-2 border font-mono text-sm">${row.rpro}</td>
+        <td class="px-4 py-2 border font-mono text-sm sticky left-0 z-10 bg-white drop-shadow-sm">${row.rpro}</td>
         <td class="px-4 py-2 border text-sm">${row.so || ''}</td>
         <td class="px-4 py-2 border text-sm">${row.customers || ''}</td>
         <td class="px-4 py-2 border text-right font-bold">${row.total}</td>
