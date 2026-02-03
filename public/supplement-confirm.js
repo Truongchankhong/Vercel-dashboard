@@ -342,11 +342,17 @@ function processStats(data) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
+  // Initialize arrays for 4 statuses
   const dailyLabels = [];
-  const dailyCóCount = [];
-  const dailyKhôngCount = [];
-  const dailyCóQty = [];
-  const dailyKhôngQty = [];
+  const dailyCoCount = [];
+  const dailyPuCount = [];
+  const dailyFabricCount = [];
+  const dailyNoCount = [];
+
+  const dailyCoQty = [];
+  const dailyPuQty = [];
+  const dailyFabricQty = [];
+  const dailyNoQty = [];
 
   for (let i = 6; i >= 0; i--) {
     const d = new Date(today);
@@ -359,37 +365,64 @@ function processStats(data) {
       return rDate.getDate() === d.getDate() && rDate.getMonth() === d.getMonth();
     });
 
-    const cóItems = dayData.filter(r => r.confirm === 'Có liệu' || r.confirm === 'Có PU - ko Vải' || r.confirm === 'Có Vải - ko PU');
-    const khôngItems = dayData.filter(r => r.confirm === 'Không có liệu');
+    // Count Items
+    dailyCoCount.push(dayData.filter(r => r.confirm === 'Có liệu').length);
+    dailyPuCount.push(dayData.filter(r => r.confirm === 'Có PU - ko Vải').length);
+    dailyFabricCount.push(dayData.filter(r => r.confirm === 'Có Vải - ko PU').length);
+    dailyNoCount.push(dayData.filter(r => r.confirm === 'Không có liệu').length);
 
-    dailyCóCount.push(cóItems.length);
-    dailyKhôngCount.push(khôngItems.length);
+    // Sum Quantity
+    dailyCoQty.push(dayData.filter(r => r.confirm === 'Có liệu')
+      .reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0));
 
-    dailyCóQty.push(cóItems.reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0));
-    dailyKhôngQty.push(khôngItems.reduce((sum, r) => sum + Number(r.total), 0));
+    dailyPuQty.push(dayData.filter(r => r.confirm === 'Có PU - ko Vải')
+      .reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0));
+
+    dailyFabricQty.push(dayData.filter(r => r.confirm === 'Có Vải - ko PU')
+      .reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0));
+
+    dailyNoQty.push(dayData.filter(r => r.confirm === 'Không có liệu')
+      .reduce((sum, r) => sum + Number(r.total), 0));
   }
 
-  // 2. Weekly Stats (Current Week - QTY)
+  // Helper for summarizing data
+  const summarize = (sourceData) => {
+    return [
+      sourceData.filter(r => r.confirm === 'Có liệu').reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0),
+      sourceData.filter(r => r.confirm === 'Có PU - ko Vải').reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0),
+      sourceData.filter(r => r.confirm === 'Có Vải - ko PU').reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0),
+      sourceData.filter(r => r.confirm === 'Không có liệu').reduce((sum, r) => sum + Number(r.total), 0)
+    ];
+  };
+
+  // 2. Weekly Stats
   const dayOfWeek = now.getDay() || 7;
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - (dayOfWeek - 1));
-
   const weekData = data.filter(r => new Date(r.created_at) >= startOfWeek);
-  const weekCóQty = weekData.filter(r => r.confirm && r.confirm !== 'Không có liệu').reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
-  const weekKhôngQty = weekData.filter(r => r.confirm === 'Không có liệu').reduce((sum, r) => sum + Number(r.total), 0);
+  const weeklyStats = summarize(weekData);
 
-  // 3. Monthly Stats (Current Month - QTY)
-  const monthCóQty = data.filter(r => r.confirm && r.confirm !== 'Không có liệu').reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
-  const monthKhôngQty = data.filter(r => r.confirm === 'Không có liệu').reduce((sum, r) => sum + Number(r.total), 0);
+  // 3. Monthly Stats
+  const monthlyStats = summarize(data);
 
   return {
     daily: {
       labels: dailyLabels,
-      count: { có: dailyCóCount, không: dailyKhôngCount },
-      qty: { có: dailyCóQty, không: dailyKhôngQty }
+      count: {
+        co: dailyCoCount,
+        pu: dailyPuCount,
+        fabric: dailyFabricCount,
+        no: dailyNoCount
+      },
+      qty: {
+        co: dailyCoQty,
+        pu: dailyPuQty,
+        fabric: dailyFabricQty,
+        no: dailyNoQty
+      }
     },
-    weekly: [weekCóQty, weekKhôngQty],
-    monthly: [monthCóQty, monthKhôngQty]
+    weekly: weeklyStats,
+    monthly: monthlyStats
   };
 }
 
@@ -415,13 +448,18 @@ function initCharts(stats) {
     }
   };
 
+  const bgColors = ['#22c55e', '#f59e0b', '#06b6d4', '#ef4444'];
+  const labels = ['Có liệu', 'Có PU - Ko Vải', 'Có Vải - Ko PU', 'Không liệu'];
+
   charts.dailyQty = new Chart(document.getElementById('chart-daily-qty'), {
     type: 'bar',
     data: {
       labels: stats.daily.labels,
       datasets: [
-        { label: '🟢 Qty Có liệu', data: stats.daily.qty.có, backgroundColor: '#16a34a' },
-        { label: '🔴 Qty Không có liệu', data: stats.daily.qty.không, backgroundColor: '#dc2626' }
+        { label: '🟢 Có liệu', data: stats.daily.qty.co, backgroundColor: '#22c55e', stack: 'Stack 0' },
+        { label: '🟠 Có PU - ko Vải', data: stats.daily.qty.pu, backgroundColor: '#f59e0b', stack: 'Stack 0' },
+        { label: '🔵 Có Vải - ko PU', data: stats.daily.qty.fabric, backgroundColor: '#06b6d4', stack: 'Stack 0' },
+        { label: '🔴 Không liệu', data: stats.daily.qty.no, backgroundColor: '#ef4444', stack: 'Stack 0' }
       ]
     },
     options: {
@@ -429,7 +467,15 @@ function initCharts(stats) {
       maintainAspectRatio: false,
       plugins: {
         title: { display: true, text: 'Tổng số đôi (Qty) theo ngày' },
-        datalabels: { display: false }
+        datalabels: {
+          color: '#fff',
+          font: { weight: 'bold' },
+          formatter: (value) => value > 0 ? value : ''
+        }
+      },
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true }
       }
     }
   });
@@ -439,8 +485,10 @@ function initCharts(stats) {
     data: {
       labels: stats.daily.labels,
       datasets: [
-        { label: '🟢 Đơn Có liệu', data: stats.daily.count.có, backgroundColor: '#22c55e' },
-        { label: '🔴 Đơn Không có liệu', data: stats.daily.count.không, backgroundColor: '#ef4444' }
+        { label: '🟢 Có liệu', data: stats.daily.count.co, backgroundColor: '#22c55e', stack: 'Stack 0' },
+        { label: '🟠 Có PU - ko Vải', data: stats.daily.count.pu, backgroundColor: '#f59e0b', stack: 'Stack 0' },
+        { label: '🔵 Có Vải - ko PU', data: stats.daily.count.fabric, backgroundColor: '#06b6d4', stack: 'Stack 0' },
+        { label: '🔴 Không liệu', data: stats.daily.count.no, backgroundColor: '#ef4444', stack: 'Stack 0' }
       ]
     },
     options: {
@@ -448,7 +496,15 @@ function initCharts(stats) {
       maintainAspectRatio: false,
       plugins: {
         title: { display: true, text: 'Tổng số đơn theo ngày' },
-        datalabels: { display: false }
+        datalabels: {
+          color: '#fff',
+          font: { weight: 'bold' },
+          formatter: (value) => value > 0 ? value : ''
+        }
+      },
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true }
       }
     }
   });
@@ -456,10 +512,10 @@ function initCharts(stats) {
   charts.weekly = new Chart(document.getElementById('chart-weekly'), {
     type: 'pie',
     data: {
-      labels: ['Có liệu', 'Không có liệu'],
+      labels: labels,
       datasets: [{
         data: stats.weekly,
-        backgroundColor: ['#22c55e', '#ef4444']
+        backgroundColor: bgColors
       }]
     },
     options: {
@@ -473,10 +529,10 @@ function initCharts(stats) {
   charts.monthly = new Chart(document.getElementById('chart-monthly'), {
     type: 'pie',
     data: {
-      labels: ['Có liệu', 'Không có liệu'],
+      labels: labels,
       datasets: [{
         data: stats.monthly,
-        backgroundColor: ['#22c55e', '#ef4444']
+        backgroundColor: bgColors
       }]
     },
     options: {
