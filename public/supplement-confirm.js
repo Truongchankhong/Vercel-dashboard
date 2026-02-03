@@ -240,13 +240,35 @@ async function exportToZalo() {
     message += `\n`;
   }
 
-  const totalSelectedQty = selectedData.reduce((sum, r) => sum + Number(r.total), 0);
-  const totalCóQty = selectedData
-    .filter(r => r.confirm && r.confirm !== 'Không có liệu')
-    .reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
-  const fulfillmentRate = totalSelectedQty > 0 ? (totalCóQty * 100 / totalSelectedQty).toFixed(1) : 0;
+  // Calculate detailed quantities
+  const totalDemand = selectedData.reduce((sum, r) => sum + Number(r.total), 0);
 
-  message += `*Tỷ lệ % có liệu: ${fulfillmentRate}%*\n`;
+  const qtyCoLieu = selectedData
+    .filter(r => r.confirm === 'Có liệu')
+    .reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+
+  const qtyPuOnly = selectedData
+    .filter(r => r.confirm === 'Có PU - ko Vải')
+    .reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+
+  const qtyFabricOnly = selectedData
+    .filter(r => r.confirm === 'Có Vải - ko PU')
+    .reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+
+  const qtyNoLieu = selectedData
+    .filter(r => r.confirm === 'Không có liệu')
+    .reduce((sum, r) => sum + Number(r.total), 0);
+
+  const pctCoLieu = totalDemand > 0 ? (qtyCoLieu * 100 / totalDemand).toFixed(1) : 0;
+  const pctPuOnly = totalDemand > 0 ? (qtyPuOnly * 100 / totalDemand).toFixed(1) : 0;
+  const pctFabricOnly = totalDemand > 0 ? (qtyFabricOnly * 100 / totalDemand).toFixed(1) : 0;
+  const pctNoLieu = totalDemand > 0 ? (qtyNoLieu * 100 / totalDemand).toFixed(1) : 0;
+
+  message += `📊 *TỔNG HỢP TỶ LỆ:*\n`;
+  message += `- 🟢 Có liệu: ${pctCoLieu}%\n`;
+  message += `- 🟠 Có PU - ko Vải: ${pctPuOnly}%\n`;
+  message += `- 🔵 Có Vải - ko PU: ${pctFabricOnly}%\n`;
+  message += `- 🔴 Không liệu: ${pctNoLieu}%\n`;
 
   // Construct direct link to stats
   const currentUrl = window.location.href.split('?')[0];
