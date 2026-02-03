@@ -41,6 +41,10 @@ async function loadSupplementList() {
         <td class="px-4 py-2 border font-mono text-sm sticky left-0 z-10 bg-white drop-shadow-sm">${row.rpro}</td>
         <td class="px-4 py-2 border text-sm">${row.so || ''}</td>
         <td class="px-4 py-2 border text-sm">${row.customers || ''}</td>
+        <td class="px-4 py-2 border text-sm text-center">${row.gender || ''}</td>
+        <td class="px-4 py-2 border text-sm">${row.pu || ''}</td>
+        <td class="px-4 py-2 border text-sm">${row.fabric || ''}</td>
+        <td class="px-4 py-2 border text-sm">${row.bom || ''}</td>
         <td class="px-4 py-2 border text-right font-bold">${row.total}</td>
         <td class="px-4 py-2 border text-sm italic">${row.remark || ''}</td>
         <td class="px-4 py-2 border text-center space-x-2">
