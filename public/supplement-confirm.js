@@ -61,7 +61,7 @@ function renderTable() {
     return `
     <tr class="${isSelected ? 'bg-blue-50' : ''}">
       <td class="px-4 py-2 border text-[12px]">${new Date(row.created_at).toLocaleString('vi-VN')}</td>
-      <td class="px-4 py-2 border font-mono text-[12px] font-bold">${row.rpro}</td>
+      <td class="px-4 py-2 border font-mono text-[12px] font-bold sticky left-0 z-10 drop-shadow-sm ${isSelected ? 'bg-blue-50' : 'bg-white'}">${row.rpro}</td>
       <td class="px-4 py-2 border text-[12px]">${row.pu || ''}</td>
       <td class="px-4 py-2 border text-[12px]">${row.fabric || ''}</td>
       <td class="px-4 py-2 border text-right font-bold">${row.total}</td>
