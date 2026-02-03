@@ -104,15 +104,21 @@ if (-not (Test-Path $excelPath)) {
         exit 1
     }
 }
-Write-Host "--- Reading Excel: $excelPath"
+
+# --- USE TEMPORARY COPY TO AVOID LOCKS ---
+$tempExcelPath = Join-Path $env:TEMP ([System.IO.Path]::GetRandomFileName() + ".xlsx")
+Write-Host "--- Creating temporary copy: $tempExcelPath"
+Copy-Item $excelPath $tempExcelPath -Force
+
+Write-Host "--- Reading Excel: $excelPath (via Copy)"
 
 $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
 $excel.DisplayAlerts = $false
 
 try {
-    # Open(FileName, UpdateLinks, ReadOnly) -> Set ReadOnly = $true to avoid access errors if file is open
-    $wb = $excel.Workbooks.Open($excelPath, 0, $true)
+    # Open the TEMPORARY copy
+    $wb = $excel.Workbooks.Open($tempExcelPath, 0, $true)
     $ws = $wb.Sheets.Item("Data Power app")
     
     $range = $ws.UsedRange
@@ -230,6 +236,12 @@ finally {
         if ($excel) { $excel.Quit() }
         [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
         Remove-Variable excel -ErrorAction SilentlyContinue
+
+        # --- CLEANUP TEMPORARY FILE ---
+        if (Test-Path $tempExcelPath) {
+            Write-Host "--- Cleaning up temporary copy: $tempExcelPath"
+            Remove-Item $tempExcelPath -Force
+        }
     }
     catch {
         Write-Warning "Warning closing Excel: $_"

@@ -247,6 +247,12 @@ async function exportToZalo() {
   const fulfillmentRate = totalSelectedQty > 0 ? (totalCóQty * 100 / totalSelectedQty).toFixed(1) : 0;
 
   message += `*Tỷ lệ % có liệu: ${fulfillmentRate}%*\n`;
+
+  // Construct direct link to stats
+  const currentUrl = window.location.href.split('?')[0];
+  const statsLink = `${currentUrl}?stats=true`;
+
+  message += `📊 *Xem biểu đồ thống kê:*\n${statsLink}\n`;
   message += `🔗 *Link Google Sheet (Báo cáo Online):*\nhttps://docs.google.com/spreadsheets/d/15VO02nvCbJYBx2ITs5FBUhCeB9jt_tIBLQMz0RAGbuo/edit?usp=sharing`;
 
   try {
@@ -478,4 +484,10 @@ if (btnFilter) btnFilter.addEventListener('click', loadConfirmList);
 document.addEventListener('DOMContentLoaded', () => {
   setInitialDates();
   loadConfirmList();
+
+  // Check for stats query param
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('stats') === 'true') {
+    showStats();
+  }
 });
