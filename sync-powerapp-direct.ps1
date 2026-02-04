@@ -229,6 +229,54 @@ try {
     
     Write-Host "--- Processed $($jsonData.Count) rows."
 
+    # --- SYNC SIZE RUN FIX ---
+    $wsFix = $null
+    try { $wsFix = $wb.Sheets.Item("Size run fix") } catch { }
+    if ($wsFix) {
+        Write-Host "--- Extracting Size Run Fix (Sheet 'Size run fix')..."
+        $rangeFix = $wsFix.UsedRange
+        $dataFix = $rangeFix.Value2
+        $rowsFix = $rangeFix.Rows.Count
+        $colsFix = $rangeFix.Columns.Count
+
+        # Header Row is 2 (Excel row 2) based on inspection
+        $headerRow = 2
+        $sizeFixMap = @{}
+        $fixHeaders = @()
+        for ($c = 3; $c -le $colsFix; $c++) {
+            $hVal = $dataFix[$headerRow, $c]
+            $fixHeaders += if ($null -ne $hVal) { $hVal.ToString().Trim() } else { "" }
+        }
+
+        for ($r = 3; $r -le $rowsFix; $r++) {
+            $rproFix = $dataFix[$r, 1]
+            if ($null -eq $rproFix -or $rproFix -eq "") { continue }
+            $rproFix = $rproFix.ToString().Trim()
+
+            $rowSizes = @{}
+            for ($c = 3; $c -le $colsFix; $c++) {
+                $szName = $fixHeaders[$c - 3]
+                if ($szName -eq "") { continue }
+                $szQty = $dataFix[$r, $c]
+                if ($null -ne $szQty -and $szQty -ne "" -and $szQty -ne 0) {
+                    $q = 0
+                    if ([int]::TryParse($szQty.ToString(), [ref]$q) -and $q -gt 0) {
+                        $rowSizes[$szName] = $q
+                    }
+                }
+            }
+            if ($rowSizes.Count -gt 0) {
+                $sizeFixMap[$rproFix] = $rowSizes
+            }
+        }
+        $sizeFixJson = $sizeFixMap | ConvertTo-Json -Depth 10
+        $jsonFixPath = Join-Path $PSScriptRoot "public\sizefix.json"
+
+        # Force UTF-8 No BOM for web compatibility
+        $u8 = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($jsonFixPath, $sizeFixJson, $u8)
+        Write-Host "--- Updated sizefix.json with $($sizeFixMap.Count) entries."
+    }
 }
 finally {
     try {
