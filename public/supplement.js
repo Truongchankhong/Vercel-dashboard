@@ -30,6 +30,44 @@ function logVisit(page, button = null) {
   console.log(`[Mock] supplement logVisit: ${page} - ${button}`);
 }
 
+// ==================== CHECK LAST SYNC ==================== //
+async function checkLastSync() {
+  const syncEl = document.getElementById('last-sync-time');
+  const warnEl = document.getElementById('staleness-warning');
+  if (!syncEl) return;
+
+  try {
+    const { data, error } = await supabase
+      .from('powerapp')
+      .select('"Finish date"')
+      .eq('STT', -1)
+      .limit(1);
+
+    if (error) throw error;
+
+    if (data && data.length > 0 && data[0]['Finish date']) {
+      const lastUpdate = new Date(data[0]['Finish date']);
+      syncEl.textContent = lastUpdate.toLocaleString('vi-VN');
+
+      // Kiểm tra nếu quá 24h (1 ngày)
+      const now = new Date();
+      const diffMs = now - lastUpdate;
+      const oneDayMs = 24 * 60 * 60 * 1000;
+
+      if (diffMs > oneDayMs) {
+        warnEl.classList.remove('hidden');
+      } else {
+        warnEl.classList.add('hidden');
+      }
+    } else {
+      syncEl.textContent = "Không xác định";
+    }
+  } catch (err) {
+    console.warn("Lỗi kiểm tra thời gian đồng bộ:", err);
+    syncEl.textContent = "Lỗi tải";
+  }
+}
+
 // ==================== LOAD ĐƠN HÀNG ==================== //
 async function loadOrderInfo(rpro) {
   currentRpro = rpro;
@@ -338,6 +376,7 @@ async function askNextAction() {
 // ==================== DOM EVENT ==================== //
 window.addEventListener("DOMContentLoaded", () => {
   logVisit("Supplement");
+  checkLastSync(); // Gọi kiểm tra thời gian đồng bộ
 
   document.getElementById("btn-manual-ok")
     .addEventListener("click", () => handleScanned(document.getElementById("manualRpro").value));
