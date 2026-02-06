@@ -43,9 +43,8 @@ async function startCamera() {
         fps: 20,
         qrbox: (viewWidth, viewHeight) => {
             const minEdge = Math.min(viewWidth, viewHeight);
-            const boxSize = Math.floor(minEdge * 0.8);
-            // Ensure minimum 50px as required by html5-qrcode
-            return Math.max(boxSize, 50);
+            const boxSize = Math.max(Math.floor(minEdge * 0.8), 50);
+            return { width: boxSize, height: boxSize };
         },
         aspectRatio: 1.0,
         videoConstraints: {
