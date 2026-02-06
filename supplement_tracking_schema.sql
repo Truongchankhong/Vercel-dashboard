@@ -15,17 +15,20 @@ CREATE TABLE IF NOT EXISTS supplement_tracking (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     
     -- Metadata for easy queries
-    scan_date DATE DEFAULT CURRENT_DATE,
-    
-    -- Indexes for performance
-    INDEX idx_rpro (rpro),
-    INDEX idx_section (section),
-    INDEX idx_created_at (created_at),
-    INDEX idx_scan_date (scan_date)
+    scan_date DATE DEFAULT CURRENT_DATE
 );
+
+-- Create indexes separately (PostgreSQL syntax)
+CREATE INDEX IF NOT EXISTS idx_rpro ON supplement_tracking(rpro);
+CREATE INDEX IF NOT EXISTS idx_section ON supplement_tracking(section);
+CREATE INDEX IF NOT EXISTS idx_created_at ON supplement_tracking(created_at);
+CREATE INDEX IF NOT EXISTS idx_scan_date ON supplement_tracking(scan_date);
 
 -- Enable Row Level Security (Optional)
 ALTER TABLE supplement_tracking ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policy if exists
+DROP POLICY IF EXISTS "Allow all for authenticated users" ON supplement_tracking;
 
 -- Policy: Allow all operations for authenticated users (adjust as needed)
 CREATE POLICY "Allow all for authenticated users" 
