@@ -56,11 +56,12 @@ async function checkLastSync() {
   if (!syncEl) return;
 
   try {
-    // 1. Fetch Last Push Time
+    // 1. Fetch Last Push Time (Max value in Finish date)
     const { data: syncData, error: syncError } = await supabase
       .from('powerapp')
       .select('"Finish date"')
-      .eq('STT', -1)
+      .not('"Finish date"', 'is', null)
+      .order('"Finish date"', { ascending: false })
       .limit(1);
 
     if (syncError) throw syncError;

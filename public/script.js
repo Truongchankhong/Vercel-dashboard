@@ -62,11 +62,12 @@ function formatExcelDateTime(serial) {
 async function fetchLastPushTime() {
   if (!lastUpdatedEl) return;
   try {
-    // 1. Fetch Last Push Time (Metadata record)
+    // 1. Fetch Last Push Time (Max value in Finish date)
     const { data: pushData, error: pushError } = await supabase
       .from('powerapp')
       .select('"Finish date"')
-      .eq('STT', -1)
+      .not('"Finish date"', 'is', null)
+      .order('"Finish date"', { ascending: false })
       .limit(1);
 
     if (pushError) throw pushError;
