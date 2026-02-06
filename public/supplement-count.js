@@ -55,14 +55,22 @@ async function startCamera() {
     };
 
     try {
+        // Critical: Unhide BEFORE starting to ensure library can calculate dimensions
+        document.getElementById('qr-reader').classList.remove('hidden');
+        console.log("📷 Requesting camera (attempting start)...");
+
         await html5QrScanner.start(
             { facingMode: "environment" },
             config,
             onCameraScanSuccess,
-            () => { } // Ignore scan failures
+            (errorMessage) => {
+                // Log scan errors only if needed for debugging (usually too verbose)
+                // console.warn("Scan error:", errorMessage);
+            }
         );
-        document.getElementById('qr-reader').classList.remove('hidden');
+
         cameraActive = true;
+        console.log("✅ Camera started successfully");
         console.log("✅ Camera started");
     } catch (err) {
         console.error("Camera error:", err);
