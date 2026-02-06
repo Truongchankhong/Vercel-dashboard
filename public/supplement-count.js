@@ -134,6 +134,8 @@ document.addEventListener('keydown', (e) => {
 
 // ==================== CORE LOGIC: PROCESS RPRO ====================
 async function processRPRO(text, mode) {
+    console.log(`🚀 Processing RPRO: ${text} | Mode: ${mode} | Section: ${activeSection} | Action: ${activeAction}`);
+
     isProcessing = true;
     const rpro = text.trim().toUpperCase();
 
@@ -150,6 +152,7 @@ async function processRPRO(text, mode) {
     }
 
     try {
+        console.log("🔍 Checking last record...");
         // 1. Check last action for this RPRO in this Section
         const { data: lastRecord, error: queryError } = await supabase
             .from('supplement_tracking')
@@ -159,7 +162,12 @@ async function processRPRO(text, mode) {
             .order('created_at', { ascending: false })
             .limit(1);
 
-        if (queryError) throw queryError;
+        if (queryError) {
+            console.error("❌ Query Error:", queryError);
+            throw queryError;
+        }
+
+        console.log("📄 Last Record found:", lastRecord);
 
         // 2. Validate IN/OUT logic
         if (lastRecord && lastRecord.length > 0) {
@@ -173,7 +181,7 @@ async function processRPRO(text, mode) {
             }
 
             if (activeAction === 'OUT' && lastAction === 'OUT') {
-                showFeedback(`⚠️ Mã ${rpro} đã OUT rồi! Cần IN trước khi OUT lại.`, "text-yellow-600 font-black text-sm");
+                showFeedback(`⚠️ Mã ${rpro} đã OUT rồi! Cần IN trước khi OUT trước.`, "text-yellow-600 font-black text-sm");
                 playAudioFeedback(false);
                 setTimeout(() => isProcessing = false, 2500);
                 return;
@@ -188,6 +196,7 @@ async function processRPRO(text, mode) {
             }
         }
 
+        console.log("💾 Inserting new record...");
         // 3. Save to Supabase
         const { data: insertData, error: insertError } = await supabase
             .from('supplement_tracking')
@@ -195,12 +204,17 @@ async function processRPRO(text, mode) {
                 rpro,
                 section: activeSection,
                 action: activeAction,
-                operator: 'User' // Replace with actual user if you have auth
+                operator: 'User',
+                scan_date: new Date().toISOString().split('T')[0] // Explicitly set scan_date
             }])
             .select('id');
 
-        if (insertError) throw insertError;
+        if (insertError) {
+            console.error("❌ Insert Error:", insertError);
+            throw insertError;
+        }
 
+        console.log("✅ Insert Success:", insertData);
         lastRecordId = insertData[0].id;
         const actionText = activeAction === 'IN' ? 'NHẬP VÀO' : 'XUẤT ĐI';
         showFeedback(`✅ ${actionText}: ${rpro} (${mode})`, "text-green-600 font-black");
@@ -208,12 +222,13 @@ async function processRPRO(text, mode) {
         undoContainer.classList.remove('hidden');
 
     } catch (err) {
-        console.error("Supabase Error:", err);
+        console.error("❌ System Error:", err);
         showFeedback("❌ Lỗi hệ thống: " + err.message, "text-red-600 text-sm");
         playAudioFeedback(false);
     } finally {
         setTimeout(() => {
             isProcessing = false;
+            // Clear feedback only if success message is showing
             if (scanFeedback.innerText.includes("✅")) {
                 scanFeedback.innerText = "Sẵn sàng cho mã tiếp theo...";
                 scanFeedback.className = "mt-3 text-center min-h-[50px] font-bold text-lg text-gray-400";
