@@ -82,6 +82,8 @@ async function fetchLastPushTime() {
     const { data: lamData, error: lamError } = await supabase
       .from('powerapp')
       .select('"Laminating (Pro)"')
+      .not('Laminating (Pro)', 'is', null)
+      .gt('Laminating (Pro)', 0)
       .order('"Laminating (Pro)"', { ascending: false })
       .limit(1);
 
