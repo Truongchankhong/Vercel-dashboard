@@ -7,11 +7,21 @@ const btnRefresh = document.getElementById('btn-refresh');
 const searchInput = document.getElementById('search-input');
 const dateStartInput = document.getElementById('date-start');
 const dateEndInput = document.getElementById('date-end');
+const btnExport = document.getElementById('btn-export');
 
+// Modal Elements
 // Modal Elements
 const detailModal = document.getElementById('detail-modal');
 const btnCloseModal = document.getElementById('btn-close-modal');
 const modalContent = document.getElementById('modal-content');
+
+// Note Modal Elements
+const noteModal = document.getElementById('note-modal');
+const noteInput = document.getElementById('note-input');
+const noteTitle = document.getElementById('note-modal-title');
+const btnSaveNote = document.getElementById('btn-save-note');
+
+let currentNoteTarget = null; // {rpro, section}
 
 // ==================== STATE ====================
 let progressMap = {};
@@ -56,17 +66,20 @@ async function fetchProgressData() {
         // BULK FETCH FINISH DATES
         const rproList = Object.keys(progressMap);
         if (rproList.length > 0) {
-            const { data: finishData } = await supabase
+            const { data: orderDetails } = await supabase
                 .from('powerapp')
-                .select('"PRO ODER", "Finish date"')
+                .select('"PRO ODER", "Finish date", "SO", "Brand Code", "CUSTOMERS", "Total Qty"')
                 .in('"PRO ODER"', rproList);
 
-            if (finishData) {
-                finishData.forEach(item => {
+            if (orderDetails) {
+                orderDetails.forEach(item => {
                     const code = item['PRO ODER'];
-                    // Clean code just in case
                     if (progressMap[code]) {
                         progressMap[code].finish_date = item['Finish date'];
+                        progressMap[code].so = item['SO'];
+                        progressMap[code].brand = item['Brand Code'];
+                        progressMap[code].customer = item['CUSTOMERS'];
+                        progressMap[code].total_qty = item['Total Qty'];
                     }
                 });
             }
@@ -90,11 +103,11 @@ function updateLocalState(record) {
             last_updated: record.created_at,
             finish_date: null, // Init
             stages: {
-                'Dán': { in: null, out: null },
-                'Cắt': { in: null, out: null },
-                'Molding': { in: null, out: null },
-                'DC': { in: null, out: null },
-                'Molded': { in: null, out: null }
+                'Dán': { in: null, out: null, note: null },
+                'Cắt': { in: null, out: null, note: null },
+                'Molding': { in: null, out: null, note: null },
+                'DC': { in: null, out: null, note: null },
+                'Molded': { in: null, out: null, note: null }
             }
         };
     }
@@ -103,6 +116,11 @@ function updateLocalState(record) {
     const stage = item.stages[record.section];
 
     if (stage) {
+        if (record.action === 'NOTE') {
+            stage.note = record.note;
+            return;
+        }
+
         const dataPoint = {
             time: record.created_at,
             qty: record.quantity || 0
@@ -163,11 +181,11 @@ function renderTable() {
                     class="p-4 border-r font-mono font-bold text-blue-600 cursor-pointer hover:text-blue-800 hover:underline bg-white group-hover:bg-gray-50 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                     ${item.rpro} <span class="text-xs text-gray-400 ml-1">ℹ️</span>
                 </td>
-                ${renderStageCell(item.stages['Dán'])}
-                ${renderStageCell(item.stages['Cắt'])}
-                ${renderStageCell(item.stages['Molding'])}
-                ${renderStageCell(item.stages['DC'])}
-                ${renderStageCell(item.stages['Molded'])}
+                ${renderStageCell(item.stages['Dán'], item.rpro, 'Dán')}
+                ${renderStageCell(item.stages['Cắt'], item.rpro, 'Cắt')}
+                ${renderStageCell(item.stages['Molding'], item.rpro, 'Molding')}
+                ${renderStageCell(item.stages['DC'], item.rpro, 'DC')}
+                ${renderStageCell(item.stages['Molded'], item.rpro, 'Molded')}
                 <td class="p-3 text-center text-gray-700 font-bold bg-gray-50 text-xs">
                     ${formatExcelDate(item.finish_date)}
                 </td>
@@ -176,8 +194,18 @@ function renderTable() {
     }).join('');
 }
 
-function renderStageCell(stageData) {
-    if (!stageData.in && !stageData.out) return `<td class="p-3 border-r text-center text-gray-300 bg-gray-50/30">-</td>`;
+function renderStageCell(stageData, rpro, section) {
+    const hasNote = stageData.note;
+    const noteIcon = hasNote
+        ? `<div onclick="window.openNoteModal('${rpro}', '${section}')" class="absolute top-1 right-1 cursor-pointer text-base hover:scale-110 transition z-20" title="${hasNote}">📒</div>`
+        : `<div onclick="window.openNoteModal('${rpro}', '${section}')" class="absolute top-1 right-1 cursor-pointer text-gray-400 hover:text-yellow-600 opacity-0 group-hover/cell:opacity-100 transition z-20">📝</div>`;
+
+    if (!stageData.in && !stageData.out) {
+        return `<td class="p-3 border-r text-center text-gray-300 bg-gray-50/30 relative group/cell">
+            ${noteIcon}
+            -
+        </td>`;
+    }
 
     let statusHtml = '';
     let bgClass = '';
@@ -240,8 +268,110 @@ function renderStageCell(stageData) {
                 <div class="text-gray-800 font-bold">SL: ${outQty}</div>
             </div>`;
     }
-    return `<td class="p-1 border-r align-top ${bgClass}">${statusHtml}</td>`;
+    return `<td class="p-1 border-r align-top ${bgClass} relative group/cell">
+        ${noteIcon}
+        ${statusHtml}
+    </td>`;
 }
+
+// ==================== NOTE LOGIC ====================
+window.openNoteModal = (rpro, section) => {
+    currentNoteTarget = { rpro, section };
+    noteTitle.textContent = `${rpro} - ${section}`;
+
+    // Get existing note if any
+    const existingNote = progressMap[rpro]?.stages[section]?.note || '';
+    noteInput.value = existingNote;
+
+    noteModal.classList.remove('hidden');
+    noteInput.focus();
+};
+
+btnSaveNote.addEventListener('click', async () => {
+    if (!currentNoteTarget) return;
+
+    const noteContent = noteInput.value.trim();
+    const { rpro, section } = currentNoteTarget;
+
+    btnSaveNote.disabled = true;
+    btnSaveNote.textContent = '...';
+
+    try {
+        const { error } = await supabase
+            .from('supplement_tracking')
+            .insert([{
+                rpro,
+                section,
+                action: 'NOTE',
+                note: noteContent,
+                operator: 'Admin'
+            }]);
+
+        if (error) throw error;
+
+        // Local state will be updated by realtime subscription or manual refresh
+        noteModal.classList.add('hidden');
+    } catch (err) {
+        alert('Lỗi lưu ghi chú: ' + err.message);
+    } finally {
+        btnSaveNote.disabled = false;
+        btnSaveNote.textContent = 'Lưu';
+    }
+});
+
+// ==================== EXPORT LOGIC ====================
+window.exportToExcel = () => {
+    const searchTerm = searchInput.value.trim().toUpperCase();
+    const filtered = progressData.filter(item => item.rpro.includes(searchTerm));
+
+    if (filtered.length === 0) {
+        alert('Không có dữ liệu để xuất!');
+        return;
+    }
+
+    const exportData = filtered.map(item => {
+        const row = {
+            'MÃ ĐƠN (RPRO)': item.rpro,
+            'Brand': item.brand || '',
+            'SO': item.so || '',
+            'Customer': item.customer || '',
+            'Total Qty': item.total_qty || '',
+            'Finish Date': item.finish_date || '',
+        };
+
+        ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'].forEach(stage => {
+            const data = item.stages[stage];
+            row[`${stage} - IN Time`] = data.in ? new Date(data.in.time).toLocaleString('vi-VN') : '';
+            row[`${stage} - IN Qty`] = data.in ? data.in.qty : '';
+            row[`${stage} - OUT Time`] = data.out ? new Date(data.out.time).toLocaleString('vi-VN') : '';
+            row[`${stage} - OUT Qty`] = data.out ? data.out.qty : '';
+            row[`${stage} - Gap`] = (data.in?.qty || 0) - (data.out?.qty || 0);
+            row[`${stage} - Note`] = data.note || '';
+        });
+
+        return row;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Tiến Độ Hàng Bù");
+
+    // Fix column widths
+    const wscols = [
+        { wch: 20 }, // RPRO
+        { wch: 15 }, // Brand
+        { wch: 15 }, // SO
+        { wch: 20 }, // Customer
+        { wch: 10 }, // Total Qty
+        { wch: 15 }, // Finish Date
+    ];
+    // Add widths for stages
+    for (let i = 0; i < 5 * 6; i++) wscols.push({ wch: 15 });
+    worksheet['!cols'] = wscols;
+
+    const fileName = `TienDoHangBu_${dateStartInput.value}_to_${dateEndInput.value}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+};
 
 // ==================== MODAL LOGIC (DELETE SUPPORT) ====================
 window.openDetailModal = async (rpro) => {
@@ -368,6 +498,7 @@ if (btnRefresh) {
     });
 }
 if (searchInput) searchInput.addEventListener('input', renderTable);
+if (btnExport) btnExport.addEventListener('click', window.exportToExcel);
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {

@@ -75,6 +75,10 @@
                     class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm font-bold whitespace-nowrap">
                     🔄 Xem
                 </button>
+                <button id="btn-export"
+                    class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm text-sm font-bold whitespace-nowrap">
+                    Excel
+                </button>
                 <button onclick="window.location.href='supplement-count.html'"
                     class="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition shadow-sm text-sm whitespace-nowrap">
                     ← Scan
@@ -118,6 +122,7 @@
                 </table>
             </div>
 
+
             <!-- Empty State -->
             <div id="empty-state"
                 class="hidden flex flex-col items-center justify-center h-64 text-gray-400 bg-gray-50 border-t">
@@ -141,6 +146,30 @@
             </div>
         </div>
 
+        <!-- Note Modal -->
+        <div id="note-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+            <div
+                class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100">
+                <div class="bg-yellow-500 p-3 text-white flex justify-between items-center">
+                    <h3 class="font-bold">📝 Ghi chú</h3>
+                    <button onclick="document.getElementById('note-modal').classList.add('hidden')"
+                        class="text-white hover:text-gray-100 text-xl font-bold">&times;</button>
+                </div>
+                <div class="p-4 space-y-3">
+                    <p id="note-modal-title" class="text-xs text-gray-500 font-semibold uppercase">RPRO - SECTION</p>
+                    <textarea id="note-input" rows="3"
+                        class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-500 outline-none"
+                        placeholder="Nhập ghi chú..."></textarea>
+                    <div class="flex justify-end gap-2">
+                        <button onclick="document.getElementById('note-modal').classList.add('hidden')"
+                            class="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded text-sm font-semibold">Hủy</button>
+                        <button id="btn-save-note"
+                            class="px-3 py-1.5 bg-yellow-500 text-white hover:bg-yellow-600 rounded text-sm font-bold shadow-sm">Lưu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Realtime Indicator -->
         <div
             class="fixed bottom-4 right-4 bg-white rounded-full shadow-lg px-3 py-1 flex items-center gap-2 border border-green-400 z-50">
@@ -151,6 +180,7 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script type="module" src="./supabaseClient.js"></script>
     <script type="module" src="./supplement-monitor.js"></script>
 </body>
