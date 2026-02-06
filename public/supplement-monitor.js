@@ -126,9 +126,27 @@ function refreshTableData() {
 }
 
 // ==================== RENDER TABLE ====================
+// ==================== RENDER TABLE ====================
 function renderTable() {
     const searchTerm = searchInput.value.trim().toUpperCase();
     const filtered = progressData.filter(item => item.rpro.includes(searchTerm));
+
+    // Helper to format Excel Serial Date or String Date
+    const formatExcelDate = (serial) => {
+        if (!serial) return '-';
+        const num = Number(serial);
+        // If numeric and looks like Excel Serial (e.g. 45000+)
+        if (!isNaN(num) && num > 20000) {
+            // 25569 is offset for 1970-01-01
+            const date = new Date((num - 25569) * 86400 * 1000);
+            // Handle timezone offset if needed, but UTC usually safer for pure dates. 
+            // Simple approach:
+            return date.toLocaleDateString('vi-VN'); // DD/MM/YYYY
+        }
+        // Fallback
+        const d = new Date(serial);
+        return isNaN(d.getTime()) ? serial : d.toLocaleDateString('vi-VN');
+    };
 
     if (filtered.length === 0) {
         tableBody.innerHTML = '';
@@ -151,7 +169,7 @@ function renderTable() {
                 ${renderStageCell(item.stages['DC'])}
                 ${renderStageCell(item.stages['Molded'])}
                 <td class="p-3 text-center text-gray-700 font-bold bg-gray-50 text-xs">
-                    ${item.finish_date ? new Date(item.finish_date).toLocaleDateString('vi-VN') : '-'}
+                    ${formatExcelDate(item.finish_date)}
                 </td>
             </tr>
         `;
