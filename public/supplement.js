@@ -30,23 +30,43 @@ function logVisit(page, button = null) {
   console.log(`[Mock] supplement logVisit: ${page} - ${button}`);
 }
 
+// --- Helper: Format Excel Serial Date to DD/MM/YYYY HH:mm:ss ---
+function formatExcelDateTime(serial) {
+  if (!serial || isNaN(serial) || serial <= 0) return "Chưa có dữ liệu";
+  const base = new Date(1899, 11, 30);
+  const msPerDay = 86400000;
+  const date = new Date(base.getTime() + serial * msPerDay);
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const d = pad(date.getDate());
+  const m = pad(date.getMonth() + 1);
+  const y = date.getFullYear();
+  const h = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  const s = pad(date.getSeconds());
+
+  return `${d}/${m}/${y} ${h}:${min}:${s}`;
+}
+
 // ==================== CHECK LAST SYNC ==================== //
 async function checkLastSync() {
   const syncEl = document.getElementById('last-sync-time');
+  const lamEl = document.getElementById('last-lamination-time');
   const warnEl = document.getElementById('staleness-warning');
   if (!syncEl) return;
 
   try {
-    const { data, error } = await supabase
+    // 1. Fetch Last Push Time
+    const { data: syncData, error: syncError } = await supabase
       .from('powerapp')
       .select('"Finish date"')
       .eq('STT', -1)
       .limit(1);
 
-    if (error) throw error;
+    if (syncError) throw syncError;
 
-    if (data && data.length > 0 && data[0]['Finish date']) {
-      const lastUpdate = new Date(data[0]['Finish date']);
+    if (syncData && syncData.length > 0 && syncData[0]['Finish date']) {
+      const lastUpdate = new Date(syncData[0]['Finish date']);
       syncEl.textContent = lastUpdate.toLocaleString('vi-VN');
 
       // Kiểm tra nếu quá 24h (1 ngày)
@@ -55,16 +75,34 @@ async function checkLastSync() {
       const oneDayMs = 24 * 60 * 60 * 1000;
 
       if (diffMs > oneDayMs) {
-        warnEl.classList.remove('hidden');
+        warnEl?.classList.remove('hidden');
       } else {
-        warnEl.classList.add('hidden');
+        warnEl?.classList.add('hidden');
       }
     } else {
       syncEl.textContent = "Không xác định";
     }
+
+    // 2. Fetch Latest Lamination Time
+    const { data: lamData, error: lamError } = await supabase
+      .from('powerapp')
+      .select('"Laminating (Pro)"')
+      .order('Laminating (Pro)', { ascending: false })
+      .limit(1);
+
+    if (lamError) throw lamError;
+
+    if (lamData && lamData.length > 0 && lamData[0]['Laminating (Pro)']) {
+      const serial = Number(lamData[0]['Laminating (Pro)']);
+      if (lamEl) lamEl.textContent = formatExcelDateTime(serial);
+    } else {
+      if (lamEl) lamEl.textContent = "Chưa có dữ liệu";
+    }
+
   } catch (err) {
     console.warn("Lỗi kiểm tra thời gian đồng bộ:", err);
-    syncEl.textContent = "Lỗi tải";
+    if (syncEl) syncEl.textContent = "Lỗi tải";
+    if (lamEl) lamEl.textContent = "Lỗi tải";
   }
 }
 

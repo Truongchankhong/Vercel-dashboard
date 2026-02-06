@@ -37,41 +37,67 @@ async function fetchAllPowerAppData() {
 const container = document.getElementById('table-container');
 const detailsContainer = document.getElementById('details-container');
 const searchResult = document.getElementById('searchResult');
-const lastUpdatedEl = document.getElementById('lastPushTime'); // Corrected ID
+const lastUpdatedEl = document.getElementById('lastPushTime');
+const lastLaminationEl = document.getElementById('lastLaminationTime');
+
+// --- Helper: Format Excel Serial Date to DD/MM/YYYY HH:mm:ss ---
+function formatExcelDateTime(serial) {
+  if (!serial || isNaN(serial) || serial <= 0) return "Chưa có dữ liệu";
+  const base = new Date(1899, 11, 30);
+  const msPerDay = 86400000;
+  const date = new Date(base.getTime() + serial * msPerDay);
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const d = pad(date.getDate());
+  const m = pad(date.getMonth() + 1);
+  const y = date.getFullYear();
+  const h = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  const s = pad(date.getSeconds());
+
+  return `${d}/${m}/${y} ${h}:${min}:${s}`;
+}
 
 // --- Fetch Last Update Time ---
 async function fetchLastPushTime() {
   if (!lastUpdatedEl) return;
   try {
-    const { data, error } = await supabase
+    // 1. Fetch Last Push Time (Metadata record)
+    const { data: pushData, error: pushError } = await supabase
       .from('powerapp')
-      .select('"Finish date"') // Use existing column
-      .eq('STT', -1) // Metadata record (Numeric)
+      .select('"Finish date"')
+      .eq('STT', -1)
       .limit(1);
 
-    if (error) throw error;
+    if (pushError) throw pushError;
 
-    if (data && data.length > 0 && data[0]['Finish date']) {
-      // Format time
-      const date = new Date(data[0]['Finish date']);
-      // Format: Wed 01/14/2026 11:01:43
-      const formatted = date.toLocaleString('en-US', {
-        weekday: 'short',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      });
-      lastUpdatedEl.textContent = formatted;
+    if (pushData && pushData.length > 0 && pushData[0]['Finish date']) {
+      const date = new Date(pushData[0]['Finish date']);
+      lastUpdatedEl.textContent = date.toLocaleString('vi-VN');
     } else {
       lastUpdatedEl.textContent = "Chưa có dữ liệu";
     }
+
+    // 2. Fetch Latest Lamination Time (Max value in Laminating (Pro))
+    const { data: lamData, error: lamError } = await supabase
+      .from('powerapp')
+      .select('"Laminating (Pro)"')
+      .order('Laminating (Pro)', { ascending: false })
+      .limit(1);
+
+    if (lamError) throw lamError;
+
+    if (lamData && lamData.length > 0 && lamData[0]['Laminating (Pro)']) {
+      const serial = Number(lamData[0]['Laminating (Pro)']);
+      lastLaminationEl.textContent = formatExcelDateTime(serial);
+    } else {
+      lastLaminationEl.textContent = "Chưa có dữ liệu";
+    }
+
   } catch (err) {
-    console.error("Error fetching last update:", err);
-    lastUpdatedEl.textContent = "Lỗi tải thời gian";
+    console.error("Error fetching timestamps:", err);
+    if (lastUpdatedEl) lastUpdatedEl.textContent = "Lỗi tải thời gian";
+    if (lastLaminationEl) lastLaminationEl.textContent = "Lỗi tải thời gian";
   }
 }
 // Call immediately
