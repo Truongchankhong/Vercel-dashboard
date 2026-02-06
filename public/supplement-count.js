@@ -14,6 +14,8 @@ const btnToggleCamera = document.getElementById('btn-toggle-camera');
 const undoContainer = document.getElementById('undo-container');
 const btnUndoScan = document.getElementById('btn-undo-scan');
 const scannerInputOverlay = document.getElementById('scanner-input-overlay');
+const manualRproInput = document.getElementById('manual-rpro');
+const btnSaveManual = document.getElementById('btn-save-manual');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -41,7 +43,9 @@ async function startCamera() {
         fps: 20,
         qrbox: (viewWidth, viewHeight) => {
             const minEdge = Math.min(viewWidth, viewHeight);
-            return { width: Math.floor(minEdge * 0.8), height: Math.floor(minEdge * 0.8) };
+            const boxSize = Math.floor(minEdge * 0.8);
+            // Ensure minimum 50px as required by html5-qrcode
+            return Math.max(boxSize, 50);
         },
         aspectRatio: 1.0,
         videoConstraints: {
@@ -233,6 +237,26 @@ async function undoLastRecord() {
     }
 }
 
+// ==================== MANUAL INPUT HANDLER ====================
+async function handleManualSave() {
+    if (isProcessing) return;
+    if (!activeSection) {
+        alert("Vui lòng chọn bộ phận trước!");
+        return;
+    }
+    if (!activeAction) {
+        alert("Vui lòng chọn hành động (IN/OUT) trước!");
+        return;
+    }
+
+    const val = manualRproInput.value.trim().toUpperCase();
+    if (!val) return;
+
+    await processRPRO(val, "MANUAL");
+    manualRproInput.value = ""; // Clear after success
+    manualRproInput.focus();
+}
+
 // ==================== UI HELPERS ====================
 function showFeedback(msg, className) {
     scanFeedback.innerText = msg;
@@ -327,10 +351,22 @@ if (btnViewSummary) {
     });
 }
 
+if (btnSaveManual) {
+    btnSaveManual.addEventListener('click', handleManualSave);
+}
+
+if (manualRproInput) {
+    manualRproInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleManualSave();
+    });
+}
+
 // ==================== FOCUS MANAGEMENT ====================
 // Keep focus on hidden input for handheld scanner
 setInterval(() => {
-    if (activeSection && activeAction && document.activeElement !== scannerInputOverlay) {
+    if (activeSection && activeAction &&
+        document.activeElement !== scannerInputOverlay &&
+        document.activeElement !== manualRproInput) {
         scannerInputOverlay.focus();
     }
 }, 500);
