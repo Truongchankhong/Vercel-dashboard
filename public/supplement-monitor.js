@@ -104,17 +104,28 @@ function renderTable() {
 }
 
 // ==================== RENDER CELL HELPER ====================
+// ==================== RENDER CELL HELPER ====================
 function renderStageCell(stageData) {
     // If no data at all
     if (!stageData.in && !stageData.out) {
-        return `<td class="p-3 border-r text-center text-gray-300">-</td>`;
+        return `<td class="p-3 border-r text-center text-gray-300 bg-gray-50/30">-</td>`;
     }
 
     let statusHtml = '';
     let bgClass = '';
 
-    const timeIn = stageData.in ? formatTime(stageData.in) : null;
-    const timeOut = stageData.out ? formatTime(stageData.out) : null;
+    // Helper format function for full datetime
+    const formatFull = (isoString) => {
+        if (!isoString) return '';
+        const d = new Date(isoString);
+        return d.toLocaleString('vi-VN', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        });
+    };
+
+    const timeIn = formatFull(stageData.in);
+    const timeOut = formatFull(stageData.out);
 
     if (stageData.in && !stageData.out) {
         // Currently IN => Active/Warning
@@ -124,10 +135,12 @@ function renderStageCell(stageData) {
         bgClass = isWarning ? 'bg-red-50 animate-pulse border-red-200 border' : 'bg-yellow-50 border-yellow-200 border';
 
         statusHtml = `
-            <div class="flex flex-col gap-1 items-center">
-                <div class="text-xs font-bold text-gray-500">📥 ${timeIn}</div>
-                <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase ${isWarning ? 'bg-red-500 text-white' : 'bg-yellow-400 text-yellow-900'}">
-                    ${isWarning ? 'QUÁ HẠN >4H' : 'ĐANG XỬ LÝ'}
+            <div class="flex flex-col gap-1 items-start text-xs p-2">
+                <div class="font-semibold text-gray-700">📥 Scan In:</div>
+                <div class="text-blue-600 font-mono mb-1 whitespace-nowrap">${timeIn}</div>
+                
+                <span class="w-full text-center px-2 py-0.5 rounded text-[10px] font-black uppercase mt-1 ${isWarning ? 'bg-red-500 text-white' : 'bg-yellow-400 text-yellow-900'}">
+                    ${isWarning ? '⚠️ QUÁ HẠN >4H' : '⏳ ĐANG XỬ LÝ'}
                 </span>
             </div>
         `;
@@ -135,28 +148,38 @@ function renderStageCell(stageData) {
         // Completed
         bgClass = 'bg-white';
         statusHtml = `
-            <div class="flex flex-col gap-1 items-center">
-                <div class="text-xs text-gray-500">📥 ${timeIn}</div>
-                <div class="text-xs font-bold text-green-600">📤 ${timeOut}</div>
-                <div class="h-0.5 w-8 bg-gray-200 my-0.5"></div>
-                <span class="text-[9px] text-green-600 font-bold uppercase">HOÀN THÀNH</span>
+            <div class="flex flex-col gap-1 items-start text-xs p-2">
+                <div class="font-semibold text-gray-700">📥 Scan In:</div>
+                <div class="text-blue-600 font-mono mb-1 whitespace-nowrap">${timeIn}</div>
+                
+                <div class="w-full border-t border-gray-200 my-1"></div>
+                
+                <div class="font-semibold text-gray-700">📤 Scan Out:</div>
+                <div class="text-green-600 font-mono whitespace-nowrap">${timeOut}</div>
+                
+                <div class="w-full text-center mt-1">
+                     <span class="text-[9px] text-green-600 font-bold uppercase border border-green-200 px-1 rounded block">✅ HOÀN THÀNH</span>
+                </div>
             </div>
         `;
     } else if (!stageData.in && stageData.out) {
-        // Edge case: OUT without IN (should not happen with validation but possible with manual DB edits)
+        // Edge case: Only OUT
         bgClass = 'bg-gray-50';
         statusHtml = `
-            <div class="text-xs text-red-500">❓ Chỉ có OUT: ${timeOut}</div>
+            <div class="flex flex-col gap-1 items-start text-xs p-2">
+                <div class="font-semibold text-gray-700">📤 Scan Out Only:</div>
+                <div class="text-red-500 font-mono whitespace-nowrap">${timeOut}</div>
+            </div>
         `;
     }
 
-    return `<td class="p-2 border-r text-center align-middle ${bgClass}">${statusHtml}</td>`;
+    return `<td class="p-1 border-r align-top ${bgClass}">${statusHtml}</td>`;
 }
 
 function formatTime(isoString) {
+    // Deprecated but kept for compatibility reference if needed elsewhere
     const d = new Date(isoString);
     return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    // return `${d.getHours()}:${d.getMinutes()}`;
 }
 
 // ==================== REALTIME SUBSCRIPTION ====================
