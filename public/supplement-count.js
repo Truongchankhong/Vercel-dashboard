@@ -140,7 +140,16 @@ async function processRPRO(text, mode) {
     console.log(`🚀 Processing RPRO: ${text} | Mode: ${mode} | Section: ${activeSection} | Action: ${activeAction}`);
 
     isProcessing = true;
-    const rpro = text.trim().toUpperCase();
+
+    // Parse QR if pipe-delimited
+    let cleanText = text.trim().toUpperCase();
+    if (cleanText.includes('|')) {
+        const parts = cleanText.split('|');
+        const rproPart = parts.find(p => p.startsWith('RPRO-'));
+        if (rproPart) cleanText = rproPart;
+    }
+
+    const rpro = cleanText;
 
     // Reset undo state
     lastRecordId = null;
@@ -207,6 +216,7 @@ async function processRPRO(text, mode) {
         const actionText = activeAction === 'IN' ? 'NHẬP VÀO' : 'XUẤT ĐI';
         showFeedback(`✅ ${actionText}: ${rpro} (${mode})`, "text-green-600 font-black");
         playAudioFeedback(true);
+        if (mode === 'CAMERA') alert(`✅ Scan thành công:\n${rpro}`); // Alert for Mobile/Camera users
         undoContainer.classList.remove('hidden');
 
     } catch (err) {
@@ -385,7 +395,8 @@ if (inputQty) {
 // ==================== FOCUS MANAGEMENT ====================
 // Keep focus on hidden input for handheld scanner
 setInterval(() => {
-    if (activeSection && activeAction &&
+    // Only auto-focus if Camera is OFF (to prevent mobile keyboard pop-up)
+    if (!cameraActive && activeSection && activeAction &&
         document.activeElement !== scannerInputOverlay &&
         document.activeElement !== manualRproInput &&
         document.activeElement !== inputQty) {

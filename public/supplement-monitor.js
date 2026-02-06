@@ -272,7 +272,13 @@ window.openDetailModal = async (rpro) => {
 };
 
 window.deleteRecord = async (id) => {
-    if (!confirm('⚠️ Bạn có chắc muốn xóa dòng lịch sử này không? Hành động này không thể hoàn tác!')) return;
+    if (!confirm('⚠️ Liên quan đến dữ liệu sản xuất! Bạn có chắc muốn xóa dòng này không?')) return;
+
+    const pass = prompt("🔒 Vui lòng nhập mật khẩu xác thực:");
+    if (pass !== 'davidtu') {
+        alert("⛔ Mật khẩu sai! Không được phép xóa.");
+        return;
+    }
 
     try {
         const { error } = await supabase.from('supplement_tracking').delete().eq('id', id);
