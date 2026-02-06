@@ -87,7 +87,7 @@ async function checkLastSync() {
     const { data: lamData, error: lamError } = await supabase
       .from('powerapp')
       .select('"Laminating (Pro)"')
-      .order('Laminating (Pro)', { ascending: false })
+      .order('"Laminating (Pro)"', { ascending: false })
       .limit(1);
 
     if (lamError) throw lamError;
