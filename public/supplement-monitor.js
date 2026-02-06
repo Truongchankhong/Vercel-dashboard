@@ -49,8 +49,29 @@ async function fetchProgressData() {
         if (error) throw error;
 
         // Reset and rebuild
+        // Reset and rebuild
         progressMap = {};
         data.forEach(updateLocalState);
+
+        // BULK FETCH FINISH DATES
+        const rproList = Object.keys(progressMap);
+        if (rproList.length > 0) {
+            const { data: finishData } = await supabase
+                .from('powerapp')
+                .select('"PRO ODER", "Finish date"')
+                .in('"PRO ODER"', rproList);
+
+            if (finishData) {
+                finishData.forEach(item => {
+                    const code = item['PRO ODER'];
+                    // Clean code just in case
+                    if (progressMap[code]) {
+                        progressMap[code].finish_date = item['Finish date'];
+                    }
+                });
+            }
+        }
+
         refreshTableData();
 
     } catch (err) {
@@ -67,6 +88,7 @@ function updateLocalState(record) {
         progressMap[rpro] = {
             rpro: rpro,
             last_updated: record.created_at,
+            finish_date: null, // Init
             stages: {
                 'Dán': { in: null, out: null },
                 'Cắt': { in: null, out: null },
@@ -128,6 +150,9 @@ function renderTable() {
                 ${renderStageCell(item.stages['Molding'])}
                 ${renderStageCell(item.stages['DC'])}
                 ${renderStageCell(item.stages['Molded'])}
+                <td class="p-3 text-center text-gray-700 font-bold bg-gray-50 text-xs">
+                    ${item.finish_date ? new Date(item.finish_date).toLocaleDateString('vi-VN') : '-'}
+                </td>
             </tr>
         `;
     }).join('');
