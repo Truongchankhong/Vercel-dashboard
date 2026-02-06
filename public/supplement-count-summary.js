@@ -6,7 +6,7 @@ const dateToInput = document.getElementById('date-to');
 const btnFilter = document.getElementById('btn-filter');
 const summaryBody = document.getElementById('summary-body');
 
-const sections = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
+const sections = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded']; // Use Precomposed Unicode
 
 function setInitialDates() {
     const today = new Date();
