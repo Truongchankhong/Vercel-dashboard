@@ -25,10 +25,12 @@ async function loadSummary() {
     summaryBody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-400">Đang tải dữ liệu...</td></tr>';
 
     const { data, error } = await supabase
-        .from('supplement_counting')
+        .from('supplement_tracking')
         .select('*')
         .gte('scan_date', from)
         .lte('scan_date', to)
+        // Only count unique RPROs per session, effectively we can filter by IN action to represent "arrival"
+        // But to be safe against duplicates, we will deduplicate in JS
         .order('created_at', { ascending: true });
 
     if (error) {
@@ -41,10 +43,12 @@ async function loadSummary() {
 }
 
 function renderTable(data) {
-    // 1. Group by section
+    // 1. Group by section and deduplicate RPROs
     const grouped = {};
     sections.forEach(s => {
-        grouped[s] = data.filter(row => row.section === s).map(row => row.rpro);
+        // Get all RPROs for this section, then make unique using Set
+        const allRpros = data.filter(row => row.section === s).map(row => row.rpro);
+        grouped[s] = [...new Set(allRpros)];
     });
 
     // 2. Determine max rows needed
