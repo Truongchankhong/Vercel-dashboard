@@ -59,18 +59,25 @@
                 <h1 class="text-2xl font-bold text-gray-800">📊 Tiến Độ Hàng Bù (Realtime)</h1>
                 <p class="text-xs text-gray-500 mt-1">Theo dõi trạng thái IN/OUT qua các công đoạn</p>
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
+                <div class="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border">
+                    <input type="date" id="date-start"
+                        class="bg-transparent text-sm font-medium text-gray-600 outline-none px-1">
+                    <span class="text-gray-400">-</span>
+                    <input type="date" id="date-end"
+                        class="bg-transparent text-sm font-medium text-gray-600 outline-none px-1">
+                </div>
                 <div class="relative">
                     <input type="text" id="search-input" placeholder="🔍 Tìm mã RPRO..."
-                        class="pl-3 pr-10 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-64 uppercase">
+                        class="pl-3 pr-10 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-48 uppercase">
                 </div>
                 <button id="btn-refresh"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm font-bold">
-                    🔄 Làm mới
+                    class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm font-bold whitespace-nowrap">
+                    🔄 Xem
                 </button>
                 <button onclick="window.location.href='supplement-count.html'"
-                    class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition shadow-sm text-sm">
-                    ← Quay lại quét
+                    class="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition shadow-sm text-sm whitespace-nowrap">
+                    ← Scan
                 </button>
             </div>
         </div>
