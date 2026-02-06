@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đếm hàng bù - Quét QR</title>
+    <title>Tracking Hàng Bù - Realtime</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .section-btn.active {
@@ -12,84 +12,142 @@
             box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
             transform: scale(1.05);
         }
+
+        .action-btn.active {
+            border: 3px solid #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        #scanner-input-overlay {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+        }
     </style>
 </head>
 
-<body class="bg-gray-100 min-h-screen p-4 sm:p-6">
-    <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xl">
+<body class="bg-gradient-to-br from-gray-100 to-gray-200 min-h-screen p-4 sm:p-6">
+    <div class="max-w-2xl mx-auto bg-white p-6 rounded-2xl shadow-2xl">
+        <!-- Header -->
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-extrabold text-orange-600">🔢 Đếm hàng bù</h1>
-            <button onclick="window.location.href='index.html'" class="text-gray-500 hover:text-gray-700">
-                ✖ Đóng
+            <h1
+                class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-500">
+                📦 Tracking Hàng Bù
+            </h1>
+            <button onclick="window.location.href='index.html'" class="text-gray-500 hover:text-gray-700 text-2xl">
+                ✖
             </button>
         </div>
 
         <!-- Section Selection -->
-        <p class="text-sm font-bold text-gray-600 mb-3 uppercase tracking-wider">Chọn bộ phận (Section):</p>
-        <div class="grid grid-cols-2 gap-3 mb-6">
+        <p class="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Chọn bộ phận (Section):</p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
             <button
-                class="section-btn px-4 py-3 bg-indigo-500 text-white rounded-xl font-bold hover:bg-indigo-600 transition"
-                data-section="Dán">Dán</button>
+                class="section-btn px-4 py-3 bg-indigo-500 text-white rounded-xl font-bold hover:bg-indigo-600 transition shadow-md"
+                data-section="Dán">
+                🏷️ Dán
+            </button>
             <button
-                class="section-btn px-4 py-3 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition"
-                data-section="Cắt">Cắt</button>
+                class="section-btn px-4 py-3 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition shadow-md"
+                data-section="Cắt">
+                ✂️ Cắt
+            </button>
             <button
-                class="section-btn px-4 py-3 bg-blue-500 text-white rounded-xl font-bold hover:bg-blue-600 transition"
-                data-section="Molding">Molding</button>
+                class="section-btn px-4 py-3 bg-blue-500 text-white rounded-xl font-bold hover:bg-blue-600 transition shadow-md"
+                data-section="Molding">
+                🔨 Molding
+            </button>
             <button
-                class="section-btn px-4 py-3 bg-purple-500 text-white rounded-xl font-bold hover:bg-purple-600 transition"
-                data-section="DC">Leanline DC</button>
+                class="section-btn px-4 py-3 bg-purple-500 text-white rounded-xl font-bold hover:bg-purple-600 transition shadow-md"
+                data-section="DC">
+                🏭 Leanline DC
+            </button>
             <button
-                class="section-btn px-4 py-3 bg-pink-500 text-white rounded-xl font-bold hover:bg-pink-600 transition"
-                data-section="Molded">Leanline Molded</button>
+                class="section-btn px-4 py-3 bg-pink-500 text-white rounded-xl font-bold hover:bg-pink-600 transition shadow-md"
+                data-section="Molded">
+                🎯 Leanline Molded
+            </button>
         </div>
 
-        <!-- QR Scanner Area -->
-        <div id="scanner-container" class="hidden">
-            <div id="qr-reader" style="width: 100%; min-height: 350px;"
-                class="rounded-lg overflow-hidden border-2 border-dashed border-gray-300"></div>
-            <div
-                class="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg text-sm italic text-gray-500 text-center">
-                Mẹo cho iPhone: Nếu không quét được, hãy đưa camera ra xa một chút rồi lại gần từ từ.
-            </div>
-            <div class="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                <p class="text-center text-orange-800 font-medium">
-                    Đang quét cho bộ phận: <span id="active-section-name" class="font-bold underline">...</span>
-                </p>
-            </div>
-
-            <!-- Manual Input Fallback -->
-            <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                <p class="text-xs font-bold text-gray-500 mb-2 uppercase">Hoặc nhập mã bằng tay (nếu không quét được):
-                </p>
-                <div class="flex gap-2">
-                    <input type="text" id="manual-rpro" placeholder="Ví dụ: RPRO12345"
-                        class="flex-1 px-3 py-2 border rounded-lg uppercase font-mono text-sm focus:ring-2 focus:ring-orange-400 outline-none">
-                    <button id="btn-save-manual"
-                        class="px-4 py-2 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 transition shadow-sm">
-                        Lưu
-                    </button>
-                </div>
-            </div>
-
-            <div id="scan-feedback" class="mt-3 text-center min-h-[40px] font-bold"></div>
-
-            <!-- Undo Button Container -->
-            <div id="undo-container" class="mt-4 hidden text-center">
-                <button id="btn-undo-scan"
-                    class="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-bold border border-red-300 hover:bg-red-200 transition text-sm">
-                    ↩️ Xóa mã vừa quét nhầm
+        <!-- Action Selection (IN/OUT) -->
+        <div id="action-container" class="hidden mb-6">
+            <p class="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">Chọn hành động:</p>
+            <div class="grid grid-cols-2 gap-3">
+                <button
+                    class="action-btn px-6 py-4 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition shadow-md"
+                    data-action="IN">
+                    ⬇️ NHẬP VÀO (IN)
+                </button>
+                <button
+                    class="action-btn px-6 py-4 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600 transition shadow-md"
+                    data-action="OUT">
+                    ⬆️ XUẤT ĐI (OUT)
                 </button>
             </div>
         </div>
 
-        <div class="mt-8 flex flex-col gap-4">
+        <!-- Scanner Area -->
+        <div id="scanner-container" class="hidden">
+            <!-- Camera Scanner -->
+            <div id="camera-section" class="mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <p class="text-sm font-bold text-gray-600">📷 Quét bằng Camera:</p>
+                    <button id="btn-toggle-camera" class="text-xs px-3 py-1 bg-gray-200 rounded-full hover:bg-gray-300">
+                        Bật/Tắt
+                    </button>
+                </div>
+                <div id="qr-reader" class="hidden rounded-lg overflow-hidden border-2 border-dashed border-gray-300"
+                    style="width: 100%; min-height: 300px;"></div>
+            </div>
+
+            <!-- Handheld Scanner Status -->
+            <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+                <p class="text-center text-blue-800 font-medium">
+                    🔫 <b>Máy quét cầm tay:</b> Luôn sẵn sàng! Chỉ cần quét trực tiếp.
+                </p>
+                <p class="text-xs text-center text-gray-500 mt-1">
+                    (Không cần click vào ô input)
+                </p>
+            </div>
+
+            <!-- Current Status Display -->
+            <div
+                class="p-4 bg-gradient-to-r from-orange-50 to-pink-50 border-2 border-orange-200 rounded-xl mb-4 shadow-sm">
+                <p class="text-center text-gray-800 font-semibold">
+                    📍 Bộ phận: <span id="active-section-name" class="font-black text-orange-600">...</span>
+                </p>
+                <p class="text-center text-gray-800 font-semibold mt-1">
+                    🎯 Hành động: <span id="active-action-name" class="font-black text-pink-600">...</span>
+                </p>
+            </div>
+
+            <!-- Feedback Area -->
+            <div id="scan-feedback" class="mt-3 text-center min-h-[50px] font-bold text-lg"></div>
+
+            <!-- Undo Button -->
+            <div id="undo-container" class="mt-4 hidden text-center">
+                <button id="btn-undo-scan"
+                    class="px-5 py-3 bg-red-100 text-red-700 rounded-xl font-bold border-2 border-red-300 hover:bg-red-200 transition shadow-md">
+                    ↩️ Xóa bản ghi vừa lưu
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="mt-8 flex flex-col gap-3">
+            <button id="btn-view-monitor"
+                class="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold text-lg hover:from-purple-700 hover:to-indigo-700 transition shadow-lg flex items-center justify-center gap-2">
+                📊 Xem Dashboard Theo Dõi (Realtime)
+            </button>
             <button id="btn-view-summary"
-                class="w-full py-4 bg-gray-800 text-white rounded-xl font-bold text-lg hover:bg-gray-900 transition shadow-lg flex items-center justify-center gap-2">
-                📊 Xem Tổng (Đối soát)
+                class="w-full py-3 bg-gray-700 text-white rounded-xl font-semibold hover:bg-gray-800 transition shadow-md flex items-center justify-center gap-2">
+                📋 Xem Tổng Hợp (Cũ)
             </button>
         </div>
     </div>
+
+    <!-- Hidden input for handheld scanner -->
+    <input type="text" id="scanner-input-overlay" autocomplete="off" />
 
     <!-- Scripts -->
     <script src="https://unpkg.com/html5-qrcode" defer></script>

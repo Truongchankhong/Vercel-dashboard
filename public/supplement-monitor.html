@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Theo Dõi Realtime - Hàng Bù</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .status-card {
+            transition: all 0.3s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .alert-blink {
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 min-h-screen p-4 sm:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="bg-white rounded-2xl shadow-xl p-6 mb-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1
+                        class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
+                        📊 Dashboard Theo Dõi Realtime
+                    </h1>
+                    <p class="text-sm text-gray-500 mt-1">Cập nhật tự động • Trạng thái đơn hàng bù</p>
+                </div>
+                <div class="flex gap-2">
+                    <button id="btn-refresh"
+                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition shadow-md">
+                        🔄 Làm mới
+                    </button>
+                    <button onclick="window.location.href='supplement-count.html'"
+                        class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition shadow-md">
+                        ← Quay lại
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Summary -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+                <div class="bg-gradient-to-br from-green-100 to-emerald-200 p-4 rounded-xl shadow-sm">
+                    <p class="text-xs text-gray-600 font-semibold uppercase">Đang hoạt động</p>
+                    <p id="stat-active" class="text-3xl font-black text-green-700">0</p>
+                </div>
+                <div class="bg-gradient-to-br from-yellow-100 to-amber-200 p-4 rounded-xl shadow-sm">
+                    <p class="text-xs text-gray-600 font-semibold uppercase">Cảnh báo (>4h)</p>
+                    <p id="stat-warning" class="text-3xl font-black text-yellow-700">0</p>
+                </div>
+                <div class="bg-gradient-to-br from-blue-100 to-sky-200 p-4 rounded-xl shadow-sm">
+                    <p class="text-xs text-gray-600 font-semibold uppercase">Hôm nay</p>
+                    <p id="stat-today" class="text-3xl font-black text-blue-700">0</p>
+                </div>
+                <div class="bg-gradient-to-br from-purple-100 to-violet-200 p-4 rounded-xl shadow-sm">
+                    <p class="text-xs text-gray-600 font-semibold uppercase">Tổng lịch sử</p>
+                    <p id="stat-total" class="text-3xl font-black text-purple-700">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="bg-white rounded-xl shadow-md p-4 mb-6">
+            <div class="flex flex-wrap gap-2">
+                <button
+                    class="filter-btn active px-4 py-2 bg-gray-200 rounded-lg font-semibold hover:bg-gray-300 transition"
+                    data-filter="all">
+                    Tất cả
+                </button>
+                <button
+                    class="filter-btn px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg font-semibold hover:bg-indigo-200 transition"
+                    data-filter="Dán">
+                    Dán
+                </button>
+                <button
+                    class="filter-btn px-4 py-2 bg-green-100 text-green-700 rounded-lg font-semibold hover:bg-green-200 transition"
+                    data-filter="Cắt">
+                    Cắt
+                </button>
+                <button
+                    class="filter-btn px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition"
+                    data-filter="Molding">
+                    Molding
+                </button>
+                <button
+                    class="filter-btn px-4 py-2 bg-purple-100 text-purple-700 rounded-lg font-semibold hover:bg-purple-200 transition"
+                    data-filter="DC">
+                    Leanline DC
+                </button>
+                <button
+                    class="filter-btn px-4 py-2 bg-pink-100 text-pink-700 rounded-lg font-semibold hover:bg-pink-200 transition"
+                    data-filter="Molded">
+                    Leanline Molded
+                </button>
+            </div>
+        </div>
+
+        <!-- Orders Grid -->
+        <div id="orders-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Cards will be inserted here dynamically -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden bg-white rounded-xl shadow-md p-12 text-center">
+            <div class="text-6xl mb-4">📦</div>
+            <p class="text-xl font-bold text-gray-600 mb-2">Chưa có đơn hàng nào đang hoạt động</p>
+            <p class="text-sm text-gray-400">Quét mã RPRO để bắt đầu tracking</p>
+        </div>
+
+        <!-- Realtime Indicator -->
+        <div
+            class="fixed bottom-6 right-6 bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2 border-2 border-green-400">
+            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            <span class="text-xs font-bold text-gray-700">REALTIME</span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./supabaseClient.js"></script>
+    <script type="module" src="./supplement-monitor.js"></script>
+</body>
+
+</html>
