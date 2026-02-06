@@ -4,142 +4,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Theo Dõi Realtime - Hàng Bù</title>
+    <title>Tiến Độ Hàng Bù - Realtime Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .status-card {
+        .status-cell {
             transition: all 0.3s ease;
         }
 
-        .status-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        /* Custom scrollbar for table */
+        .table-container::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
         }
 
-        .alert-blink {
-            animation: blink 1.5s infinite;
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
         }
 
-        @keyframes blink {
+        .table-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .blink-bg {
+            animation: bg-pulse 2s infinite;
+        }
+
+        @keyframes bg-pulse {
 
             0%,
             100% {
-                opacity: 1;
+                background-color: #fee2e2;
             }
 
+            /* Red-100 */
             50% {
-                opacity: 0.3;
+                background-color: #fca5a5;
             }
-        }
 
-        .badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            /* Red-300 */
         }
     </style>
 </head>
 
-<body class="bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 min-h-screen p-4 sm:p-6">
-    <div class="max-w-7xl mx-auto">
+<body class="bg-gray-50 min-h-screen p-4">
+    <div class="max-w-[1600px] mx-auto">
         <!-- Header -->
-        <div class="bg-white rounded-2xl shadow-xl p-6 mb-6">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1
-                        class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
-                        📊 Dashboard Theo Dõi Realtime
-                    </h1>
-                    <p class="text-sm text-gray-500 mt-1">Cập nhật tự động • Trạng thái đơn hàng bù</p>
-                </div>
-                <div class="flex gap-2">
-                    <button id="btn-refresh"
-                        class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition shadow-md">
-                        🔄 Làm mới
-                    </button>
-                    <button onclick="window.location.href='supplement-count.html'"
-                        class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition shadow-md">
-                        ← Quay lại
-                    </button>
-                </div>
+        <div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex justify-between items-center border border-gray-200">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">📊 Tiến Độ Hàng Bù (Realtime)</h1>
+                <p class="text-xs text-gray-500 mt-1">Theo dõi trạng thái IN/OUT qua các công đoạn</p>
             </div>
-
-            <!-- Stats Summary -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-                <div class="bg-gradient-to-br from-green-100 to-emerald-200 p-4 rounded-xl shadow-sm">
-                    <p class="text-xs text-gray-600 font-semibold uppercase">Đang hoạt động</p>
-                    <p id="stat-active" class="text-3xl font-black text-green-700">0</p>
+            <div class="flex gap-2">
+                <div class="relative">
+                    <input type="text" id="search-input" placeholder="🔍 Tìm mã RPRO..."
+                        class="pl-3 pr-10 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-64 uppercase">
                 </div>
-                <div class="bg-gradient-to-br from-yellow-100 to-amber-200 p-4 rounded-xl shadow-sm">
-                    <p class="text-xs text-gray-600 font-semibold uppercase">Cảnh báo (>4h)</p>
-                    <p id="stat-warning" class="text-3xl font-black text-yellow-700">0</p>
-                </div>
-                <div class="bg-gradient-to-br from-blue-100 to-sky-200 p-4 rounded-xl shadow-sm">
-                    <p class="text-xs text-gray-600 font-semibold uppercase">Hôm nay</p>
-                    <p id="stat-today" class="text-3xl font-black text-blue-700">0</p>
-                </div>
-                <div class="bg-gradient-to-br from-purple-100 to-violet-200 p-4 rounded-xl shadow-sm">
-                    <p class="text-xs text-gray-600 font-semibold uppercase">Tổng lịch sử</p>
-                    <p id="stat-total" class="text-3xl font-black text-purple-700">0</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Filter Section -->
-        <div class="bg-white rounded-xl shadow-md p-4 mb-6">
-            <div class="flex flex-wrap gap-2">
-                <button
-                    class="filter-btn active px-4 py-2 bg-gray-200 rounded-lg font-semibold hover:bg-gray-300 transition"
-                    data-filter="all">
-                    Tất cả
+                <button id="btn-refresh"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm font-bold">
+                    🔄 Làm mới
                 </button>
-                <button
-                    class="filter-btn px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg font-semibold hover:bg-indigo-200 transition"
-                    data-filter="Dán">
-                    Dán
-                </button>
-                <button
-                    class="filter-btn px-4 py-2 bg-green-100 text-green-700 rounded-lg font-semibold hover:bg-green-200 transition"
-                    data-filter="Cắt">
-                    Cắt
-                </button>
-                <button
-                    class="filter-btn px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition"
-                    data-filter="Molding">
-                    Molding
-                </button>
-                <button
-                    class="filter-btn px-4 py-2 bg-purple-100 text-purple-700 rounded-lg font-semibold hover:bg-purple-200 transition"
-                    data-filter="DC">
-                    Leanline DC
-                </button>
-                <button
-                    class="filter-btn px-4 py-2 bg-pink-100 text-pink-700 rounded-lg font-semibold hover:bg-pink-200 transition"
-                    data-filter="Molded">
-                    Leanline Molded
+                <button onclick="window.location.href='supplement-count.html'"
+                    class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition shadow-sm text-sm">
+                    ← Quay lại quét
                 </button>
             </div>
         </div>
 
-        <!-- Orders Grid -->
-        <div id="orders-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- Cards will be inserted here dynamically -->
-        </div>
+        <!-- Progress Table -->
+        <div
+            class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
+            <!-- Table Header (Sticky) -->
+            <div class="overflow-x-auto table-container flex-1">
+                <table class="w-full border-collapse text-sm">
+                    <thead class="bg-gray-100 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th
+                                class="p-4 text-left font-extrabold text-gray-700 border-b-2 border-r w-40 min-w-[150px]">
+                                MÃ ĐƠN (RPRO)</th>
+                            <th
+                                class="p-3 text-center font-bold text-indigo-700 border-b-2 border-r min-w-[180px] bg-indigo-50">
+                                🏷️ Dán (Lamination)</th>
+                            <th
+                                class="p-3 text-center font-bold text-green-700 border-b-2 border-r min-w-[180px] bg-green-50">
+                                ✂️ Cắt (Prefitting)</th>
+                            <th
+                                class="p-3 text-center font-bold text-blue-700 border-b-2 border-r min-w-[180px] bg-blue-50">
+                                🔨 Molding</th>
+                            <th
+                                class="p-3 text-center font-bold text-purple-700 border-b-2 border-r min-w-[180px] bg-purple-50">
+                                🏭 Leanline DC</th>
+                            <th class="p-3 text-center font-bold text-pink-700 border-b-2 min-w-[180px] bg-pink-50">🎯
+                                Leanline Molded</th>
+                        </tr>
+                    </thead>
+                    <tbody id="progress-table-body" class="divide-y divide-gray-100">
+                        <!-- Data rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
 
-        <!-- Empty State -->
-        <div id="empty-state" class="hidden bg-white rounded-xl shadow-md p-12 text-center">
-            <div class="text-6xl mb-4">📦</div>
-            <p class="text-xl font-bold text-gray-600 mb-2">Chưa có đơn hàng nào đang hoạt động</p>
-            <p class="text-sm text-gray-400">Quét mã RPRO để bắt đầu tracking</p>
+            <!-- Empty State -->
+            <div id="empty-state"
+                class="hidden flex flex-col items-center justify-center h-64 text-gray-400 bg-gray-50 border-t">
+                <div class="text-4xl mb-2">📦</div>
+                <p>Chưa có dữ liệu theo dõi hôm nay</p>
+            </div>
         </div>
 
         <!-- Realtime Indicator -->
         <div
-            class="fixed bottom-6 right-6 bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2 border-2 border-green-400">
-            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-            <span class="text-xs font-bold text-gray-700">REALTIME</span>
+            class="fixed bottom-4 right-4 bg-white rounded-full shadow-lg px-3 py-1 flex items-center gap-2 border border-green-400 z-50">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span class="text-[10px] font-bold text-gray-700">LIVE</span>
         </div>
     </div>
 
