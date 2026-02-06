@@ -12,21 +12,30 @@ const btnCloseModal = document.getElementById('btn-close-modal');
 const modalContent = document.getElementById('modal-content');
 
 // ==================== STATE ====================
-let progressData = [];
-let realtimeChannel = null;
+// ==================== STATE ====================
+let progressMap = {}; // Object map for O(1) access
+let progressData = []; // Array for rendering
 
 // ==================== FETCH DATA ====================
 async function fetchProgressData() {
     try {
+        // Optimize: Only fetch last 7 days data
+        const dateLimit = new Date();
+        dateLimit.setDate(dateLimit.getDate() - 7);
+
         const { data, error } = await supabase
             .from('supplement_tracking')
             .select('*')
+            .gte('created_at', dateLimit.toISOString())
             .order('created_at', { ascending: true });
 
         if (error) throw error;
 
-        processData(data);
-        renderTable();
+        // Reset map and process all
+        progressMap = {};
+        data.forEach(updateLocalState);
+
+        refreshTableData();
 
     } catch (err) {
         console.error("Error fetching data:", err);
@@ -34,44 +43,72 @@ async function fetchProgressData() {
     }
 }
 
-// ==================== PROCESS DATA (CLIENT-SIDE PIVOT) ====================
-function processData(rawData) {
-    const map = {};
+// ==================== UPDATE LOCAL STATE (CORE LOGIC) ====================
+function updateLocalState(record) {
+    const rpro = record.rpro;
 
-    rawData.forEach(record => {
-        const rpro = record.rpro;
-        if (!map[rpro]) {
-            map[rpro] = {
-                rpro: rpro,
-                last_updated: record.created_at,
-                stages: {
-                    'Dán': { in: null, out: null },
-                    'Cắt': { in: null, out: null },
-                    'Molding': { in: null, out: null },
-                    'DC': { in: null, out: null },
-                    'Molded': { in: null, out: null }
-                }
-            };
-        }
-
-        const stage = map[rpro].stages[record.section];
-        if (stage) {
-            const dataPoint = {
-                time: record.created_at,
-                qty: record.quantity || 0 // Get quantity
-            };
-
-            if (record.action === 'IN') {
-                stage.in = dataPoint;
-            } else if (record.action === 'OUT') {
-                stage.out = dataPoint;
+    if (!progressMap[rpro]) {
+        progressMap[rpro] = {
+            rpro: rpro,
+            last_updated: record.created_at,
+            stages: {
+                'Dán': { in: null, out: null },
+                'Cắt': { in: null, out: null },
+                'Molding': { in: null, out: null },
+                'DC': { in: null, out: null },
+                'Molded': { in: null, out: null }
             }
-            map[rpro].last_updated = record.created_at;
-        }
-    });
+        };
+    }
 
-    // Sort by last update desc
-    progressData = Object.values(map).sort((a, b) => new Date(b.last_updated) - new Date(a.last_updated));
+    const item = progressMap[rpro];
+    const stage = item.stages[record.section];
+
+    if (stage) {
+        const dataPoint = {
+            time: record.created_at,
+            qty: record.quantity || 0
+        };
+
+        if (record.action === 'IN') {
+            stage.in = dataPoint;
+            // Update timestamp
+            if (new Date(record.created_at) > new Date(item.last_updated)) {
+                item.last_updated = record.created_at;
+            }
+        } else if (record.action === 'OUT') {
+            stage.out = dataPoint;
+            // Update timestamp
+            if (new Date(record.created_at) > new Date(item.last_updated)) {
+                item.last_updated = record.created_at;
+            }
+        }
+    }
+}
+
+function refreshTableData() {
+    // Convert Map to Array and Sort
+    progressData = Object.values(progressMap).sort((a, b) => new Date(b.last_updated) - new Date(a.last_updated));
+    renderTable();
+}
+
+// ==================== REALTIME SUBSCRIPTION ====================
+function setupRealtimeSubscription() {
+    const channel = supabase
+        .channel('supplement_tracking_monitor')
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'supplement_tracking' },
+            (payload) => {
+                console.log('⚡ New Event:', payload.new);
+                // Directly update local state without re-fetching
+                updateLocalState(payload.new);
+                refreshTableData(); // Re-render table immediately
+
+                // Visual feedback (optional flash effect later)
+            }
+        )
+        .subscribe();
 }
 
 // ==================== RENDER TABLE ====================
@@ -265,21 +302,6 @@ btnCloseModal.addEventListener('click', () => {
 });
 
 // ==================== REALTIME SUBSCRIPTION ====================
-function setupRealtimeSubscription() {
-    if (realtimeChannel) supabase.removeChannel(realtimeChannel);
-
-    realtimeChannel = supabase
-        .channel('supplement_tracking_monitor')
-        .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'supplement_tracking' },
-            (payload) => {
-                console.log('Update received:', payload);
-                fetchProgressData();
-            }
-        )
-        .subscribe();
-}
 
 // ==================== EVENT LISTENERS ====================
 if (btnRefresh) {
