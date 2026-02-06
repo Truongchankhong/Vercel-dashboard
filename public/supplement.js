@@ -56,17 +56,20 @@ async function checkLastSync() {
   if (!syncEl) return;
 
   try {
-    // 1. Fetch Last Push Time (Max value in Finish date)
+    // 1. Fetch Last Push Time (From Metadata Record with STT = -1)
     const { data: syncData, error: syncError } = await supabase
       .from('powerapp')
       .select('"Finish date"')
-      .not('"Finish date"', 'is', null)
-      .order('"Finish date"', { ascending: false })
+      .eq('STT', -1)
       .limit(1);
 
-    if (syncError) throw syncError;
+    if (syncError) {
+      console.error("Error fetching metadata record:", syncError);
+      throw syncError;
+    }
 
     if (syncData && syncData.length > 0 && syncData[0]['Finish date']) {
+      // This is a string in format "yyyy-MM-dd HH:mm:ss" from PowerShell
       const lastUpdate = new Date(syncData[0]['Finish date']);
       syncEl.textContent = lastUpdate.toLocaleString('vi-VN');
 
@@ -82,6 +85,7 @@ async function checkLastSync() {
       }
     } else {
       syncEl.textContent = "Không xác định";
+      console.warn("No metadata record found with STT=-1");
     }
 
     // 2. Fetch Latest Lamination Time

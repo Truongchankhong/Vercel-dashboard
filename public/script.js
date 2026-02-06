@@ -62,21 +62,28 @@ function formatExcelDateTime(serial) {
 async function fetchLastPushTime() {
   if (!lastUpdatedEl) return;
   try {
-    // 1. Fetch Last Push Time (Max value in Finish date)
+    // 1. Fetch Last Push Time (From Metadata Record with STT = -1)
     const { data: pushData, error: pushError } = await supabase
       .from('powerapp')
       .select('"Finish date"')
-      .not('"Finish date"', 'is', null)
-      .order('"Finish date"', { ascending: false })
+      .eq('STT', -1)
       .limit(1);
 
-    if (pushError) throw pushError;
+    if (pushError) {
+      console.error("Error fetching metadata record:", pushError);
+      throw pushError;
+    }
+
+    console.log("Metadata record (STT=-1):", pushData);
 
     if (pushData && pushData.length > 0 && pushData[0]['Finish date']) {
-      const date = new Date(pushData[0]['Finish date']);
+      // This is a string in format "yyyy-MM-dd HH:mm:ss" from PowerShell
+      const dateStr = pushData[0]['Finish date'];
+      const date = new Date(dateStr);
       lastUpdatedEl.textContent = date.toLocaleString('vi-VN');
     } else {
       lastUpdatedEl.textContent = "Chưa có dữ liệu";
+      console.warn("No metadata record found with STT=-1");
     }
 
     // 2. Fetch Latest Lamination Time (Max value in Laminating (Pro))
