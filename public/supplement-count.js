@@ -19,6 +19,7 @@ const btnSaveManual = document.getElementById('btn-save-manual');
 const inputQty = document.getElementById('input-qty');
 const btnIncQty = document.getElementById('btn-inc-qty');
 const btnDecQty = document.getElementById('btn-dec-qty');
+const manualNoteInput = document.getElementById('manual-note');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -121,7 +122,8 @@ document.addEventListener('keydown', (e) => {
             scanBuffer = '';
             console.log("🔫 Handheld scan:", scannedCode);
             if (!isProcessing) {
-                processRPRO(scannedCode, "HANDHELD");
+                const note = manualNoteInput ? manualNoteInput.value.trim() : '';
+                processRPRO(scannedCode, "HANDHELD", note);
             }
         }
     } else if (e.key.length === 1) {
@@ -136,8 +138,8 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ==================== CORE LOGIC: PROCESS RPRO ====================
-async function processRPRO(text, mode) {
-    console.log(`🚀 Processing RPRO: ${text} | Mode: ${mode} | Section: ${activeSection} | Action: ${activeAction}`);
+async function processRPRO(text, mode, note = '') {
+    console.log(`🚀 Processing RPRO: ${text} | Mode: ${mode} | Note: ${note} | Section: ${activeSection} | Action: ${activeAction}`);
 
     isProcessing = true;
 
@@ -202,6 +204,7 @@ async function processRPRO(text, mode) {
                 action: activeAction,
                 operator: 'User',
                 quantity: quantity, // NEW: Add Quantity
+                note: note, // NEW: Add Note
                 scan_date: new Date().toISOString().split('T')[0]
             }])
             .select('id');
@@ -218,6 +221,9 @@ async function processRPRO(text, mode) {
         playAudioFeedback(true);
         if (mode === 'CAMERA') alert(`✅ Scan thành công:\n${rpro}`); // Alert for Mobile/Camera users
         undoContainer.classList.remove('hidden');
+
+        // Clear note input after successful save
+        if (manualNoteInput) manualNoteInput.value = "";
 
     } catch (err) {
         console.error("❌ System Error:", err);
@@ -272,9 +278,40 @@ async function handleManualSave() {
     const val = manualRproInput.value.trim().toUpperCase();
     if (!val) return;
 
-    await processRPRO(val, "MANUAL");
+    const note = manualNoteInput ? manualNoteInput.value.trim() : '';
+
+    await processRPRO(val, "MANUAL", note);
     manualRproInput.value = ""; // Clear after success
     manualRproInput.focus();
+}
+
+// ==================== AUTO-FETCH NOTE ====================
+async function fetchExistingNote(rpro) {
+    if (!rpro || !activeSection) return;
+
+    // Simple RPRO pattern check (at least 6 chars to avoid noise)
+    if (rpro.length < 5) return;
+
+    try {
+        const { data, error } = await supabase
+            .from('supplement_tracking')
+            .select('note')
+            .eq('rpro', rpro)
+            .eq('section', activeSection)
+            .neq('note', '')
+            .not('note', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            console.log("📝 Found existing note:", data[0].note);
+            if (manualNoteInput) manualNoteInput.value = data[0].note;
+        }
+    } catch (err) {
+        console.error("Error fetching existing note:", err);
+    }
 }
 
 // ==================== UI HELPERS ====================
@@ -319,6 +356,11 @@ sectionBtns.forEach(btn => {
         activeSection = btn.dataset.section;
         activeSectionLabel.innerText = btn.innerText;
         actionContainer.classList.remove('hidden');
+
+        // Reset note input and re-fetch if RPRO exists
+        if (manualNoteInput) manualNoteInput.value = "";
+        const rpro = manualRproInput ? manualRproInput.value.trim() : "";
+        if (rpro) fetchExistingNote(rpro);
 
         // Reset action
         activeAction = null;
@@ -378,6 +420,15 @@ if (btnSaveManual) {
 if (manualRproInput) {
     manualRproInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleManualSave();
+    });
+
+    // Add event listener to fetch note when user types or paste code
+    manualRproInput.addEventListener('input', (e) => {
+        const val = e.target.value.trim().toUpperCase();
+        if (val.startsWith('RPRO')) {
+            // Debounce or just fetch if it looks complete
+            if (val.length >= 8) fetchExistingNote(val);
+        }
     });
 }
 

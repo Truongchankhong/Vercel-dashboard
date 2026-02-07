@@ -116,9 +116,14 @@ function updateLocalState(record) {
     const stage = item.stages[record.section];
 
     if (stage) {
+        // Shared logic: Update note if present in record (latest record wins due to fetch order)
         if (record.action === 'NOTE') {
-            stage.note = record.note;
+            stage.note = record.note; // Allows clearing note with empty string
             return;
+        }
+
+        if (record.note && record.note.trim() !== '') {
+            stage.note = record.note;
         }
 
         const dataPoint = {
