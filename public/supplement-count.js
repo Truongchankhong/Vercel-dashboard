@@ -102,8 +102,9 @@ function onCameraScanSuccess(decodedText) {
 // ==================== HANDHELD SCANNER ====================
 // Global keydown listener for handheld scanner
 document.addEventListener('keydown', (e) => {
-    // Ignore if user is typing in an actual input field
-    if (document.activeElement.tagName === 'INPUT' && document.activeElement.id !== 'scanner-input-overlay') {
+    // Ignore if user is typing in an actual input field or textarea
+    if ((document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') &&
+        document.activeElement.id !== 'scanner-input-overlay') {
         return;
     }
 
