@@ -352,7 +352,6 @@ window.exportToExcel = () => {
             row[`${stage} - IN Qty`] = data.in ? data.in.qty : '';
             row[`${stage} - OUT Time`] = data.out ? new Date(data.out.time).toLocaleString('vi-VN') : '';
             row[`${stage} - OUT Qty`] = data.out ? data.out.qty : '';
-            row[`${stage} - Gap`] = (data.in?.qty || 0) - (data.out?.qty || 0);
 
             // Collect notes
             if (data.note && data.note.trim() !== '') {
@@ -379,8 +378,8 @@ window.exportToExcel = () => {
         { wch: 10 }, // Total Qty
         { wch: 15 }, // Finish Date
     ];
-    // Add widths for stages (5 stages * 5 columns each: IN Time, IN Qty, OUT Time, OUT Qty, Gap)
-    for (let i = 0; i < 5 * 5; i++) wscols.push({ wch: 15 });
+    // Add widths for stages (5 stages * 4 columns each: IN Time, IN Qty, OUT Time, OUT Qty)
+    for (let i = 0; i < 5 * 4; i++) wscols.push({ wch: 15 });
     // Add width for combined note
     wscols.push({ wch: 40 });
     // Enable multi-line in the note column
