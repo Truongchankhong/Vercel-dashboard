@@ -344,6 +344,8 @@ window.exportToExcel = () => {
             'Finish Date': item.finish_date || '',
         };
 
+        let combinedNotes = [];
+
         ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'].forEach(stage => {
             const data = item.stages[stage];
             row[`${stage} - IN Time`] = data.in ? new Date(data.in.time).toLocaleString('vi-VN') : '';
@@ -351,8 +353,15 @@ window.exportToExcel = () => {
             row[`${stage} - OUT Time`] = data.out ? new Date(data.out.time).toLocaleString('vi-VN') : '';
             row[`${stage} - OUT Qty`] = data.out ? data.out.qty : '';
             row[`${stage} - Gap`] = (data.in?.qty || 0) - (data.out?.qty || 0);
-            row[`${stage} - Note`] = data.note || '';
+
+            // Collect notes
+            if (data.note && data.note.trim() !== '') {
+                combinedNotes.push(`${stage}: ${data.note.trim()}`);
+            }
         });
+
+        // Add combined note column
+        row['Ghi chú tổng hợp'] = combinedNotes.join('\n');
 
         return row;
     });
@@ -370,8 +379,13 @@ window.exportToExcel = () => {
         { wch: 10 }, // Total Qty
         { wch: 15 }, // Finish Date
     ];
-    // Add widths for stages
-    for (let i = 0; i < 5 * 6; i++) wscols.push({ wch: 15 });
+    // Add widths for stages (5 stages * 5 columns each: IN Time, IN Qty, OUT Time, OUT Qty, Gap)
+    for (let i = 0; i < 5 * 5; i++) wscols.push({ wch: 15 });
+    // Add width for combined note
+    wscols.push({ wch: 40 });
+    // Enable multi-line in the note column
+    // (Note: sheetjs basic object-to-sheet doesn't apply styling, 
+    // but the \n will work in Excel if the user enables "Wrap Text")
     worksheet['!cols'] = wscols;
 
     const fileName = `TienDoHangBu_${dateStartInput.value}_to_${dateEndInput.value}.xlsx`;
