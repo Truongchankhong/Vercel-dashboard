@@ -450,7 +450,8 @@ setInterval(() => {
     if (!cameraActive && activeSection && activeAction &&
         document.activeElement !== scannerInputOverlay &&
         document.activeElement !== manualRproInput &&
-        document.activeElement !== inputQty) {
+        document.activeElement !== inputQty &&
+        document.activeElement !== manualNoteInput) {
         scannerInputOverlay.focus();
     }
 }, 500);
