@@ -63,12 +63,13 @@ async function fetchProgressData() {
         progressMap = {};
         data.forEach(updateLocalState);
 
-        // BULK FETCH FINISH DATES
+        // BULK FETCH FINISH DATES, MOLD AND CONFIRMATION
         const rproList = Object.keys(progressMap);
         if (rproList.length > 0) {
+            // Fetch PowerApp Details
             const { data: orderDetails } = await supabase
                 .from('powerapp')
-                .select('"PRO ODER", "Finish date", "SO", "Brand Code", "CUSTOMERS", "Total Qty"')
+                .select('"PRO ODER", "Finish date", "SO", "Brand Code", "CUSTOMERS", "Total Qty", "#MOLD"')
                 .in('"PRO ODER"', rproList);
 
             if (orderDetails) {
@@ -80,6 +81,24 @@ async function fetchProgressData() {
                         progressMap[code].brand = item['Brand Code'];
                         progressMap[code].customer = item['CUSTOMERS'];
                         progressMap[code].total_qty = item['Total Qty'];
+                        progressMap[code].mold = item['#MOLD'];
+                    }
+                });
+            }
+
+            // Fetch Confirmation Details (Qty_Sup and Date make order)
+            const { data: confirmDetails } = await supabase
+                .from('supplement_confirm')
+                .select('rpro, total, confirm, updated_at')
+                .in('rpro', rproList);
+
+            if (confirmDetails) {
+                confirmDetails.forEach(item => {
+                    const code = item.rpro;
+                    if (progressMap[code]) {
+                        progressMap[code].qty_sup = item.total;
+                        progressMap[code].confirm_date = item.updated_at;
+                        progressMap[code].confirm_status = item.confirm;
                     }
                 });
             }
@@ -116,6 +135,15 @@ function updateLocalState(record) {
     const stage = item.stages[record.section];
 
     if (stage) {
+        // Track last overall activity for Stage_ID
+        if (!item.last_scan || new Date(record.created_at) > new Date(item.last_scan.time)) {
+            item.last_scan = {
+                section: record.section,
+                action: record.action,
+                time: record.created_at
+            };
+        }
+
         // Shared logic: Update note if present in record (latest record wins due to fetch order)
         if (record.action === 'NOTE') {
             stage.note = record.note; // Allows clearing note with empty string
@@ -335,23 +363,37 @@ window.exportToExcel = () => {
     }
 
     const exportData = filtered.map(item => {
+        // Stage mapping for display
+        const stageNames = {
+            'Dán': 'Dán',
+            'Cắt': 'Cắt',
+            'Molding': 'Molding',
+            'DC': 'Leanline DC',
+            'Molded': 'Leanline Molded'
+        };
+
+        const lastScan = item.last_scan;
+        const stageId = lastScan ? `${stageNames[lastScan.section]} - ${lastScan.action}` : '-';
+
         const row = {
-            'MÃ ĐƠN (RPRO)': item.rpro,
-            'Brand': item.brand || '',
             'SO': item.so || '',
+            'Mã đơn (RPRO)': item.rpro,
+            'Brand': item.brand || '',
             'Customer': item.customer || '',
+            '#MOLD': item.mold || '',
             'Total Qty': item.total_qty || '',
-            'Finish Date': item.finish_date || '',
+            'Qty_Sup': item.qty_sup || '',
+            'Stage_ID': stageId,
+            'Date make order': item.confirm_date ? new Date(item.confirm_date).toLocaleDateString('vi-VN') : '',
         };
 
         let combinedNotes = [];
 
         ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'].forEach(stage => {
             const data = item.stages[stage];
-            row[`${stage} - IN Time`] = data.in ? new Date(data.in.time).toLocaleString('vi-VN') : '';
-            row[`${stage} - IN Qty`] = data.in ? data.in.qty : '';
-            row[`${stage} - OUT Time`] = data.out ? new Date(data.out.time).toLocaleString('vi-VN') : '';
-            row[`${stage} - OUT Qty`] = data.out ? data.out.qty : '';
+            const displayName = stageNames[stage];
+            row[`${displayName} - IN Time`] = data.in ? new Date(data.in.time).toLocaleString('vi-VN') : '';
+            row[`${displayName} - OUT Time`] = data.out ? new Date(data.out.time).toLocaleString('vi-VN') : '';
 
             // Collect notes
             if (data.note && data.note.trim() !== '') {
@@ -360,7 +402,7 @@ window.exportToExcel = () => {
         });
 
         // Add combined note column
-        row['Ghi chú tổng hợp'] = combinedNotes.join('\n');
+        row['Note'] = combinedNotes.join('\n');
 
         return row;
     });
@@ -371,16 +413,19 @@ window.exportToExcel = () => {
 
     // Fix column widths
     const wscols = [
+        { wch: 15 }, // SO
         { wch: 20 }, // RPRO
         { wch: 15 }, // Brand
-        { wch: 15 }, // SO
         { wch: 20 }, // Customer
-        { wch: 10 }, // Total Qty
-        { wch: 15 }, // Finish Date
+        { wch: 15 }, // #MOLD
+        { wch: 12 }, // Total Qty
+        { wch: 12 }, // Qty_Sup
+        { wch: 25 }, // Stage_ID
+        { wch: 15 }, // Date make order
     ];
-    // Add widths for stages (5 stages * 4 columns each: IN Time, IN Qty, OUT Time, OUT Qty)
-    for (let i = 0; i < 5 * 4; i++) wscols.push({ wch: 15 });
-    // Add width for combined note
+    // Add widths for stages (5 stages * 2 columns each: IN Time, OUT Time)
+    for (let i = 0; i < 5 * 2; i++) wscols.push({ wch: 18 });
+    // Add width for note
     wscols.push({ wch: 40 });
     // Enable multi-line in the note column
     // (Note: sheetjs basic object-to-sheet doesn't apply styling, 
