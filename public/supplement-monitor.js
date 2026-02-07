@@ -135,8 +135,8 @@ function updateLocalState(record) {
     const stage = item.stages[record.section];
 
     if (stage) {
-        // Track last overall activity for Stage_ID
-        if (!item.last_scan || new Date(record.created_at) > new Date(item.last_scan.time)) {
+        // Track last overall activity for Stage_ID (Exclude NOTE)
+        if (record.action !== 'NOTE' && (!item.last_scan || new Date(record.created_at) > new Date(item.last_scan.time))) {
             item.last_scan = {
                 section: record.section,
                 action: record.action,

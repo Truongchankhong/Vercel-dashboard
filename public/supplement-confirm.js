@@ -124,7 +124,10 @@ window.handleAvailableUpdate = async (rpro, value, total) => {
   const numValue = value === '' ? total : Number(value);
   const { error } = await supabase
     .from('supplement_confirm')
-    .update({ available_supplement: numValue })
+    .update({
+      available_supplement: numValue,
+      updated_at: new Date().toISOString()
+    })
     .eq('rpro', rpro);
 
   if (error) {
@@ -146,7 +149,10 @@ window.handleConfirmation = async (rpro, newStatus, currentStatus) => {
 
   const { error } = await supabase
     .from('supplement_confirm')
-    .update({ confirm: statusToSave })
+    .update({
+      confirm: statusToSave,
+      updated_at: new Date().toISOString()
+    })
     .eq('rpro', rpro);
 
   if (error) {
