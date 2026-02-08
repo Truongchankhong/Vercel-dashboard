@@ -6,7 +6,7 @@ import fs from 'fs';
 import XLSX from 'xlsx';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,7 +19,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.post('/supplement', (req, res) => {
   try {
     const { rpro, metadata, details, total } = req.body;
-    const BASE_DIR  = path.join(__dirname, 'data');
+    const BASE_DIR = path.join(__dirname, 'data');
     const FILE_PATH = path.join(BASE_DIR, 'Supplement.xlsx');
     const SHEETNAME = 'Supplement';
 
@@ -79,6 +79,39 @@ app.post('/supplement', (req, res) => {
 
   } catch (err) {
     console.error('❌ [SUPPLEMENT] Ghi file lỗi:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- NEW: AI CHAT ENDPOINT ---
+const GEMINI_API_KEY = "AIzaSyAmZxLaoIh_Ff3nmnzo4iL_lL04js1irec";
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { prompt, context } = req.body;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: `${context}\n\nNgười dùng hỏi: ${prompt}` }]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    if (data.error) {
+      console.error("Gemini Error:", data.error);
+      return res.status(500).json({ error: data.error.message });
+    }
+
+    const aiResponse = data.candidates[0].content.parts[0].text;
+    res.json({ response: aiResponse });
+
+  } catch (err) {
+    console.error('❌ [CHAT] Lỗi AI:', err);
     res.status(500).json({ error: err.message });
   }
 });
