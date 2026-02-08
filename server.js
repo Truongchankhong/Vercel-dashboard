@@ -86,7 +86,7 @@ app.post('/supplement', (req, res) => {
 
 // --- NEW: AI CHAT ENDPOINT (ROBUST VERSION) ---
 const GEMINI_API_KEY = "AIzaSyAmZxLaoIh_Ff3nmnzo4iL_lL04js1irec";
-const MODELS = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-pro"];
+const MODELS = ["gemini-1.5-pro", "gemini-1.5-pro-latest", "gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash"];
 
 app.post('/api/chat', async (req, res) => {
   const { prompt, context } = req.body;

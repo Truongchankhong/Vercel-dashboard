@@ -5,11 +5,11 @@ const GEMINI_API_KEY = "AIzaSyAmZxLaoIh_Ff3nmnzo4iL_lL04js1irec";
 
 // Danh sách các mô hình có khả năng hỗ trợ để thử nghiệm theo thứ tự ưu tiên
 const MODELS = [
+    "gemini-1.5-pro",
+    "gemini-1.5-pro-latest",
     "gemini-1.5-flash",
     "gemini-1.5-flash-latest",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-pro"
+    "gemini-2.0-flash"
 ];
 
 export default async function handler(req, res) {
