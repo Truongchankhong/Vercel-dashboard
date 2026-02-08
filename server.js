@@ -103,8 +103,10 @@ app.post('/api/chat', async (req, res) => {
         const allData = jsonContent.data || [];
         const orderDetail = allData.find(item => (item["PRO ODER"] || '').toString().toUpperCase() === searchRpro);
         if (orderDetail) {
-          finalContext += `\n\n[DỮ LIỆU HỆ THỐNG]:\n${JSON.stringify(orderDetail, null, 2)}`;
-          finalContext += `\nBẠN PHẢI DÙNG DỮ LIỆU NÀY ĐỂ TRẢ LỜI.`;
+          finalContext += `\n\n[DỮ LIỆU THỰC TẾ HỆ THỐNG - QUAN TRỌNG]:\nĐơn hàng ${searchRpro} có thông tin sau:\n${JSON.stringify(orderDetail, null, 2)}`;
+          finalContext += `\nBẠN PHẢI TRẢ LỜI: "Dựa vào dữ liệu hệ thống, đơn hàng ${searchRpro}..." và trích dẫn thông tin chi tiết.`;
+        } else {
+          finalContext += `\n\n[THÔNG BÁO]: Không tìm thấy đơn hàng ${searchRpro} trong cơ sở dữ liệu Powerapp. Hãy lịch sự báo cho người dùng biết là mã này không tồn tại hoặc chưa được cập nhật. KHÔNG được tự ý bịa ra thông tin hoặc dùng tên cột làm kết quả.`;
         }
       }
     }
