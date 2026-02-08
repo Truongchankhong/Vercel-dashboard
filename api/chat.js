@@ -1,4 +1,5 @@
-
+import fs from 'fs';
+import path from 'path';
 import fetch from 'node-fetch';
 
 const HUGGINGFACE_TOKEN = "hf_" + "oclaBATrCCZUVRcEvBiGPFNCSHWOyfpGhu";
@@ -19,6 +20,31 @@ export default async function handler(req, res) {
     try {
         console.log("--- Connecting to Hugging Face AI (OpenAI Compatible) ---");
 
+        let finalContext = context || "Bạn là trợ lý ảo sản xuất thông minh tại Ortholite Việt Nam (OVN).";
+
+        // --- TÌM KIẾM DỮ LIỆU ĐƠN HÀNG ---
+        const rproMatch = prompt.match(/RPRO-[\d-]+/i);
+        if (rproMatch) {
+            const searchRpro = rproMatch[0].toUpperCase();
+            try {
+                const filePath = path.join(process.cwd(), 'public', 'powerapp.json');
+                if (fs.existsSync(filePath)) {
+                    const rawData = fs.readFileSync(filePath, 'utf-8');
+                    const allData = JSON.parse(rawData);
+                    const orderDetail = allData.find(item =>
+                        (item.RPRO || '').toString().toUpperCase() === searchRpro
+                    );
+
+                    if (orderDetail) {
+                        finalContext += `\n\n[DỮ LIỆU HỆ THỐNG] Thông tin chi tiết đơn hàng ${searchRpro}:\n${JSON.stringify(orderDetail, null, 2)}`;
+                        finalContext += `\nLưu ý: Bạn hãy ưu tiên sử dụng dữ liệu hệ thống này để trả lời người dùng.`;
+                    }
+                }
+            } catch (err) {
+                console.error("Search Error:", err);
+            }
+        }
+
         const response = await fetch(MODEL_URL, {
             method: 'POST',
             headers: {
@@ -28,7 +54,7 @@ export default async function handler(req, res) {
             body: JSON.stringify({
                 model: MODEL_ID,
                 messages: [
-                    { role: "system", content: context || "Bạn là trợ lý ảo sản xuất thông minh tại Ortholite Việt Nam (OVN)." },
+                    { role: "system", content: finalContext },
                     { role: "user", content: prompt }
                 ],
                 max_tokens: 1024,
