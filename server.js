@@ -86,21 +86,24 @@ app.post('/supplement', (req, res) => {
 
 // --- NEW: AI CHAT ENDPOINT (HUGGING FACE VERSION) ---
 const HF_TOKEN = "hf_" + "hZetUheTUmaFKDmcXsMVmPvJCoaMnxasdG";
-const MODEL_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-72B-Instruct";
+const MODEL_URL = "https://router.huggingface.co/v1/chat/completions";
+const MODEL_ID = "Qwen/Qwen2.5-72B-Instruct";
 
 app.post('/api/chat', async (req, res) => {
   const { prompt, context } = req.body;
   try {
-    const fullPrompt = `<|im_start|>system\n${context}<|im_end|>\n<|im_start|>user\n${prompt}<|im_end|>\n<|im_start|>assistant\n`;
     const response = await fetch(MODEL_URL, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${HF_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ inputs: fullPrompt, parameters: { max_new_tokens: 1024, temperature: 0.7, return_full_text: false } })
+      body: JSON.stringify({
+        model: MODEL_ID,
+        messages: [{ role: "system", content: context }, { role: "user", content: prompt }],
+        max_tokens: 1024, temperature: 0.7, stream: false
+      })
     });
     const data = await response.json();
-    if (data.error) throw new Error(data.error);
-    let aiResponse = Array.isArray(data) ? data[0].generated_text : data.generated_text;
-    aiResponse = aiResponse.split("<|im_end|>")[0].trim();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    const aiResponse = data.choices[0].message.content;
     res.json({ response: aiResponse });
   } catch (err) {
     res.status(500).json({ error: "Lỗi kết nối AI: " + err.message });

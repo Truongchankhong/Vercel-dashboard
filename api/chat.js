@@ -1,8 +1,10 @@
 
 import fetch from 'node-fetch';
+
 const HUGGINGFACE_TOKEN = "hf_" + "hZetUheTUmaFKDmcXsMVmPvJCoaMnxasdG";
-// Sử dụng mô hình Qwen 2.5 72B Instruct - Cực mạnh về tiếng Việt và phân tích dữ liệu
-const MODEL_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-72B-Instruct";
+// Chuyển sang URL router mới của Hugging Face (OpenAI compatible)
+const MODEL_URL = "https://router.huggingface.co/v1/chat/completions";
+const MODEL_ID = "Qwen/Qwen2.5-72B-Instruct";
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -15,9 +17,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        console.log("--- Connecting to Hugging Face AI (Qwen 2.5) ---");
-
-        const fullPrompt = `<|im_start|>system\n${context || 'Bạn là trợ lý ảo sản xuất thông minh tại Ortholite Việt Nam (OVN).'}<|im_end|>\n<|im_start|>user\n${prompt}<|im_end|>\n<|im_start|>assistant\n`;
+        console.log("--- Connecting to Hugging Face AI (OpenAI Compatible) ---");
 
         const response = await fetch(MODEL_URL, {
             method: 'POST',
@@ -26,45 +26,37 @@ export default async function handler(req, res) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                inputs: fullPrompt,
-                parameters: {
-                    max_new_tokens: 1024,
-                    temperature: 0.7,
-                    return_full_text: false
-                }
+                model: MODEL_ID,
+                messages: [
+                    { role: "system", content: context || "Bạn là trợ lý ảo sản xuất thông minh tại Ortholite Việt Nam (OVN)." },
+                    { role: "user", content: prompt }
+                ],
+                max_tokens: 1024,
+                temperature: 0.7,
+                stream: false
             })
         });
 
         const data = await response.json();
 
-        // Kiểm tra lỗi từ Hugging Face
         if (data.error) {
             console.error("HF Error:", data.error);
-            // Một số mẫu lỗi: "Model is loading", 503 Service Unavailable
-            if (data.error.includes("loading")) {
+            if (typeof data.error === 'string' && data.error.includes("loading")) {
                 return res.status(503).json({ error: "AI đang được khởi động (khoảng 1 phút). Vui lòng thử lại sau giây lát." });
             }
-            return res.status(500).json({ error: "Lỗi AI: " + data.error });
+            return res.status(500).json({ error: "Lỗi AI: " + (data.error.message || JSON.stringify(data.error)) });
         }
 
-        // Dữ liệu từ HF thường là mảng [{ generated_text: "..." }]
-        let aiResponse = "";
-        if (Array.isArray(data) && data[0].generated_text) {
-            aiResponse = data[0].generated_text;
-        } else if (data.generated_text) {
-            aiResponse = data.generated_text;
-        } else {
-            console.warn("Unexpected HF Data Format:", data);
-            throw new Error("Không nhận được phản hồi từ AI");
+        // Định dạng OpenAI trả về: data.choices[0].message.content
+        if (data.choices && data.choices.length > 0) {
+            const aiResponse = data.choices[0].message.content;
+            return res.status(200).json({
+                response: aiResponse,
+                model_active: MODEL_ID
+            });
         }
 
-        // Làm sạch phản hồi nếu cần (bỏ các tag thừa của Qwen)
-        aiResponse = aiResponse.split("<|im_end|>")[0].split("<|im_start|>")[0].trim();
-
-        res.status(200).json({
-            response: aiResponse,
-            model_active: "Qwen-2.5-72B"
-        });
+        throw new Error("Không nhận được phản hồi định dạng chuẩn từ AI");
 
     } catch (err) {
         console.error('❌ [CHAT API ERROR]:', err);
