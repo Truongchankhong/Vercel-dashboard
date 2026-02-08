@@ -43,25 +43,45 @@ export default async function handler(req, res) {
             } catch (err) { console.error("RPRO Search Err:", err); }
         }
 
-        // --- 2. THỐNG KÊ TỔNG QUÁT (KHI HỎI VỀ DELAY, TỔNG CỘNG, BAO NHIÊU) ---
+        // --- 2. THỐNG KÊ CHI TIẾT (PRODUCTION INSIGHTS) ---
         const queryLower = prompt.toLowerCase();
-        if (queryLower.includes("delay") || queryLower.includes("chậm") || queryLower.includes("trễ") || queryLower.includes("bao nhiêu") || queryLower.includes("tổng cộng")) {
+        const generalKeywords = ["tổng cộng", "tình hình", "báo cáo", "delay", "chậm", "bao nhiêu", "thế nào", "gấp"];
+
+        if (generalKeywords.some(k => queryLower.includes(k))) {
             try {
-                // Đếm số đơn delay
-                const { count: delayCount } = await supabase
-                    .from('powerapp')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('Delay-Urgent', 'PRODUCTION DELAY');
+                // Lấy snapshot dữ liệu (Tổng hợp nhanh)
+                const { data: allStats } = await supabase.from('powerapp').select('Brand Code, STATUS, Delay-Urgent, Total Qty');
 
-                // Đếm số đơn gấp
-                const { count: urgentCount } = await supabase
-                    .from('powerapp')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('Delay-Urgent', 'URGENT');
+                if (allStats && allStats.length > 0) {
+                    const totalOrders = allStats.length;
+                    const delayOrders = allStats.filter(o => o['Delay-Urgent'] === 'PRODUCTION DELAY').length;
+                    const urgentOrders = allStats.filter(o => o['Delay-Urgent'] === 'URGENT').length;
 
-                finalContext += `\n\n[THỐNG KÊ HỆ THỐNG]:\n- Tổng số đơn đang bị DELAY (Production delay): ${delayCount || 0} đơn.\n- Tổng số đơn GẤP (Urgent): ${urgentCount || 0} đơn.`;
-                finalContext += `\nLưu ý: Bạn hãy thông báo con số cụ thể này cho người dùng.`;
-            } catch (err) { console.error("Stats Err:", err); }
+                    // Thống kê theo Brand
+                    const brandStats = {};
+                    allStats.forEach(o => {
+                        const b = o['Brand Code'] || 'Khác';
+                        brandStats[b] = (brandStats[b] || 0) + 1;
+                    });
+                    const topBrands = Object.entries(brandStats).sort((a, b) => b[1] - a[1]).slice(0, 3).map(e => `${e[0]}: ${e[1]} đơn`).join(', ');
+
+                    // Thống kê theo Status
+                    const statusStats = {};
+                    allStats.forEach(o => {
+                        const s = o['STATUS'] || 'Unknown';
+                        statusStats[s] = (statusStats[s] || 0) + 1;
+                    });
+
+                    finalContext += `\n\n[BÁO CÁO NHANH HỆ THỐNG]:
+- Tổng đơn hàng: ${totalOrders}
+- Đang bị Delay: ${delayOrders}
+- Đơn hàng Gấp: ${urgentOrders}
+- Top 3 Thương hiệu: ${topBrands}
+- Trạng thái hiện tại: ${JSON.stringify(statusStats)}`;
+
+                    finalContext += `\nNhiệm vụ: Bạn hãy đóng vai một "Chuyên gia điều phối sản xuất", phân tích các con số trên để báo cáo tình hình. Đừng chỉ đọc số lớn, hãy tìm ra điểm bất thường (Ví dụ: Brand nào đang bị delay nhiều nhất).`;
+                }
+            } catch (err) { console.error("Snapshot Err:", err); }
         }
 
         const response = await fetch(MODEL_URL, {
