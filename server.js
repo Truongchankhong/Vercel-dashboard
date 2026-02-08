@@ -122,20 +122,25 @@ app.post('/api/chat', async (req, res) => {
       const bFound = brands.find(b => queryLower.includes(b.toLowerCase()));
 
       if (bFound) {
-        const { data: bData } = await supabase.from('powerapp').select('Total Qty, Delay-Urgent').eq('Brand Code', bFound);
+        const { data: bData } = await supabase.from('powerapp').select('Total Qty, Delay-Urgent').ilike('Brand Code', `%${bFound}%`);
         if (bData && bData.length > 0) {
-          const dQty = bData.filter(o => o['Delay-Urgent'] === 'PRODUCTION DELAY').reduce((s, o) => s + (parseFloat(o['Total Qty']) || 0), 0);
-          const tQty = bData.reduce((s, o) => s + (parseFloat(o['Total Qty']) || 0), 0);
-          finalContext += `\n\n[DỮ LIỆU HỆ THỐNG - BRAND ${bFound}]:\n- Tổng: ${tQty.toLocaleString()}\n- Delay: ${dQty.toLocaleString()}\nCHỈ THỊ: Dùng con số này để trả lời. CẤM nói là không có quyền truy cập.`;
+          const dQty = bData.filter(o => (o['Delay-Urgent'] || '').toString().toLowerCase().includes('delay')).reduce((s, o) => s + (parseFloat(String(o['Total Qty'] || '0').replace(/,/g, '')) || 0), 0);
+          const tQty = bData.reduce((s, o) => s + (parseFloat(String(o['Total Qty'] || '0').replace(/,/g, '')) || 0), 0);
+          finalContext += `\n\n[DỮ LIỆU HỆ THỐNG - BRAND ${bFound}]:\n- Tổng: ${tQty.toLocaleString()}\n- Delay: ${dQty.toLocaleString()}\nCHỈ THỊ: Trả lời về ${bFound} dựa trên các số này. CẤM giải thích lý do không có quyền.`;
         }
       }
 
-      // Snapshot tổng quát cho Planning
-      const { data: snapshot } = await supabase.from('powerapp').select('PRO ODER, CUSTOMERS, Finish date, STATUS, Delay-Urgent').limit(200);
+      // Snapshot tổng quát
+      const { data: snapshot } = await supabase.from('powerapp').select('PRO ODER, CUSTOMERS, Finish date, STATUS, Delay-Urgent').limit(50);
       if (snapshot) {
-        const priority = snapshot.filter(o => o.STATUS !== '9.STORED').sort((a, b) => (a['Delay-Urgent'] === 'URGENT' ? -1 : 1)).slice(0, 10);
-        finalContext += `\n\n[TOP ƯU TIÊN]:\n${JSON.stringify(priority)}`;
+        finalContext += `\n\n[DỮ LIỆU KẾ HOẠCH HÔM NAY]:\n${JSON.stringify(snapshot)}`;
       }
+    }
+
+    // --- Kỹ Thuật "Cưỡng Chế Thông Minh" ---
+    let aiPrompt = prompt;
+    if (finalContext.includes("[DỮ LIỆU")) {
+      aiPrompt = `DỮ LIỆU HỆ THỐNG:\n${finalContext}\n\n----------\nCHỈ THỊ: Dùng dữ liệu trên trả lời câu này: ${prompt}`;
     }
 
     const response = await fetch(MODEL_URL, {
@@ -143,8 +148,11 @@ app.post('/api/chat', async (req, res) => {
       headers: { 'Authorization': `Bearer ${HF_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL_ID,
-        messages: [{ role: "system", content: finalContext }, { role: "user", content: prompt }],
-        max_tokens: 1024, temperature: 0.7, stream: false
+        messages: [
+          { role: "system", content: "Bạn là chuyên gia sản xuất OVN. Trả lời ngay lập tức bằng số liệu được cung cấp. CẤM giải thích cách tra cứu." },
+          { role: "user", content: aiPrompt }
+        ],
+        max_tokens: 1024, temperature: 0.1, stream: false
       })
     });
     const data = await response.json();

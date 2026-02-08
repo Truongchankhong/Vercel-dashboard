@@ -64,9 +64,15 @@ export default async function handler(req, res) {
                     if (brandData && brandData.length > 0) {
                         const brandDelayQty = brandData
                             .filter(o => (o['Delay-Urgent'] || '').toString().toLowerCase().includes('delay'))
-                            .reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0);
+                            .reduce((sum, o) => {
+                                const val = String(o['Total Qty'] || '0').replace(/,/g, '');
+                                return sum + (parseFloat(val) || 0);
+                            }, 0);
 
-                        const brandTotalQty = brandData.reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0);
+                        const brandTotalQty = brandData.reduce((sum, o) => {
+                            const val = String(o['Total Qty'] || '0').replace(/,/g, '');
+                            return sum + (parseFloat(val) || 0);
+                        }, 0);
 
                         finalContext += `\n\n[DỮ LIỆU HỆ THỐNG XÁC THỰC - BRAND ${detectedBrand}]:
 - TỔNG SỐ LƯỢNG của thương hiệu ${detectedBrand}: ${brandTotalQty.toLocaleString()} đôi.
@@ -115,6 +121,13 @@ CHỈ THỊ QUAN TRỌNG: Bạn hãy dùng con số ${brandDelayQty.toLocaleStri
             } catch (err) { console.error("Planning Err:", err); }
         }
 
+        // --- 3. GỬI ĐẾN AI (HUGGING FACE) ---
+        // Kỹ thuật "Cưỡng chế thông minh": Đưa dữ liệu thẳng vào câu hỏi của người dùng
+        let aiFormattedPrompt = prompt;
+        if (finalContext.includes("[DỮ LIỆU")) {
+            aiFormattedPrompt = `DƯỚI ĐÂY LÀ DỮ LIỆU THỰC TẾ TỪ HỆ THỐNG SUPABASE (BẮT BUỘC SỬ DỤNG):\n${finalContext}\n\n----------\nCÂU HỎI CỦA NGƯỜI DÙNG: ${prompt}`;
+        }
+
         const response = await fetch(MODEL_URL, {
             method: 'POST',
             headers: {
@@ -124,11 +137,11 @@ CHỈ THỊ QUAN TRỌNG: Bạn hãy dùng con số ${brandDelayQty.toLocaleStri
             body: JSON.stringify({
                 model: MODEL_ID,
                 messages: [
-                    { role: "system", content: finalContext },
-                    { role: "user", content: prompt }
+                    { role: "system", content: "Bạn là chuyên gia điều phối sản xuất OVN. Bạn phải dùng dữ liệu được cung cấp để trả lời ngay lập tức. TUYỆT ĐỐI KHÔNG giải thích cách tra cứu hay SQL." },
+                    { role: "user", content: aiFormattedPrompt }
                 ],
                 max_tokens: 1024,
-                temperature: 0.7,
+                temperature: 0.1, // Giảm độ sáng tạo để ưu tiên độ chính xác
                 stream: false
             })
         });
