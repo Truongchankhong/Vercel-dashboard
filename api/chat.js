@@ -46,12 +46,37 @@ export default async function handler(req, res) {
         // --- 2. THỐNG KÊ CHI TIẾT & LẬP KẾ HOẠCH (PLANNING INSIGHTS) ---
         const queryLower = prompt.toLowerCase();
         const planningKeywords = ["kế hoạch", "ưu tiên", "tư vấn", "chạy đơn", "sắp xếp", "lịch", "nên làm"];
-        const generalKeywords = ["tổng cộng", "tình hình", "báo cáo", "delay", "chậm", "bao nhiêu", "thế nào", "gấp"];
+        const generalKeywords = ["tổng cộng", "tình hình", "báo cáo", "delay", "chậm", "bao nhiêu", "thế nào", "gấp", "số lượng"];
 
         if (planningKeywords.some(k => queryLower.includes(k)) || generalKeywords.some(k => queryLower.includes(k))) {
             try {
-                // Lấy snapshot tổng quát
-                const { data: allStats } = await supabase.from('powerapp').select('Brand Code, STATUS, Delay-Urgent, Total Qty, Finish date, PRO ODER, CUSTOMERS');
+                // --- 2A. PHÁT HIỆN BRAND CỤ THỂ TRONG CÂU HỎI ---
+                const knownBrands = ["ASICS", "NIKE", "BROOKS", "ON RUNNING", "PUMA", "ADIDAS", "NEW BALANCE"];
+                const detectedBrand = knownBrands.find(b => queryLower.includes(b.toLowerCase()));
+
+                if (detectedBrand) {
+                    // Truy vấn riêng cho Brand này
+                    const { data: brandData } = await supabase
+                        .from('powerapp')
+                        .select('Total Qty, Delay-Urgent')
+                        .eq('Brand Code', detectedBrand);
+
+                    if (brandData) {
+                        const brandDelayQty = brandData
+                            .filter(o => o['Delay-Urgent'] === 'PRODUCTION DELAY')
+                            .reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0);
+
+                        const brandTotalQty = brandData.reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0);
+
+                        finalContext += `\n\n[DỮ LIỆU RIÊNG CHO BRAND ${detectedBrand}]:
+- Tổng số lượng đơn hàng của ${detectedBrand}: ${brandTotalQty.toLocaleString()} đôi.
+- Tổng số lượng đang bị DELAY (Production delay): ${brandDelayQty.toLocaleString()} đôi.
+BẠN PHẢI DÙNG CON SỐ ${brandDelayQty.toLocaleString()} NÀY ĐỂ TRẢ LỜI NGƯỜI DÙNG.`;
+                    }
+                }
+
+                // --- 2B. LẤY SNAPSHOT TỔNG QUÁT ---
+                const { data: allStats } = await supabase.from('powerapp').select('Brand Code, STATUS, Delay-Urgent, Total Qty, Finish date, PRO ODER, CUSTOMERS').limit(500);
 
                 if (allStats && allStats.length > 0) {
                     // --- THỐNG KÊ NHANH ---
