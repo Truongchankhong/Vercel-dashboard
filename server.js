@@ -84,37 +84,38 @@ app.post('/supplement', (req, res) => {
   }
 });
 
-// --- NEW: AI CHAT ENDPOINT ---
+// --- NEW: AI CHAT ENDPOINT (ROBUST VERSION) ---
 const GEMINI_API_KEY = "AIzaSyAmZxLaoIh_Ff3nmnzo4iL_lL04js1irec";
+const MODELS = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-pro"];
+
 app.post('/api/chat', async (req, res) => {
-  try {
-    const { prompt, context } = req.body;
+  const { prompt, context } = req.body;
+  let lastError = null;
 
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+  for (const modelName of MODELS) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `${context}\n\nNgười dùng hỏi: ${prompt}` }] }]
+        })
+      });
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: `${context}\n\nNgười dùng hỏi: ${prompt}` }]
-        }]
-      })
-    });
-
-    const data = await response.json();
-    if (data.error) {
-      console.error("Gemini Error:", data.error);
-      return res.status(500).json({ error: data.error.message });
+      const data = await response.json();
+      if (!data.error && data.candidates && data.candidates.length > 0) {
+        return res.json({ response: data.candidates[0].content.parts[0].text });
+      }
+      if (data.error && data.error.message.includes("quota")) {
+        return res.status(429).json({ error: "Hết hạn mức AI." });
+      }
+      lastError = data.error ? data.error.message : "Not found";
+    } catch (err) {
+      lastError = err.message;
     }
-
-    const aiResponse = data.candidates[0].content.parts[0].text;
-    res.json({ response: aiResponse });
-
-  } catch (err) {
-    console.error('❌ [CHAT] Lỗi AI:', err);
-    res.status(500).json({ error: err.message });
   }
+  res.status(500).json({ error: "Lỗi kết nối AI: " + lastError });
 });
 
 app.listen(PORT, () => {
