@@ -1,16 +1,8 @@
 
 import fetch from 'node-fetch';
-
-const GEMINI_API_KEY = "AIzaSyAmZxLaoIh_Ff3nmnzo4iL_lL04js1irec";
-
-// Danh sách các mô hình có khả năng hỗ trợ để thử nghiệm theo thứ tự ưu tiên
-const MODELS = [
-    "gemini-1.5-pro",
-    "gemini-1.5-pro-latest",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-latest",
-    "gemini-2.0-flash"
-];
+const HUGGINGFACE_TOKEN = "hf_" + "hZetUheTUmaFKDmcXsMVmPvJCoaMnxasdG";
+// Sử dụng mô hình Qwen 2.5 72B Instruct - Cực mạnh về tiếng Việt và phân tích dữ liệu
+const MODEL_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-72B-Instruct";
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -22,54 +14,60 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    let lastError = null;
+    try {
+        console.log("--- Connecting to Hugging Face AI (Qwen 2.5) ---");
 
-    // Thử lần lượt các mô hình cho đến khi thành công
-    for (const modelName of MODELS) {
-        try {
-            console.log(`--- Thử kết nối với mô hình: ${modelName} ---`);
+        const fullPrompt = `<|im_start|>system\n${context || 'Bạn là trợ lý ảo sản xuất thông minh tại Ortholite Việt Nam (OVN).'}<|im_end|>\n<|im_start|>user\n${prompt}<|im_end|>\n<|im_start|>assistant\n`;
 
-            // Thử cả v1 và v1beta nếu cần, nhưng v1beta thường bao quát hơn
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+        const response = await fetch(MODEL_URL, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${HUGGINGFACE_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                inputs: fullPrompt,
+                parameters: {
+                    max_new_tokens: 1024,
+                    temperature: 0.7,
+                    return_full_text: false
+                }
+            })
+        });
 
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: `${context || ''}\n\nNgười dùng hỏi: ${prompt}` }]
-                    }]
-                })
-            });
+        const data = await response.json();
 
-            const data = await response.json();
-
-            // Nếu thành công (không có lỗi và có dữ liệu trả về)
-            if (!data.error && data.candidates && data.candidates.length > 0) {
-                const aiResponse = data.candidates[0].content.parts[0].text;
-                return res.status(200).json({
-                    response: aiResponse,
-                    model_active: modelName
-                });
+        // Kiểm tra lỗi từ Hugging Face
+        if (data.error) {
+            console.error("HF Error:", data.error);
+            // Một số mẫu lỗi: "Model is loading", 503 Service Unavailable
+            if (data.error.includes("loading")) {
+                return res.status(503).json({ error: "AI đang được khởi động (khoảng 1 phút). Vui lòng thử lại sau giây lát." });
             }
-
-            // Nếu lỗi do hết hạn mức (Quota), ta báo luôn cho người dùng
-            if (data.error && data.error.message.includes("quota")) {
-                return res.status(429).json({ error: "⚠️ Tài khoản AI đã hết hạn mức miễn phí hôm nay. Vui lòng quay lại sau." });
-            }
-
-            // Nếu lỗi khác (như Not Found), tiếp tục thử mô hình tiếp theo
-            console.warn(`Mô hình ${modelName} không phản hồi:`, data.error ? data.error.message : "Dữ liệu trống");
-            lastError = data.error ? data.error.message : "Model not found or unsupported";
-
-        } catch (err) {
-            console.error(`Lỗi kết nối ${modelName}:`, err.message);
-            lastError = err.message;
+            return res.status(500).json({ error: "Lỗi AI: " + data.error });
         }
-    }
 
-    // Nếu đã thử hết các mô hình mà vẫn thất bại
-    res.status(500).json({
-        error: `❌ Không thể kết nối với bất kỳ dòng AI nào (Lỗi cuối: ${lastError}). Vui lòng kiểm tra lại trạng thái API Key.`
-    });
+        // Dữ liệu từ HF thường là mảng [{ generated_text: "..." }]
+        let aiResponse = "";
+        if (Array.isArray(data) && data[0].generated_text) {
+            aiResponse = data[0].generated_text;
+        } else if (data.generated_text) {
+            aiResponse = data.generated_text;
+        } else {
+            console.warn("Unexpected HF Data Format:", data);
+            throw new Error("Không nhận được phản hồi từ AI");
+        }
+
+        // Làm sạch phản hồi nếu cần (bỏ các tag thừa của Qwen)
+        aiResponse = aiResponse.split("<|im_end|>")[0].split("<|im_start|>")[0].trim();
+
+        res.status(200).json({
+            response: aiResponse,
+            model_active: "Qwen-2.5-72B"
+        });
+
+    } catch (err) {
+        console.error('❌ [CHAT API ERROR]:', err);
+        res.status(500).json({ error: 'Lỗi hệ thống AI: ' + err.message });
+    }
 }

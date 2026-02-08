@@ -84,38 +84,27 @@ app.post('/supplement', (req, res) => {
   }
 });
 
-// --- NEW: AI CHAT ENDPOINT (ROBUST VERSION) ---
-const GEMINI_API_KEY = "AIzaSyAmZxLaoIh_Ff3nmnzo4iL_lL04js1irec";
-const MODELS = ["gemini-1.5-pro", "gemini-1.5-pro-latest", "gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-2.0-flash"];
+// --- NEW: AI CHAT ENDPOINT (HUGGING FACE VERSION) ---
+const HF_TOKEN = "hf_" + "hZetUheTUmaFKDmcXsMVmPvJCoaMnxasdG";
+const MODEL_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-72B-Instruct";
 
 app.post('/api/chat', async (req, res) => {
   const { prompt, context } = req.body;
-  let lastError = null;
-
-  for (const modelName of MODELS) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `${context}\n\nNgười dùng hỏi: ${prompt}` }] }]
-        })
-      });
-
-      const data = await response.json();
-      if (!data.error && data.candidates && data.candidates.length > 0) {
-        return res.json({ response: data.candidates[0].content.parts[0].text });
-      }
-      if (data.error && data.error.message.includes("quota")) {
-        return res.status(429).json({ error: "Hết hạn mức AI." });
-      }
-      lastError = data.error ? data.error.message : "Not found";
-    } catch (err) {
-      lastError = err.message;
-    }
+  try {
+    const fullPrompt = `<|im_start|>system\n${context}<|im_end|>\n<|im_start|>user\n${prompt}<|im_end|>\n<|im_start|>assistant\n`;
+    const response = await fetch(MODEL_URL, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${HF_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inputs: fullPrompt, parameters: { max_new_tokens: 1024, temperature: 0.7, return_full_text: false } })
+    });
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    let aiResponse = Array.isArray(data) ? data[0].generated_text : data.generated_text;
+    aiResponse = aiResponse.split("<|im_end|>")[0].trim();
+    res.json({ response: aiResponse });
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi kết nối AI: " + err.message });
   }
-  res.status(500).json({ error: "Lỗi kết nối AI: " + lastError });
 });
 
 app.listen(PORT, () => {
