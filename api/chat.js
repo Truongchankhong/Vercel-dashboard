@@ -43,45 +43,49 @@ export default async function handler(req, res) {
             } catch (err) { console.error("RPRO Search Err:", err); }
         }
 
-        // --- 2. THỐNG KÊ CHI TIẾT (PRODUCTION INSIGHTS) ---
+        // --- 2. THỐNG KÊ CHI TIẾT & LẬP KẾ HOẠCH (PLANNING INSIGHTS) ---
         const queryLower = prompt.toLowerCase();
+        const planningKeywords = ["kế hoạch", "ưu tiên", "tư vấn", "chạy đơn", "sắp xếp", "lịch", "nên làm"];
         const generalKeywords = ["tổng cộng", "tình hình", "báo cáo", "delay", "chậm", "bao nhiêu", "thế nào", "gấp"];
 
-        if (generalKeywords.some(k => queryLower.includes(k))) {
+        if (planningKeywords.some(k => queryLower.includes(k)) || generalKeywords.some(k => queryLower.includes(k))) {
             try {
-                // Lấy snapshot dữ liệu (Tổng hợp nhanh)
-                const { data: allStats } = await supabase.from('powerapp').select('Brand Code, STATUS, Delay-Urgent, Total Qty');
+                // Lấy snapshot tổng quát
+                const { data: allStats } = await supabase.from('powerapp').select('Brand Code, STATUS, Delay-Urgent, Total Qty, Finish date, PRO ODER, CUSTOMERS');
 
                 if (allStats && allStats.length > 0) {
+                    // --- THỐNG KÊ NHANH ---
                     const totalOrders = allStats.length;
                     const delayOrders = allStats.filter(o => o['Delay-Urgent'] === 'PRODUCTION DELAY').length;
                     const urgentOrders = allStats.filter(o => o['Delay-Urgent'] === 'URGENT').length;
 
-                    // Thống kê theo Brand
-                    const brandStats = {};
-                    allStats.forEach(o => {
-                        const b = o['Brand Code'] || 'Khác';
-                        brandStats[b] = (brandStats[b] || 0) + 1;
+                    // --- LẬP KẾ HOẠCH ƯU TIÊN (Priority Planning) ---
+                    // Lọc đơn chưa nhập kho, ưu tiên Urgent và Finish date sớm
+                    const priorityList = allStats
+                        .filter(o => o['STATUS'] !== '9.STORED' && o['STATUS'] !== '8.DELIVERY')
+                        .sort((a, b) => {
+                            // Ưu tiên Gấp (URGENT)
+                            if (a['Delay-Urgent'] === 'URGENT' && b['Delay-Urgent'] !== 'URGENT') return -1;
+                            if (a['Delay-Urgent'] !== 'URGENT' && b['Delay-Urgent'] === 'URGENT') return 1;
+                            // Sau đó ưu tiên Finish date (Càng nhỏ/càng sớm càng ưu tiên)
+                            return (new Date(a['Finish date']).getTime() || Infinity) - (new Date(b['Finish date']).getTime() || Infinity);
+                        })
+                        .slice(0, 20); // Lấy 20 đơn quan trọng nhất
+
+                    finalContext += `\n\n[BÁO CÁO NHANH]: Tổng ${totalOrders} đơn, ${delayOrders} delay, ${urgentOrders} gấp.`;
+
+                    finalContext += `\n\n[DANH SÁCH ĐƠN HÀNG CẦN ƯU TIÊN (TOP 20)]:`;
+                    priorityList.forEach((o, i) => {
+                        finalContext += `\n${i + 1}. ${o['PRO ODER']} | KH: ${o['CUSTOMERS']} | Hạn: ${o['Finish date']} | Trạng thái: ${o['STATUS']} | Loại: ${o['Delay-Urgent']}`;
                     });
-                    const topBrands = Object.entries(brandStats).sort((a, b) => b[1] - a[1]).slice(0, 3).map(e => `${e[0]}: ${e[1]} đơn`).join(', ');
 
-                    // Thống kê theo Status
-                    const statusStats = {};
-                    allStats.forEach(o => {
-                        const s = o['STATUS'] || 'Unknown';
-                        statusStats[s] = (statusStats[s] || 0) + 1;
-                    });
-
-                    finalContext += `\n\n[BÁO CÁO NHANH HỆ THỐNG]:
-- Tổng đơn hàng: ${totalOrders}
-- Đang bị Delay: ${delayOrders}
-- Đơn hàng Gấp: ${urgentOrders}
-- Top 3 Thương hiệu: ${topBrands}
-- Trạng thái hiện tại: ${JSON.stringify(statusStats)}`;
-
-                    finalContext += `\nNhiệm vụ: Bạn hãy đóng vai một "Chuyên gia điều phối sản xuất", phân tích các con số trên để báo cáo tình hình. Đừng chỉ đọc số lớn, hãy tìm ra điểm bất thường (Ví dụ: Brand nào đang bị delay nhiều nhất).`;
+                    finalContext += `\n\nNHIỆM VỤ CỦA BẠN:
+1. Bạn là chuyên gia Lập kế hoạch sản xuất (Production Planner).
+2. Dựa vào danh sách Top 20 trên, hãy tư vấn cho người dùng nên tập trung chạy đơn nào trước.
+3. Giải thích lý do (Ví dụ: Vì đơn này gấp hoặc sắp quá hạn Finish date).
+4. Nếu thấy nhiều đơn kẹt ở một bước (STATUS), hãy đưa ra cảnh báo về điểm nghẽn dây chuyền.`;
                 }
-            } catch (err) { console.error("Snapshot Err:", err); }
+            } catch (err) { console.error("Planning Err:", err); }
         }
 
         const response = await fetch(MODEL_URL, {
