@@ -89,6 +89,12 @@ const HF_TOKEN = "hf_" + "oclaBATrCCZUVRcEvBiGPFNCSHWOyfpGhu";
 const MODEL_URL = "https://router.huggingface.co/v1/chat/completions";
 const MODEL_ID = "Qwen/Qwen2.5-72B-Instruct";
 
+// Supabase config for AI
+const SUPABASE_URL = "https://ixdtdrbytwdmnlqgunzu.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4ZHRkcmJ5dHdkbW5scWd1bnp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyMzkyODYsImV4cCI6MjA2ODgxNTI4Nn0.5FLdLDf0d1yA70UBmAbJYW95kVWdta31QmEjm9oX4jg";
+import { createClient } from '@supabase/supabase-js';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 app.post('/api/chat', async (req, res) => {
   const { prompt, context } = req.body;
   try {
@@ -96,18 +102,15 @@ app.post('/api/chat', async (req, res) => {
     const rproMatch = prompt.match(/RPRO-[\d-]+/i);
     if (rproMatch) {
       const searchRpro = rproMatch[0].toUpperCase();
-      const filePath = path.join(__dirname, 'public', 'powerapp.json');
-      if (fs.existsSync(filePath)) {
-        const rawData = fs.readFileSync(filePath, 'utf-8');
-        const jsonContent = JSON.parse(rawData);
-        const allData = jsonContent.data || [];
-        const orderDetail = allData.find(item => (item["PRO ODER"] || '').toString().toUpperCase() === searchRpro);
-        if (orderDetail) {
-          finalContext += `\n\n[DỮ LIỆU THỰC TẾ HỆ THỐNG - QUAN TRỌNG]:\nĐơn hàng ${searchRpro} có thông tin sau:\n${JSON.stringify(orderDetail, null, 2)}`;
-          finalContext += `\nBẠN PHẢI TRẢ LỜI: "Dựa vào dữ liệu hệ thống, đơn hàng ${searchRpro}..." và trích dẫn thông tin chi tiết.`;
-        } else {
-          finalContext += `\n\n[THÔNG BÁO]: Không tìm thấy đơn hàng ${searchRpro} trong cơ sở dữ liệu Powerapp. Hãy lịch sự báo cho người dùng biết là mã này không tồn tại hoặc chưa được cập nhật. KHÔNG được tự ý bịa ra thông tin hoặc dùng tên cột làm kết quả.`;
-        }
+      const { data: orderDetail } = await supabase
+        .from('powerapp')
+        .select('*')
+        .eq('PRO ODER', searchRpro)
+        .maybeSingle();
+
+      if (orderDetail) {
+        finalContext += `\n\n[DỮ LIỆU SUPABASE]:\n${JSON.stringify(orderDetail, null, 2)}`;
+        finalContext += `\nBẠN PHẢI DÙNG DỮ LIỆU NÀY ĐỂ TRẢ LỜI.`;
       }
     }
 

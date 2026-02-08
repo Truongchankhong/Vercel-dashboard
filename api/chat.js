@@ -1,11 +1,14 @@
-import fs from 'fs';
-import path from 'path';
+
+import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
 
 const HUGGINGFACE_TOKEN = "hf_" + "oclaBATrCCZUVRcEvBiGPFNCSHWOyfpGhu";
-// Chuyển sang URL router mới của Hugging Face (OpenAI compatible)
 const MODEL_URL = "https://router.huggingface.co/v1/chat/completions";
 const MODEL_ID = "Qwen/Qwen2.5-72B-Instruct";
+
+const SUPABASE_URL = "https://ixdtdrbytwdmnlqgunzu.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4ZHRkcmJ5dHdkbW5scWd1bnp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyMzkyODYsImV4cCI6MjA2ODgxNTI4Nn0.5FLdLDf0d1yA70UBmAbJYW95kVWdta31QmEjm9oX4jg";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -18,35 +21,30 @@ export default async function handler(req, res) {
     }
 
     try {
-        console.log("--- Connecting to Hugging Face AI (OpenAI Compatible) ---");
+        console.log("--- Connecting to Hugging Face AI & Supabase ---");
 
         let finalContext = context || "Bạn là trợ lý ảo sản xuất thông minh tại Ortholite Việt Nam (OVN).";
 
-        // --- TÌM KIẾM DỮ LIỆU ĐƠN HÀNG ---
+        // --- TÌM KIẾM DỮ LIỆU ĐƠN HÀNG TRÊN SUPABASE ---
         const rproMatch = prompt.match(/RPRO-[\d-]+/i);
         if (rproMatch) {
             const searchRpro = rproMatch[0].toUpperCase();
             try {
-                const filePath = path.join(process.cwd(), 'public', 'powerapp.json');
-                if (fs.existsSync(filePath)) {
-                    const rawData = fs.readFileSync(filePath, 'utf-8');
-                    const jsonContent = JSON.parse(rawData);
+                // Ưu tiên tìm trong bảng powerapp trên Supabase
+                const { data: orderDetail, error } = await supabase
+                    .from('powerapp')
+                    .select('*')
+                    .eq('PRO ODER', searchRpro)
+                    .maybeSingle();
 
-                    // Cấu trúc mới: { headers: [], data: [] }
-                    const allData = jsonContent.data || [];
-                    const orderDetail = allData.find(item =>
-                        (item["PRO ODER"] || '').toString().toUpperCase() === searchRpro
-                    );
-
-                    if (orderDetail) {
-                        finalContext += `\n\n[DỮ LIỆU THỰC TẾ HỆ THỐNG - QUAN TRỌNG]:\nĐơn hàng ${searchRpro} có thông tin sau:\n${JSON.stringify(orderDetail, null, 2)}`;
-                        finalContext += `\nBẠN PHẢI TRẢ LỜI: "Dựa vào dữ liệu hệ thống, đơn hàng ${searchRpro}..." và trích dẫn thông tin chi tiết.`;
-                    } else {
-                        finalContext += `\n\n[THÔNG BÁO]: Không tìm thấy đơn hàng ${searchRpro} trong cơ sở dữ liệu Powerapp. Hãy lịch sự báo cho người dùng biết là mã này không tồn tại hoặc chưa được cập nhật. KHÔNG được tự ý bịa ra thông tin hoặc dùng tên cột làm kết quả.`;
-                    }
+                if (orderDetail) {
+                    finalContext += `\n\n[DỮ LIỆU THỰC TẾ SUPABASE - QUAN TRỌNG]:\nĐơn hàng ${searchRpro} có thông tin sau:\n${JSON.stringify(orderDetail, null, 2)}`;
+                    finalContext += `\nBẠN PHẢI TRẢ LỜI: "Dựa vào dữ liệu hệ thống Supabase, đơn hàng ${searchRpro}..." và trích dẫn thông tin chi tiết.`;
+                } else {
+                    finalContext += `\n\n[THÔNG BÁO]: Không tìm thấy đơn hàng ${searchRpro} trong bảng powerapp trên Supabase. Hãy báo cho người dùng biết mã này không tồn tại trên hệ thống.`;
                 }
             } catch (err) {
-                console.error("Search Error:", err);
+                console.error("Supabase Search Error:", err);
             }
         }
 
@@ -78,7 +76,6 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: "Lỗi AI: " + (data.error.message || JSON.stringify(data.error)) });
         }
 
-        // Định dạng OpenAI trả về: data.choices[0].message.content
         if (data.choices && data.choices.length > 0) {
             const aiResponse = data.choices[0].message.content;
             return res.status(200).json({
