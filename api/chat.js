@@ -46,7 +46,7 @@ export default async function handler(req, res) {
         // --- 2. THỐNG KÊ CHI TIẾT & LẬP KẾ HOẠCH (PLANNING INSIGHTS) ---
         const queryLower = prompt.toLowerCase();
         const planningKeywords = ["kế hoạch", "ưu tiên", "tư vấn", "chạy đơn", "sắp xếp", "lịch", "nên làm"];
-        const generalKeywords = ["tổng cộng", "tình hình", "báo cáo", "delay", "chậm", "bao nhiêu", "thế nào", "gấp", "số lượng"];
+        const generalKeywords = ["tổng", "lượng", "bao nhiêu", "tình hình", "báo cáo", "delay", "chậm", "trễ", "gấp"];
 
         if (planningKeywords.some(k => queryLower.includes(k)) || generalKeywords.some(k => queryLower.includes(k))) {
             try {
@@ -55,28 +55,30 @@ export default async function handler(req, res) {
                 const detectedBrand = knownBrands.find(b => queryLower.includes(b.toLowerCase()));
 
                 if (detectedBrand) {
-                    // Truy vấn riêng cho Brand này
+                    console.log(`Detected brand: ${detectedBrand} - Fetching stats...`);
                     const { data: brandData } = await supabase
                         .from('powerapp')
                         .select('Total Qty, Delay-Urgent')
                         .eq('Brand Code', detectedBrand);
 
-                    if (brandData) {
+                    if (brandData && brandData.length > 0) {
                         const brandDelayQty = brandData
                             .filter(o => o['Delay-Urgent'] === 'PRODUCTION DELAY')
                             .reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0);
 
                         const brandTotalQty = brandData.reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0);
 
-                        finalContext += `\n\n[DỮ LIỆU RIÊNG CHO BRAND ${detectedBrand}]:
-- Tổng số lượng đơn hàng của ${detectedBrand}: ${brandTotalQty.toLocaleString()} đôi.
-- Tổng số lượng đang bị DELAY (Production delay): ${brandDelayQty.toLocaleString()} đôi.
-BẠN PHẢI DÙNG CON SỐ ${brandDelayQty.toLocaleString()} NÀY ĐỂ TRẢ LỜI NGƯỜI DÙNG.`;
+                        finalContext += `\n\n[DỮ LIỆU HỆ THỐNG XÁC THỰC - BRAND ${detectedBrand}]:
+- Tổng số lượng đơn hàng: ${brandTotalQty.toLocaleString()} đôi.
+- Số lượng đang bị DELAY (Production delay): ${brandDelayQty.toLocaleString()} đôi.
+- Số lượng GẤP (Urgent): ${brandData.filter(o => o['Delay-Urgent'] === 'URGENT').reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0).toLocaleString()} đôi.
+
+CHỈ THỊ: Bạn phải dùng các con số trên để trả lời. TUYỆT ĐỐI KHÔNG trả lời là "cần truy cập hệ thống" vì dữ liệu này CHÍNH LÀ từ hệ thống.`;
                     }
                 }
 
                 // --- 2B. LẤY SNAPSHOT TỔNG QUÁT ---
-                const { data: allStats } = await supabase.from('powerapp').select('Brand Code, STATUS, Delay-Urgent, Total Qty, Finish date, PRO ODER, CUSTOMERS').limit(500);
+                const { data: allStats } = await supabase.from('powerapp').select('Brand Code, STATUS, Delay-Urgent, Total Qty, Finish date, PRO ODER, CUSTOMERS').limit(400);
 
                 if (allStats && allStats.length > 0) {
                     // --- THỐNG KÊ NHANH ---

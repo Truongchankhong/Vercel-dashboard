@@ -99,6 +99,7 @@ app.post('/api/chat', async (req, res) => {
   const { prompt, context } = req.body;
   try {
     let finalContext = context || "Bạn là trợ lý sản xuất OVN.";
+    const queryLower = prompt.toLowerCase();
 
     // 1. Chi tiết theo RPRO
     const rproMatch = prompt.match(/RPRO-[\d-]+/i);
@@ -106,16 +107,35 @@ app.post('/api/chat', async (req, res) => {
       const searchRpro = rproMatch[0].toUpperCase();
       const { data: orderDetail } = await supabase.from('powerapp').select('*').eq('PRO ODER', searchRpro).maybeSingle();
       if (orderDetail) {
-        finalContext += `\n\n[DỮ LIỆU ĐƠN HÀNG]:\n${JSON.stringify(orderDetail, null, 2)}`;
+        finalContext += `\n\n[DỮ LIỆU ĐƠN HÀNG ${searchRpro}]:\n${JSON.stringify(orderDetail, null, 2)}`;
+        finalContext += `\nCHỈ THỊ: Dùng dữ liệu này để trả lời.`;
       }
     }
 
-    // 2. Thống kê tổng quát (Delay/Urgent)
-    const queryLower = prompt.toLowerCase();
-    if (queryLower.includes("delay") || queryLower.includes("chậm") || queryLower.includes("trễ") || queryLower.includes("bao nhiêu")) {
-      const { count: dCount } = await supabase.from('powerapp').select('*', { count: 'exact', head: true }).eq('Delay-Urgent', 'PRODUCTION DELAY');
-      const { count: uCount } = await supabase.from('powerapp').select('*', { count: 'exact', head: true }).eq('Delay-Urgent', 'URGENT');
-      finalContext += `\n\n[THỐNG KÊ]: Delay: ${dCount || 0}, Gấp: ${uCount || 0}`;
+    // 2. Thống kê & Lập kế hoạch
+    const planningKeywords = ["kế hoạch", "ưu tiên", "tư vấn", "chạy đơn", "sắp xếp", "lịch", "nên làm"];
+    const statsKeywords = ["tổng", "lượng", "bao nhiêu", "tình hình", "báo cáo", "delay", "chậm", "trễ", "gấp"];
+
+    if (planningKeywords.some(k => queryLower.includes(k)) || statsKeywords.some(k => queryLower.includes(k))) {
+      // Phát hiện Brand
+      const brands = ["ASICS", "NIKE", "BROOKS", "ON RUNNING", "PUMA", "ADIDAS", "NEW BALANCE"];
+      const bFound = brands.find(b => queryLower.includes(b.toLowerCase()));
+
+      if (bFound) {
+        const { data: bData } = await supabase.from('powerapp').select('Total Qty, Delay-Urgent').eq('Brand Code', bFound);
+        if (bData && bData.length > 0) {
+          const dQty = bData.filter(o => o['Delay-Urgent'] === 'PRODUCTION DELAY').reduce((s, o) => s + (parseFloat(o['Total Qty']) || 0), 0);
+          const tQty = bData.reduce((s, o) => s + (parseFloat(o['Total Qty']) || 0), 0);
+          finalContext += `\n\n[DỮ LIỆU HỆ THỐNG - BRAND ${bFound}]:\n- Tổng: ${tQty.toLocaleString()}\n- Delay: ${dQty.toLocaleString()}\nCHỈ THỊ: Dùng con số này để trả lời. CẤM nói là không có quyền truy cập.`;
+        }
+      }
+
+      // Snapshot tổng quát cho Planning
+      const { data: snapshot } = await supabase.from('powerapp').select('PRO ODER, CUSTOMERS, Finish date, STATUS, Delay-Urgent').limit(200);
+      if (snapshot) {
+        const priority = snapshot.filter(o => o.STATUS !== '9.STORED').sort((a, b) => (a['Delay-Urgent'] === 'URGENT' ? -1 : 1)).slice(0, 10);
+        finalContext += `\n\n[TOP ƯU TIÊN]:\n${JSON.stringify(priority)}`;
+      }
     }
 
     const response = await fetch(MODEL_URL, {
