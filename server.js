@@ -85,7 +85,7 @@ app.post('/supplement', (req, res) => {
 });
 
 // --- NEW: AI CHAT ENDPOINT (HUGGING FACE VERSION) ---
-const HF_TOKEN = "hf_" + "hZetUheTUmaFKDmcXsMVmPvJCoaMnxasdG";
+const HF_TOKEN = "hf_" + "oclaBATrCCZUVRcEvBiGPFNCSHWOyfpGhu";
 const MODEL_URL = "https://router.huggingface.co/v1/chat/completions";
 const MODEL_ID = "Qwen/Qwen2.5-72B-Instruct";
 
