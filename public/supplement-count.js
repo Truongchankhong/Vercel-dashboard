@@ -160,7 +160,9 @@ async function processRPRO(text, mode, note = '') {
 
     // Validation
     if (!rpro.startsWith("RPRO")) {
-        showFeedback(`❌ Mã không hợp lệ: ${rpro}`, "text-red-600");
+        const errorMsg = `❌ Mã không hợp lệ: ${rpro}`;
+        showFeedback(errorMsg, "text-red-600");
+        showToast(errorMsg, "error");
         playAudioFeedback(false);
         setTimeout(() => isProcessing = false, 1500);
         return;
@@ -189,7 +191,9 @@ async function processRPRO(text, mode, note = '') {
 
         const quantity = parseInt(inputQty.value) || 1;
         if (quantity < 1) {
-            showFeedback("⚠️ Số lượng phải lớn hơn 0!", "text-red-500 font-bold");
+            const errorMsg = "⚠️ Số lượng phải lớn hơn 0!";
+            showFeedback(errorMsg, "text-red-500 font-bold");
+            showToast(errorMsg, "error");
             playAudioFeedback(false);
             isProcessing = false;
             return;
@@ -218,9 +222,11 @@ async function processRPRO(text, mode, note = '') {
         console.log("✅ Insert Success:", insertData);
         lastRecordId = insertData[0].id;
         const actionText = activeAction === 'IN' ? 'NHẬP VÀO' : 'XUẤT ĐI';
-        showFeedback(`✅ ${actionText}: ${rpro} (${mode})`, "text-green-600 font-black");
+        const successMsg = `✅ ${actionText} THÀNH CÔNG: ${rpro}`;
+        showFeedback(successMsg, "text-green-600 font-black");
+        showToast(successMsg, "success");
         playAudioFeedback(true);
-        if (mode === 'CAMERA') alert(`✅ Scan thành công:\n${rpro}`); // Alert for Mobile/Camera users
+        // if (mode === 'CAMERA') alert(`✅ Scan thành công:\n${rpro}`); // Alert is redundant now with Toast
         undoContainer.classList.remove('hidden');
 
         // Clear note input after successful save
@@ -228,7 +234,9 @@ async function processRPRO(text, mode, note = '') {
 
     } catch (err) {
         console.error("❌ System Error:", err);
-        showFeedback("❌ Lỗi hệ thống: " + err.message, "text-red-600 text-sm");
+        const errorMsg = "❌ Lỗi hệ thống: " + err.message;
+        showFeedback(errorMsg, "text-red-600 text-sm");
+        showToast(errorMsg, "error");
         playAudioFeedback(false);
     } finally {
         setTimeout(() => {
@@ -240,6 +248,35 @@ async function processRPRO(text, mode, note = '') {
             }
         }, 2000);
     }
+}
+
+// ==================== TOAST NOTIFICATION ====================
+function showToast(message, type = "success") {
+    // Remove existing toast if any
+    const existingToast = document.getElementById('floating-toast');
+    if (existingToast) existingToast.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'floating-toast';
+
+    // Base styles
+    let baseClass = "fixed top-5 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 rounded-2xl shadow-2xl text-white font-bold text-xl text-center min-w-[300px] animate-bounce-short transition-all duration-300 transform scale-100 opacity-100";
+
+    if (type === "success") {
+        toast.className = `${baseClass} bg-green-500 border-4 border-white`;
+    } else {
+        toast.className = `${baseClass} bg-red-600 border-4 border-white`;
+    }
+
+    toast.innerText = message;
+    document.body.appendChild(toast);
+
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateX(-50%) scale(0.9)";
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 // ==================== UNDO FUNCTION ====================
@@ -268,11 +305,11 @@ async function undoLastRecord() {
 async function handleManualSave() {
     if (isProcessing) return;
     if (!activeSection) {
-        alert("Vui lòng chọn bộ phận trước!");
+        showToast("⚠️ Vui lòng chọn bộ phận trước!", "error");
         return;
     }
     if (!activeAction) {
-        alert("Vui lòng chọn hành động (IN/OUT) trước!");
+        showToast("⚠️ Vui lòng chọn hành động (IN/OUT) trước!", "error");
         return;
     }
 

@@ -25,6 +25,22 @@
             top: -9999px;
             left: -9999px;
         }
+
+        @keyframes bounce-short {
+
+            0%,
+            100% {
+                transform: translate(-50%, 0);
+            }
+
+            50% {
+                transform: translate(-50%, -10px);
+            }
+        }
+
+        .animate-bounce-short {
+            animation: bounce-short 0.5s ease-in-out 2;
+        }
     </style>
 </head>
 
