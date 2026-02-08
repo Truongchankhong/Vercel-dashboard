@@ -25,27 +25,43 @@ export default async function handler(req, res) {
 
         let finalContext = context || "Bạn là trợ lý ảo sản xuất thông minh tại Ortholite Việt Nam (OVN).";
 
-        // --- TÌM KIẾM DỮ LIỆU ĐƠN HÀNG TRÊN SUPABASE ---
+        // --- 1. TÌM KIẾM CHI TIẾT THEO RPRO ---
         const rproMatch = prompt.match(/RPRO-[\d-]+/i);
         if (rproMatch) {
             const searchRpro = rproMatch[0].toUpperCase();
             try {
-                // Ưu tiên tìm trong bảng powerapp trên Supabase
-                const { data: orderDetail, error } = await supabase
+                const { data: orderDetail } = await supabase
                     .from('powerapp')
                     .select('*')
                     .eq('PRO ODER', searchRpro)
                     .maybeSingle();
 
                 if (orderDetail) {
-                    finalContext += `\n\n[DỮ LIỆU THỰC TẾ SUPABASE - QUAN TRỌNG]:\nĐơn hàng ${searchRpro} có thông tin sau:\n${JSON.stringify(orderDetail, null, 2)}`;
-                    finalContext += `\nBẠN PHẢI TRẢ LỜI: "Dựa vào dữ liệu hệ thống Supabase, đơn hàng ${searchRpro}..." và trích dẫn thông tin chi tiết.`;
-                } else {
-                    finalContext += `\n\n[THÔNG BÁO]: Không tìm thấy đơn hàng ${searchRpro} trong bảng powerapp trên Supabase. Hãy báo cho người dùng biết mã này không tồn tại trên hệ thống.`;
+                    finalContext += `\n\n[DỮ LIỆU THỰC TẾ SUPABASE]:\nĐơn hàng ${searchRpro} có thông tin:\n${JSON.stringify(orderDetail, null, 2)}`;
+                    finalContext += `\nBẠN PHẢI TRẢ LỜI dựa trên dữ liệu này.`;
                 }
-            } catch (err) {
-                console.error("Supabase Search Error:", err);
-            }
+            } catch (err) { console.error("RPRO Search Err:", err); }
+        }
+
+        // --- 2. THỐNG KÊ TỔNG QUÁT (KHI HỎI VỀ DELAY, TỔNG CỘNG, BAO NHIÊU) ---
+        const queryLower = prompt.toLowerCase();
+        if (queryLower.includes("delay") || queryLower.includes("chậm") || queryLower.includes("trễ") || queryLower.includes("bao nhiêu") || queryLower.includes("tổng cộng")) {
+            try {
+                // Đếm số đơn delay
+                const { count: delayCount } = await supabase
+                    .from('powerapp')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('Delay-Urgent', 'PRODUCTION DELAY');
+
+                // Đếm số đơn gấp
+                const { count: urgentCount } = await supabase
+                    .from('powerapp')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('Delay-Urgent', 'URGENT');
+
+                finalContext += `\n\n[THỐNG KÊ HỆ THỐNG]:\n- Tổng số đơn đang bị DELAY (Production delay): ${delayCount || 0} đơn.\n- Tổng số đơn GẤP (Urgent): ${urgentCount || 0} đơn.`;
+                finalContext += `\nLưu ý: Bạn hãy thông báo con số cụ thể này cho người dùng.`;
+            } catch (err) { console.error("Stats Err:", err); }
         }
 
         const response = await fetch(MODEL_URL, {

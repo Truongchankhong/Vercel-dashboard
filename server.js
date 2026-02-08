@@ -99,19 +99,23 @@ app.post('/api/chat', async (req, res) => {
   const { prompt, context } = req.body;
   try {
     let finalContext = context || "Bạn là trợ lý sản xuất OVN.";
+
+    // 1. Chi tiết theo RPRO
     const rproMatch = prompt.match(/RPRO-[\d-]+/i);
     if (rproMatch) {
       const searchRpro = rproMatch[0].toUpperCase();
-      const { data: orderDetail } = await supabase
-        .from('powerapp')
-        .select('*')
-        .eq('PRO ODER', searchRpro)
-        .maybeSingle();
-
+      const { data: orderDetail } = await supabase.from('powerapp').select('*').eq('PRO ODER', searchRpro).maybeSingle();
       if (orderDetail) {
-        finalContext += `\n\n[DỮ LIỆU SUPABASE]:\n${JSON.stringify(orderDetail, null, 2)}`;
-        finalContext += `\nBẠN PHẢI DÙNG DỮ LIỆU NÀY ĐỂ TRẢ LỜI.`;
+        finalContext += `\n\n[DỮ LIỆU ĐƠN HÀNG]:\n${JSON.stringify(orderDetail, null, 2)}`;
       }
+    }
+
+    // 2. Thống kê tổng quát (Delay/Urgent)
+    const queryLower = prompt.toLowerCase();
+    if (queryLower.includes("delay") || queryLower.includes("chậm") || queryLower.includes("trễ") || queryLower.includes("bao nhiêu")) {
+      const { count: dCount } = await supabase.from('powerapp').select('*', { count: 'exact', head: true }).eq('Delay-Urgent', 'PRODUCTION DELAY');
+      const { count: uCount } = await supabase.from('powerapp').select('*', { count: 'exact', head: true }).eq('Delay-Urgent', 'URGENT');
+      finalContext += `\n\n[THỐNG KÊ]: Delay: ${dCount || 0}, Gấp: ${uCount || 0}`;
     }
 
     const response = await fetch(MODEL_URL, {
