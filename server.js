@@ -92,12 +92,29 @@ const MODEL_ID = "Qwen/Qwen2.5-72B-Instruct";
 app.post('/api/chat', async (req, res) => {
   const { prompt, context } = req.body;
   try {
+    let finalContext = context || "Bạn là trợ lý sản xuất OVN.";
+    const rproMatch = prompt.match(/RPRO-[\d-]+/i);
+    if (rproMatch) {
+      const searchRpro = rproMatch[0].toUpperCase();
+      const filePath = path.join(__dirname, 'public', 'powerapp.json');
+      if (fs.existsSync(filePath)) {
+        const rawData = fs.readFileSync(filePath, 'utf-8');
+        const jsonContent = JSON.parse(rawData);
+        const allData = jsonContent.data || [];
+        const orderDetail = allData.find(item => (item["PRO ODER"] || '').toString().toUpperCase() === searchRpro);
+        if (orderDetail) {
+          finalContext += `\n\n[DỮ LIỆU HỆ THỐNG]:\n${JSON.stringify(orderDetail, null, 2)}`;
+          finalContext += `\nBẠN PHẢI DÙNG DỮ LIỆU NÀY ĐỂ TRẢ LỜI.`;
+        }
+      }
+    }
+
     const response = await fetch(MODEL_URL, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${HF_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: MODEL_ID,
-        messages: [{ role: "system", content: context }, { role: "user", content: prompt }],
+        messages: [{ role: "system", content: finalContext }, { role: "user", content: prompt }],
         max_tokens: 1024, temperature: 0.7, stream: false
       })
     });

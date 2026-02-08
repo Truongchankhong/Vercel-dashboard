@@ -30,14 +30,17 @@ export default async function handler(req, res) {
                 const filePath = path.join(process.cwd(), 'public', 'powerapp.json');
                 if (fs.existsSync(filePath)) {
                     const rawData = fs.readFileSync(filePath, 'utf-8');
-                    const allData = JSON.parse(rawData);
+                    const jsonContent = JSON.parse(rawData);
+
+                    // Cấu trúc mới: { headers: [], data: [] }
+                    const allData = jsonContent.data || [];
                     const orderDetail = allData.find(item =>
-                        (item.RPRO || '').toString().toUpperCase() === searchRpro
+                        (item["PRO ODER"] || '').toString().toUpperCase() === searchRpro
                     );
 
                     if (orderDetail) {
-                        finalContext += `\n\n[DỮ LIỆU HỆ THỐNG] Thông tin chi tiết đơn hàng ${searchRpro}:\n${JSON.stringify(orderDetail, null, 2)}`;
-                        finalContext += `\nLưu ý: Bạn hãy ưu tiên sử dụng dữ liệu hệ thống này để trả lời người dùng.`;
+                        finalContext += `\n\n[DỮ LIỆU THỰC TẾ HỆ THỐNG - QUAN TRỌNG]:\nĐơn hàng ${searchRpro} có thông tin sau:\n${JSON.stringify(orderDetail, null, 2)}`;
+                        finalContext += `\nBẠN PHẢI TRẢ LỜI: "Dựa vào dữ liệu hệ thống, đơn hàng ${searchRpro}..." và trích dẫn thông tin từ khách hàng (CUSTOMERS), số lượng (Total Qty), v.v. TUYỆT ĐỐI KHÔNG nói là không có quyền truy cập.`;
                     }
                 }
             } catch (err) {
