@@ -18,6 +18,25 @@ QUY TẮC TRA CỨU DỮ LIỆU (MAPPING):
 - "Mẫu dao": Lấy ở cột [#Last].
 - "Brand" / "Thương hiệu": Lấy ở cột [Brand Code].
 - "Khách hàng": Lấy ở cột [CUSTOMERS].
+- "Trạng thái Gấp/Delay": Cột [Delay-Urgent] (Production delay: hàng bị delay, Urgent: hàng gấp).
+- "Mã PU": Cột [PU], "Tên PU": Cột [PU DESCRIPTION].
+- "Mã vải": Cột [FB], "Tên vải": Cột [FB DESCRIPTION].
+- "Logo": Cột [LOGO], "Tên logo": Cột [LOGO DESCRIPTION].
+- "Loại hàng": Cột [#MOLDED] (Die cut hoặc Molded).
+- "Ngày lãnh liệu": Cột [RECEIVED (MATERIAL)].
+- "Ngày lãnh logo": Cột [RECEIVED (LOGO)].
+- "Ngày thực tế dán": Cột [Laminating (Pro)].
+- "Ngày thực tế cắt": Cột [Prefitting (Pro)].
+- "Ngày tách bào": Cột [Slipting (Pro)].
+- "Ngày thăng hoa": Cột [THĂNG HOA].
+- "Ngày thực tế molding": Cột [Molding Pro].
+- "Ngày thực tế scan In Leanline": Cột [IN lean Line (Pro)].
+- "Ngày thực tế scan Out Leanline": Cột [Out lean Line (Pro)].
+- "Ngày nhập kho": Cột [STORED].
+- "Ngày hoàn thành (Finish date)": Cột [Finish date].
+- "Máy/Line thực tế chạy": Cột [IN lean Line (MACHINE)].
+- "Mã BOM": Cột [BOM].
+- "Trạng thái hiện tại": Cột [STATUS].
 
 Hãy phản hồi lịch sự, chuyên nghiệp bằng tiếng Việt. Tập trung vào dữ liệu và giải pháp.`;
 
