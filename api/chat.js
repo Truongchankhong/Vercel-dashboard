@@ -59,21 +59,21 @@ export default async function handler(req, res) {
                     const { data: brandData } = await supabase
                         .from('powerapp')
                         .select('Total Qty, Delay-Urgent')
-                        .eq('Brand Code', detectedBrand);
+                        .ilike('Brand Code', `%${detectedBrand}%`);
 
                     if (brandData && brandData.length > 0) {
                         const brandDelayQty = brandData
-                            .filter(o => o['Delay-Urgent'] === 'PRODUCTION DELAY')
+                            .filter(o => (o['Delay-Urgent'] || '').toString().toLowerCase().includes('delay'))
                             .reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0);
 
                         const brandTotalQty = brandData.reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0);
 
                         finalContext += `\n\n[DỮ LIỆU HỆ THỐNG XÁC THỰC - BRAND ${detectedBrand}]:
-- Tổng số lượng đơn hàng: ${brandTotalQty.toLocaleString()} đôi.
-- Số lượng đang bị DELAY (Production delay): ${brandDelayQty.toLocaleString()} đôi.
-- Số lượng GẤP (Urgent): ${brandData.filter(o => o['Delay-Urgent'] === 'URGENT').reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0).toLocaleString()} đôi.
+- TỔNG SỐ LƯỢNG của thương hiệu ${detectedBrand}: ${brandTotalQty.toLocaleString()} đôi.
+- SỐ LƯỢNG ĐANG CHẬM (DELAY): ${brandDelayQty.toLocaleString()} đôi.
+- Số lượng GẤP (Urgent): ${brandData.filter(o => (o['Delay-Urgent'] || '').toString().toLowerCase().includes('urgent')).reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0).toLocaleString()} đôi.
 
-CHỈ THỊ: Bạn phải dùng các con số trên để trả lời. TUYỆT ĐỐI KHÔNG trả lời là "cần truy cập hệ thống" vì dữ liệu này CHÍNH LÀ từ hệ thống.`;
+CHỈ THỊ QUAN TRỌNG: Bạn hãy dùng con số ${brandDelayQty.toLocaleString()} để trả lời về lượng hàng delay của ${detectedBrand}. TUYỆT ĐỐI KHÔNG nói là "cần truy cập hệ thống" hay "viết code SQL". Hãy trả lời: "Dựa vào dữ liệu từ hệ thống, thương hiệu ${detectedBrand} đang có ${brandDelayQty.toLocaleString()} đôi bị delay..."`;
                     }
                 }
 
