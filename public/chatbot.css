@@ -1,11 +1,17 @@
-
 /* Chatbot Glassmorphism Design */
 #ai-chatbot-container {
     position: fixed;
-    bottom: 80px;
+    bottom: 30px;
     right: 20px;
     z-index: 1000;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+@media (max-width: 640px) {
+    #ai-chatbot-container {
+        bottom: 20px;
+        right: 15px;
+    }
 }
 
 #ai-chatbot-button {
@@ -39,6 +45,7 @@
     right: 0;
     width: 380px;
     height: 550px;
+    max-height: calc(100vh - 120px);
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(15px);
     border: 1px solid rgba(255, 255, 255, 0.3);
@@ -52,6 +59,14 @@
     opacity: 0;
     pointer-events: none;
     transform: scale(0.8);
+}
+
+@media (max-width: 480px) {
+    #ai-chatbot-window {
+        width: calc(100vw - 30px);
+        height: 500px;
+        bottom: 70px;
+    }
 }
 
 #ai-chatbot-window.active {
@@ -96,8 +111,15 @@
 }
 
 @keyframes message-in {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .message.ai {
@@ -171,18 +193,31 @@
     animation: typing 1s infinite alternate;
 }
 
-.typing span:nth-child(2) { animation-delay: 0.2s; }
-.typing span:nth-child(3) { animation-delay: 0.4s; }
+.typing span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing span:nth-child(3) {
+    animation-delay: 0.4s;
+}
 
 @keyframes typing {
-    from { opacity: 0.3; transform: scale(0.8); }
-    to { opacity: 1; transform: scale(1.2); }
+    from {
+        opacity: 0.3;
+        transform: scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1.2);
+    }
 }
 
 /* Scrollbar */
 .chatbot-messages::-webkit-scrollbar {
     width: 6px;
 }
+
 .chatbot-messages::-webkit-scrollbar-thumb {
     background: #cbd5e1;
     border-radius: 10px;
@@ -198,7 +233,7 @@
     padding: 24px;
     border-radius: 20px;
     width: 80%;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
     display: none;
     z-index: 1001;
 }

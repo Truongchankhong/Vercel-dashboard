@@ -8,49 +8,55 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-gray-100 p-6">
+<body class="bg-gray-100 p-2 sm:p-6">
     <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-lg">
-        <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+        <div class="flex justify-between items-center mb-6">
             <h1 class="text-xl md:text-2xl font-bold text-purple-700">🛒 Bù hàng - Xác nhận</h1>
-            <div class="grid grid-cols-2 sm:flex gap-2 w-full md:w-auto">
-                <button id="btn-export-excel"
-                    class="px-4 py-1.5 bg-green-700 text-white rounded hover:bg-green-800 font-bold shadow-md text-sm">
-                    Excel
-                </button>
-                <button id="btn-show-stats"
-                    class="px-4 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-bold shadow-md text-sm">
-                    📊 Thống kê
-                </button>
-                <button id="btn-export-zalo"
-                    class="px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold shadow-md text-sm">
-                    🚀 Gửi Zalo
-                </button>
-                <button onclick="window.history.back()"
-                    class="px-3 py-1.5 bg-gray-300 hover:bg-gray-400 rounded text-sm">
-                    ←
-                </button>
-            </div>
+            <button onclick="window.history.back()"
+                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-bold shadow-sm transition">
+                ← Quay lại
+            </button>
         </div>
 
-        <!-- Date filtering -->
-        <div class="flex flex-wrap gap-4 mb-6 bg-purple-50 p-4 rounded border border-purple-200 items-center">
-            <div>
-                <label class="block text-sm font-medium">Từ ngày:</label>
-                <input type="date" id="date-from" class="border px-2 py-1 rounded">
-            </div>
-            <div>
-                <label class="block text-sm font-medium">Đến ngày:</label>
-                <input type="date" id="date-to" class="border px-2 py-1 rounded">
-            </div>
-            <div class="flex items-end gap-3">
-                <button id="btn-filter"
-                    class="px-6 py-1.5 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition shadow-md">
-                    Lọc
-                </button>
-                <div class="px-3 py-1 bg-red-50 border border-red-200 rounded flex items-center gap-2">
-                    <span class="text-[10px] font-bold text-red-600 uppercase">Chờ:</span>
-                    <span id="pending-count" class="text-base font-black text-red-700">0</span>
+        <!-- Date filtering & Actions -->
+        <div class="bg-purple-50 p-4 rounded-xl border border-purple-200 mb-6 space-y-4">
+            <div class="flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[140px]">
+                    <label class="block text-xs font-bold text-purple-600 mb-1">TỪ NGÀY:</label>
+                    <input type="date" id="date-from"
+                        class="w-full border p-2 rounded-lg shadow-sm focus:ring-2 focus:ring-purple-400 outline-none">
                 </div>
+                <div class="flex-1 min-w-[140px]">
+                    <label class="block text-xs font-bold text-purple-600 mb-1">ĐẾN NGÀY:</label>
+                    <input type="date" id="date-to"
+                        class="border w-full p-2 rounded-lg shadow-sm focus:ring-2 focus:ring-purple-400 outline-none">
+                </div>
+                <div class="flex gap-2">
+                    <button id="btn-filter"
+                        class="px-6 py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 transition shadow-md">
+                        Lọc
+                    </button>
+                    <div class="px-4 py-2 bg-white border border-red-200 rounded-lg shadow-sm flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-red-500 uppercase">Chờ:</span>
+                        <span id="pending-count" class="text-lg font-black text-red-600">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons for Mobile Accessibility -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-purple-100">
+                <button id="btn-export-excel"
+                    class="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold shadow-lg transition active:scale-95">
+                    <span>📗 Xuất Excel</span>
+                </button>
+                <button id="btn-show-stats"
+                    class="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-lg transition active:scale-95">
+                    <span>📊 Thống kê</span>
+                </button>
+                <button id="btn-export-zalo"
+                    class="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold shadow-lg transition active:scale-95">
+                    <span>🚀 Gửi Zalo</span>
+                </button>
             </div>
         </div>
 
