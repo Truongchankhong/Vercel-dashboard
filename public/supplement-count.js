@@ -96,7 +96,10 @@ async function stopCamera() {
 
 function onCameraScanSuccess(decodedText) {
     if (isProcessing) return;
-    processRPRO(decodedText, "CAMERA");
+    // Set defaults as soon as we have a code
+    fetchDetails(decodedText).then(() => {
+        processRPRO(decodedText, "CAMERA");
+    });
 }
 
 // ==================== HANDHELD SCANNER ====================
@@ -124,7 +127,9 @@ document.addEventListener('keydown', (e) => {
             console.log("🔫 Handheld scan:", scannedCode);
             if (!isProcessing) {
                 const note = manualNoteInput ? manualNoteInput.value.trim() : '';
-                processRPRO(scannedCode, "HANDHELD", note);
+                fetchDetails(scannedCode).then(() => {
+                    processRPRO(scannedCode, "HANDHELD", note);
+                });
             }
         }
     } else if (e.key.length === 1) {
@@ -137,6 +142,84 @@ document.addEventListener('keydown', (e) => {
         }, 100);
     }
 });
+
+// ==================== AUTO-FETCH NOTE & QUANTITY ====================
+async function fetchDetails(rpro) {
+    if (!rpro || !activeSection) return;
+
+    // Simple RPRO pattern check
+    if (rpro.length < 5) return;
+
+    try {
+        console.log(`ℹ️ Fetching details for ${rpro} in ${activeSection}...`);
+
+        // 1. Fetch Note
+        const { data: noteData, error: noteError } = await supabase
+            .from('supplement_tracking')
+            .select('note')
+            .eq('rpro', rpro)
+            .eq('section', activeSection)
+            .neq('note', '')
+            .not('note', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (!noteError && noteData && noteData.length > 0) {
+            console.log("📝 Found existing note:", noteData[0].note);
+            if (manualNoteInput) manualNoteInput.value = noteData[0].note;
+        }
+
+        // 2. Fetch Default Quantity
+        let defaultQty = 1;
+
+        if (activeSection === 'Dán') {
+            // "Số đôi có thể bù trong trang Bù hàng- Xác nhận" -> available_supplement in supplement_confirm
+            const { data: confirmData, error: confirmError } = await supabase
+                .from('supplement_confirm')
+                .select('available_supplement, total')
+                .eq('rpro', rpro)
+                .limit(1);
+
+            if (!confirmError && confirmData && confirmData.length > 0) {
+                const rec = confirmData[0];
+                defaultQty = (rec.available_supplement !== null) ? rec.available_supplement : rec.total;
+                console.log(`📦 Dán: Default quantity from supplement_confirm: ${defaultQty}`);
+            } else {
+                // Fallback to supplement table total
+                const { data: suppData, error: suppError } = await supabase
+                    .from('supplement')
+                    .select('total')
+                    .eq('rpro', rpro)
+                    .limit(1);
+
+                if (!suppError && suppData && suppData.length > 0) {
+                    defaultQty = suppData[0].total;
+                    console.log(`📦 Dán: Fallback to supplement table total: ${defaultQty}`);
+                }
+            }
+        } else if (['Cắt', 'Molding', 'DC', 'Molded'].includes(activeSection)) {
+            // "lấy mặc định theo số scan Out của section dán"
+            const { data: trackingData, error: trackingError } = await supabase
+                .from('supplement_tracking')
+                .select('quantity')
+                .eq('rpro', rpro)
+                .eq('section', 'Dán')
+                .eq('action', 'OUT');
+
+            if (!trackingError && trackingData && trackingData.length > 0) {
+                defaultQty = trackingData.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                console.log(`📦 ${activeSection}: Default quantity from Dán Scan Out: ${defaultQty}`);
+            }
+        }
+
+        if (inputQty && defaultQty > 0) {
+            inputQty.value = defaultQty;
+        }
+
+    } catch (err) {
+        console.error("Error fetching details:", err);
+    }
+}
 
 // ==================== CORE LOGIC: PROCESS RPRO ====================
 async function processRPRO(text, mode, note = '') {
@@ -209,7 +292,7 @@ async function processRPRO(text, mode, note = '') {
                 action: activeAction,
                 operator: 'User',
                 quantity: quantity, // NEW: Add Quantity
-                note: note, // NEW: Add Note
+                note: note || (manualNoteInput ? manualNoteInput.value.trim() : ''), // Use current note if not provided
                 scan_date: new Date().toISOString().split('T')[0]
             }])
             .select('id');
@@ -231,6 +314,7 @@ async function processRPRO(text, mode, note = '') {
 
         // Clear note input after successful save
         if (manualNoteInput) manualNoteInput.value = "";
+        if (inputQty) inputQty.value = "1"; // Reset Qty to 1 for next scan
 
     } catch (err) {
         console.error("❌ System Error:", err);
@@ -323,34 +407,7 @@ async function handleManualSave() {
     manualRproInput.focus();
 }
 
-// ==================== AUTO-FETCH NOTE ====================
-async function fetchExistingNote(rpro) {
-    if (!rpro || !activeSection) return;
-
-    // Simple RPRO pattern check (at least 6 chars to avoid noise)
-    if (rpro.length < 5) return;
-
-    try {
-        const { data, error } = await supabase
-            .from('supplement_tracking')
-            .select('note')
-            .eq('rpro', rpro)
-            .eq('section', activeSection)
-            .neq('note', '')
-            .not('note', 'is', null)
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-            console.log("📝 Found existing note:", data[0].note);
-            if (manualNoteInput) manualNoteInput.value = data[0].note;
-        }
-    } catch (err) {
-        console.error("Error fetching existing note:", err);
-    }
-}
+// Merged fetchExistingNote into fetchDetails above
 
 // ==================== UI HELPERS ====================
 function showFeedback(msg, className) {
@@ -398,7 +455,7 @@ sectionBtns.forEach(btn => {
         // Reset note input and re-fetch if RPRO exists
         if (manualNoteInput) manualNoteInput.value = "";
         const rpro = manualRproInput ? manualRproInput.value.trim() : "";
-        if (rpro) fetchExistingNote(rpro);
+        if (rpro) fetchDetails(rpro);
 
         // Reset action
         activeAction = null;
@@ -460,12 +517,12 @@ if (manualRproInput) {
         if (e.key === 'Enter') handleManualSave();
     });
 
-    // Add event listener to fetch note when user types or paste code
+    // Add event listener to fetch details when user types or paste code
     manualRproInput.addEventListener('input', (e) => {
         const val = e.target.value.trim().toUpperCase();
         if (val.startsWith('RPRO')) {
             // Debounce or just fetch if it looks complete
-            if (val.length >= 8) fetchExistingNote(val);
+            if (val.length >= 8) fetchDetails(val);
         }
     });
 }

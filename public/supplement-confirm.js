@@ -310,7 +310,7 @@ async function exportToExcel() {
       'Fabric': r.fabric || '',
       'BOM': r.bom || '',
       'Qty': r.total,
-      'Available_supplement': r.available_supplement !== null ? r.available_supplement : r.total,
+      'Qty_Sup': r.available_supplement !== null ? r.available_supplement : r.total,
       'Size': formatSizeBreakdown(r),
       'Xác nhận': r.confirm || 'Chưa xác nhận',
       'Ghi chú': r.remark || ''

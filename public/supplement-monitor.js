@@ -87,20 +87,40 @@ async function fetchProgressData() {
             }
 
             // Fetch Confirmation Details (Qty_Sup and Date make order)
+            // Priority: available_supplement (if not null) -> total
             const { data: confirmDetails } = await supabase
                 .from('supplement_confirm')
-                .select('rpro, total, confirm, updated_at')
+                .select('rpro, total, available_supplement, confirm, updated_at')
                 .in('rpro', rproList);
 
             if (confirmDetails) {
                 confirmDetails.forEach(item => {
                     const code = item.rpro;
                     if (progressMap[code]) {
-                        progressMap[code].qty_sup = item.total;
+                        // "Qty_Sup sẽ lấy mặc định bằng với cột Số đôi có thể bù... trong trường hợp không tìm thấy số thì lấy bằng với cột total"
+                        progressMap[code].qty_sup = (item.available_supplement !== null) ? item.available_supplement : item.total;
                         progressMap[code].confirm_date = item.updated_at;
                         progressMap[code].confirm_status = item.confirm;
                     }
                 });
+            }
+
+            // Fallback: For RPROs still without qty_sup, fetch from 'supplement' table
+            const missingQtyRpros = rproList.filter(rpro => !progressMap[rpro].qty_sup);
+            if (missingQtyRpros.length > 0) {
+                const { data: supplementDetails } = await supabase
+                    .from('supplement')
+                    .select('rpro, total')
+                    .in('rpro', missingQtyRpros);
+
+                if (supplementDetails) {
+                    supplementDetails.forEach(item => {
+                        const code = item.rpro;
+                        if (progressMap[code] && !progressMap[code].qty_sup) {
+                            progressMap[code].qty_sup = item.total;
+                        }
+                    });
+                }
             }
         }
 
