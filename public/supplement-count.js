@@ -487,7 +487,11 @@ actionBtns.forEach(btn => {
         scannerContainer.classList.remove('hidden');
 
         // Focus on hidden input for handheld scanner
-        scannerInputOverlay.focus();
+        if (scannerInputOverlay) {
+            // Set inputmode none again just in case
+            scannerInputOverlay.setAttribute('inputmode', 'none');
+            scannerInputOverlay.focus();
+        }
     });
 });
 
