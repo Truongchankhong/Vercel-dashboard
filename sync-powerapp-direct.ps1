@@ -302,13 +302,11 @@ finally {
 $tempFile = [System.IO.Path]::GetTempFileName()
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
-function Send-BatchToSupabase {
-    param($chunk)
+# --- GENERIC UPLOAD FUNCTION ---
+function Send-DataToSupabase {
+    param($chunk, $tableName)
     
-    # Force array structure even if single item
     $jsonBody = ConvertTo-Json -InputObject $chunk -Depth 10 -Compress
-    
-    # Write to temp file with UTF-8 No BOM
     [System.IO.File]::WriteAllText($tempFile, $jsonBody, $utf8NoBom)
     
     $maxRetries = 5
@@ -317,8 +315,7 @@ function Send-BatchToSupabase {
 
     while (-not $success -and $retryCount -lt $maxRetries) {
         try {
-            # Use Upsert (resolution=merge-duplicates) to avoid 409 Conflict
-            $response = Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/powerapp" `
+            $response = Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/$tableName" `
                 -Method Post `
                 -Headers @{ 
                 "apikey"        = "$supabaseKey"; 
@@ -333,7 +330,6 @@ function Send-BatchToSupabase {
             $retryCount++
             $errBody = $_.ErrorDetails.Message
             if (-not $errBody) { 
-                # Try to read response stream if available
                 if ($_.Exception.Response) {
                     $stream = $_.Exception.Response.GetResponseStream()
                     $reader = New-Object System.IO.StreamReader($stream)
@@ -341,17 +337,40 @@ function Send-BatchToSupabase {
                     $reader.Close() 
                 }
             }
-            Write-Warning "!!! Upload failed (Attempt $retryCount/$maxRetries): $_ Details: $errBody"
+            Write-Warning "!!! Upload to $tableName failed (Attempt $retryCount/$maxRetries): $_ Details: $errBody"
             Start-Sleep -Seconds 2
         }
     }
 
     if (-not $success) {
-        Write-Error "!!! Failed to upload chunk after $maxRetries attempts."
+        Write-Error "!!! Failed to upload chunk to $tableName after $maxRetries attempts."
     }
 }
 
-Write-Host "--- Clearing existing data..."
+function Send-BatchToSupabase {
+    param($chunk)
+    Send-DataToSupabase -chunk $chunk -tableName "powerapp"
+}
+
+# 2.A BACKUP TO MASTERDATA (Only 9.STORED status)
+Write-Host "--- Checking for 9.STORED orders to backup..."
+$storedOrders = $jsonData | Where-Object { $_.STATUS -eq "9.STORED" }
+
+if ($storedOrders.Count -gt 0) {
+    Write-Host "--- Found $($storedOrders.Count) stored orders. Backing up to Masterdata..."
+    $chunkSize = 1000
+    for ($i = 0; $i -lt $storedOrders.Count; $i += $chunkSize) {
+        $end = [Math]::Min($i + $chunkSize - 1, $storedOrders.Count - 1)
+        $chunk = $storedOrders[$i..$end]
+        Send-DataToSupabase -chunk $chunk -tableName "Masterdata"
+    }
+    Write-Host "--- Masterdata backup complete."
+}
+else {
+    Write-Host "--- No 9.STORED orders found in current batch."
+}
+
+Write-Host "--- Clearing existing data in powerapp..."
 try {
     # Delete ALL data (STT is not null) using standard PostgREST syntax
     Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/powerapp?STT=not.is.null" `
