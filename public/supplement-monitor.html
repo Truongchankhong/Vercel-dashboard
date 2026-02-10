@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tiến Độ Hàng Bù - Realtime Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <style>
         .status-cell {
             transition: all 0.3s ease;
@@ -78,6 +80,10 @@
                 <button id="btn-export"
                     class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm text-sm font-bold whitespace-nowrap">
                     Excel
+                </button>
+                <button id="btn-show-stats"
+                    class="px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition shadow-sm text-sm font-bold whitespace-nowrap">
+                    📊 Thống kê
                 </button>
                 <button onclick="window.location.href='supplement-count.html'"
                     class="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition shadow-sm text-sm whitespace-nowrap">
@@ -183,6 +189,52 @@
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script type="module" src="./supabaseClient.js"></script>
     <script type="module" src="./supplement-monitor.js"></script>
+    <!-- Stats Modal -->
+    <div id="stats-modal" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-2 sm:p-4">
+        <div
+            class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-y-auto transform transition-all">
+            <div class="sticky top-0 bg-white z-10 p-4 border-b flex justify-between items-center">
+                <h3 class="font-bold text-xl text-gray-800 flex items-center gap-2">
+                    📈 Phân Tích Dữ Liệu Hàng Bù
+                </h3>
+                <button id="btn-close-stats"
+                    class="text-gray-400 hover:text-gray-600 text-3xl font-bold">&times;</button>
+            </div>
+            <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Chart 1: Stacked Bar -->
+                <div class="bg-gray-50 p-4 rounded-xl border">
+                    <h4 class="text-center font-bold text-gray-600 mb-4">Trạng thái xử lý theo công đoạn</h4>
+                    <div class="h-[400px]">
+                        <canvas id="chart-status-stacked"></canvas>
+                    </div>
+                </div>
+                <!-- Chart 2: Section Breakdown -->
+                <div class="bg-gray-50 p-4 rounded-xl border">
+                    <h4 class="text-center font-bold text-gray-600 mb-4">Tỷ lệ đơn đang chạy theo bộ phận</h4>
+                    <div class="h-[400px] flex items-center justify-center">
+                        <canvas id="chart-processing-pie"></canvas>
+                    </div>
+                </div>
+                <!-- Chart 3: Gap Analysis -->
+                <div class="bg-gray-50 p-4 rounded-xl border">
+                    <h4 class="text-center font-bold text-gray-600 mb-4 text-sm sm:text-base">Các đơn hàng có Gap lớn
+                        nhất</h4>
+                    <div class="h-[300px]">
+                        <canvas id="chart-gap-monitor"></canvas>
+                    </div>
+                </div>
+                <!-- Chart 4: Brand Breakdown -->
+                <div class="bg-gray-50 p-4 rounded-xl border">
+                    <h4 class="text-center font-bold text-gray-600 mb-4 text-sm sm:text-base">Top 5 Brands (Theo số đơn)
+                    </h4>
+                    <div class="h-[300px] flex items-center justify-center">
+                        <canvas id="chart-brand-pie"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="./chatbot.js"></script>
 </body>
 

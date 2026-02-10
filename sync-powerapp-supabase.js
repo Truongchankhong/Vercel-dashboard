@@ -106,26 +106,34 @@ async function syncPowerApp() {
     console.log('✅ Table cleared.');
   }
 
-  // 4. Insert in Chunks
+  // 4. Insert in Chunks to powerapp
   console.log(`🚀 Inserting ${cleanRows.length} rows in chunks of ${CHUNK_SIZE}...`);
-
   let totalInserted = 0;
   for (let i = 0; i < cleanRows.length; i += CHUNK_SIZE) {
     const chunk = cleanRows.slice(i, i + CHUNK_SIZE);
-
-    // Using upsert instead of insert just in case duplication occurs or unique constraint logic
-    // But since we deleted all, insert is fine.
-    const { error: insertError } = await supabase
-      .from('powerapp')
-      .insert(chunk);
-
+    const { error: insertError } = await supabase.from('powerapp').insert(chunk);
     if (insertError) {
       console.error(`❌ Error inserting chunk ${i / CHUNK_SIZE + 1}:`, insertError);
-      // We might stop or continue.
     } else {
-      process.stdout.write('.'); // Progress indicator
+      process.stdout.write('.');
     }
     totalInserted += chunk.length;
+  }
+  console.log(`\n✅ PowerApp sync complete! Inserted ${totalInserted}/${cleanRows.length} rows.`);
+
+  // 5. Backup 9.STORED to Masterdata
+  const storedRows = cleanRows.filter(row => row.STATUS === '9.STORED');
+  if (storedRows.length > 0) {
+    console.log(`📦 Backing up ${storedRows.length} STORED orders to Masterdata...`);
+    const { error: masterError } = await supabase
+      .from('Masterdata')
+      .upsert(storedRows, { onConflict: 'STT' });
+
+    if (masterError) {
+      console.error('❌ Error backing up to Masterdata:', masterError);
+    } else {
+      console.log('✅ Masterdata backup complete.');
+    }
   }
 
   console.log(`\n✅ Sync complete! Inserted ${totalInserted}/${cleanRows.length} rows.`);

@@ -21,7 +21,13 @@ const noteInput = document.getElementById('note-input');
 const noteTitle = document.getElementById('note-modal-title');
 const btnSaveNote = document.getElementById('btn-save-note');
 
+// Stats Modal Elements
+const btnShowStats = document.getElementById('btn-show-stats');
+const btnCloseStats = document.getElementById('btn-close-stats');
+const statsModal = document.getElementById('stats-modal');
+
 let currentNoteTarget = null; // {rpro, section}
+let monitorCharts = {}; // Store Chart instances
 
 // ==================== STATE ====================
 let progressMap = {};
@@ -84,6 +90,29 @@ async function fetchProgressData() {
                         progressMap[code].mold = item['#MOLD'];
                     }
                 });
+            }
+
+            // Fallback for missing order details: Check Masterdata
+            const missingInfoRpros = rproList.filter(rpro => !progressMap[rpro].so);
+            if (missingInfoRpros.length > 0) {
+                const { data: masterDetails } = await supabase
+                    .from('Masterdata')
+                    .select('"PRO ODER", "Finish date", "SO", "Brand Code", "CUSTOMERS", "Total Qty", "#MOLD"')
+                    .in('"PRO ODER"', missingInfoRpros);
+
+                if (masterDetails) {
+                    masterDetails.forEach(item => {
+                        const code = item['PRO ODER'];
+                        if (progressMap[code]) {
+                            progressMap[code].finish_date = item['Finish date'];
+                            progressMap[code].so = item['SO'];
+                            progressMap[code].brand = item['Brand Code'];
+                            progressMap[code].customer = item['CUSTOMERS'];
+                            progressMap[code].total_qty = item['Total Qty'];
+                            progressMap[code].mold = item['#MOLD'];
+                        }
+                    });
+                }
             }
 
             // Fetch Confirmation Details (Qty_Sup and Date make order)
@@ -573,6 +602,188 @@ function setupRealtimeSubscription() {
         .subscribe();
 }
 
+// ==================== STATS LOGIC ====================
+function initStatsCharts(statsData) {
+    if (typeof ChartDataLabels !== 'undefined') {
+        Chart.register(ChartDataLabels);
+    }
+
+    // Destroy existing charts
+    Object.values(monitorCharts).forEach(c => {
+        if (c && typeof c.destroy === 'function') c.destroy();
+    });
+
+    const sections = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
+    const sectionLabels = ['Dán', 'Cắt', 'Molding', 'Leanline DC', 'Leanline Molded'];
+
+    // 1. Stacked Bar Chart: Completed vs Processing
+    monitorCharts.statusStacked = new Chart(document.getElementById('chart-status-stacked'), {
+        type: 'bar',
+        data: {
+            labels: sectionLabels,
+            datasets: [
+                {
+                    label: '✅ Hoàn thành (Out)',
+                    data: sections.map(s => statsData.sections[s].completed),
+                    backgroundColor: '#22c55e', // Green-500
+                    stack: 'Stack 0'
+                },
+                {
+                    label: '⏳ Đang chạy (In Only)',
+                    data: sections.map(s => statsData.sections[s].processing),
+                    backgroundColor: '#f59e0b', // Amber-500
+                    stack: 'Stack 0'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold' },
+                    formatter: (val) => val > 0 ? val : ''
+                }
+            },
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true }
+            }
+        }
+    });
+
+    // 2. Pie Chart: Processing volume distribution
+    monitorCharts.processingPie = new Chart(document.getElementById('chart-processing-pie'), {
+        type: 'pie',
+        data: {
+            labels: sectionLabels,
+            datasets: [{
+                data: sections.map(s => statsData.sections[s].processing),
+                backgroundColor: ['#6366f1', '#22c55e', '#3b82f6', '#a855f7', '#ec4899']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percent = total > 0 ? ((value * 100) / total).toFixed(1) : 0;
+                            return `${label}: ${value} đơn (${percent}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // 3. Gap Analysis Chart (Bar)
+    const gapData = statsData.topGaps.slice(0, 10); // Show top 10 gaps
+    monitorCharts.gapMonitor = new Chart(document.getElementById('chart-gap-monitor'), {
+        type: 'bar',
+        data: {
+            labels: gapData.map(d => d.rpro),
+            datasets: [{
+                label: 'Số lượng chênh lệch (Gap)',
+                data: gapData.map(d => d.totalGap),
+                backgroundColor: '#ef4444' // Red-500
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                title: { display: true, text: 'Top 10 Đơn hàng có Gap lớn nhất' }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    // 4. Brand breakdown
+    const brandLabels = statsData.topBrands.map(b => b.brand || 'N/A');
+    monitorCharts.brandPie = new Chart(document.getElementById('chart-brand-pie'), {
+        type: 'doughnut',
+        data: {
+            labels: brandLabels,
+            datasets: [{
+                data: statsData.topBrands.map(b => b.count),
+                backgroundColor: ['#f87171', '#fbbf24', '#34d399', '#60a5fa', '#818cf8']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+}
+
+async function showStats() {
+    statsModal.classList.remove('hidden');
+
+    const sections = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
+    const stats = {
+        sections: {},
+        topGaps: [],
+        brands: {}
+    };
+
+    sections.forEach(s => {
+        stats.sections[s] = { processing: 0, completed: 0 };
+    });
+
+    progressData.forEach(item => {
+        let totalOrderGap = 0;
+
+        // Brand data
+        const b = item.brand || 'N/A';
+        stats.brands[b] = (stats.brands[b] || 0) + 1;
+
+        sections.forEach(s => {
+            const stage = item.stages[s];
+            if (stage.out) {
+                stats.sections[s].completed++;
+            } else if (stage.in) {
+                stats.sections[s].processing++;
+            }
+
+            // Calculation for Gap Analysis
+            if (stage.in && stage.out) {
+                const inQty = stage.in.qty || 0;
+                const outQty = stage.out.qty || 0;
+                if (inQty > outQty) totalOrderGap += (inQty - outQty);
+            }
+        });
+
+        if (totalOrderGap > 0) {
+            stats.topGaps.push({ rpro: item.rpro, totalGap: totalOrderGap });
+        }
+    });
+
+    // Sort gaps descending
+    stats.topGaps.sort((a, b) => b.totalGap - a.totalGap);
+
+    // Sort brands
+    stats.topBrands = Object.entries(stats.brands)
+        .map(([brand, count]) => ({ brand, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+    initStatsCharts(stats);
+}
+
 // ==================== EVENTS ====================
 if (btnRefresh) {
     btnRefresh.addEventListener('click', () => {
@@ -582,6 +793,9 @@ if (btnRefresh) {
 }
 if (searchInput) searchInput.addEventListener('input', renderTable);
 if (btnExport) btnExport.addEventListener('click', window.exportToExcel);
+
+if (btnShowStats) btnShowStats.addEventListener('click', showStats);
+if (btnCloseStats) btnCloseStats.addEventListener('click', () => statsModal.classList.add('hidden'));
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {

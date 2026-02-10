@@ -195,6 +195,18 @@ async function fetchDetails(rpro) {
                 if (!suppError && suppData && suppData.length > 0) {
                     defaultQty = suppData[0].total;
                     console.log(`📦 Dán: Fallback to supplement table total: ${defaultQty}`);
+                } else {
+                    // Fallback to Masterdata total
+                    const { data: masterData, error: masterError } = await supabase
+                        .from('Masterdata')
+                        .select('"Total Qty"')
+                        .eq('PRO ODER', rpro)
+                        .limit(1);
+
+                    if (!masterError && masterData && masterData.length > 0) {
+                        defaultQty = masterData[0]['Total Qty'];
+                        console.log(`📦 Dán: Fallback to Masterdata total: ${defaultQty}`);
+                    }
                 }
             }
         } else if (['Cắt', 'Molding', 'DC', 'Molded'].includes(activeSection)) {

@@ -140,7 +140,20 @@ async function loadOrderInfo(rpro) {
       throw error;
     }
 
-    const rec = (recs && recs.length > 0) ? recs[0] : null;
+    let rec = (recs && recs.length > 0) ? recs[0] : null;
+
+    if (!rec) {
+      console.log(`🔍 RPRO ${rpro} not found in powerapp, checking Masterdata...`);
+      const { data: mRecs, error: mError } = await supabase
+        .from('Masterdata')
+        .select('*')
+        .eq('PRO ODER', rpro)
+        .limit(1);
+
+      if (!mError && mRecs && mRecs.length > 0) {
+        rec = mRecs[0];
+      }
+    }
 
     if (!rec) {
       alert("Không tìm thấy đơn " + rpro);
