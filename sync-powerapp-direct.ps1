@@ -370,6 +370,34 @@ else {
     Write-Host "--- No 9.STORED orders found in current batch."
 }
 
+# 2.B CLEANUP OLD DATA (Older than 1 year)
+$oneYearAgo = (Get-Date).AddYears(-1).ToString("yyyy-MM-dd")
+Write-Host "--- Cleaning up data older than 1 year (Before $oneYearAgo)..."
+
+# 1. Cleanup Masterdata
+try {
+    Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/Masterdata?Finish%20date=lt.$oneYearAgo" `
+        -Method Delete `
+        -Headers @{ "apikey" = "$supabaseKey"; "Authorization" = "Bearer $supabaseKey" } | Out-Null
+}
+catch { Write-Warning "!!! Masterdata cleanup warning: $_" }
+
+# 2. Cleanup supplement_tracking
+try {
+    Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/supplement_tracking?created_at=lt.$oneYearAgo" `
+        -Method Delete `
+        -Headers @{ "apikey" = "$supabaseKey"; "Authorization" = "Bearer $supabaseKey" } | Out-Null
+}
+catch { Write-Warning "!!! supplement_tracking cleanup warning: $_" }
+
+# 3. Cleanup supplement_confirm 
+try {
+    Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/supplement_confirm?Confirm_date=lt.$oneYearAgo" `
+        -Method Delete `
+        -Headers @{ "apikey" = "$supabaseKey"; "Authorization" = "Bearer $supabaseKey" } | Out-Null
+}
+catch { Write-Warning "!!! supplement_confirm cleanup warning: $_" }
+
 Write-Host "--- Clearing existing data in powerapp..."
 try {
     # Delete ALL data (STT is not null) using standard PostgREST syntax
