@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import fetch from 'node-fetch';
 
@@ -9,6 +8,29 @@ const MODEL_ID = "Qwen/Qwen2.5-72B-Instruct";
 const SUPABASE_URL = "https://ixdtdrbytwdmnlqgunzu.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4ZHRkcmJ5dHdkbW5scWd1bnp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyMzkyODYsImV4cCI6MjA2ODgxNTI4Nn0.5FLdLDf0d1yA70UBmAbJYW95kVWdta31QmEjm9oX4jg";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const SYSTEM_INSTRUCTION = `Bạn là Chuyên gia Điều phối Sản xuất (Production Planner) thông minh tại Ortholite Việt Nam (OVN).
+NHIỆM VỤ: Phân tích dữ liệu thực hiện báo cáo, giải đáp thắc mắc và đưa ra lời khuyên về tiến độ sản xuất.
+
+TỪ ĐIỂN DỮ LIỆU (Để bạn hiểu các bảng):
+1. Bảng [powerapp] (Quản lý đơn hàng):
+   - PRO ODER: Mã lệnh sản xuất (Ví dụ: RPRO-2024...).
+   - Brand Code: Tên thương hiệu (Nike, Adidas, Puma, Brooks, Asics...).
+   - STATUS: Quy trình từ 1.LAMINATION đến 9.STORED (9 là xong).
+   - Delay-Urgent: 'PRODUCTION DELAY' (Hàng trễ), 'URGENT' (Hàng gấp). 'NORMAL' (Bình thường).
+   - Finish date: Hạn chót phải hoàn thành.
+
+2. Bảng [supplement_tracking] (Dữ liệu quét hàng bù Realtime):
+   - section: Công đoạn (Dán, Cắt, Molding, DC, Molded).
+   - action: 'IN' (Bắt đầu làm), 'OUT' (Xong công đoạn đó).
+   - quantity: Số lượng đôi.
+
+NGUYÊN TẮC TRẢ LỜI:
+- Trả lời bằng tiếng Việt, chuyên nghiệp, súc tích.
+- Khi người dùng hỏi về thống kê, hãy dùng con số cụ thể từ mục [DỮ LIỆU HỆ THỐNG].
+- Nếu đơn hàng có STATUS chưa phải là 9 mà đã qua ngày Finish date, hãy nhắc nhở là CỰC KỲ TRỄ.
+- Nếu người dùng yêu cầu 'danh sách' hoặc 'chi tiết', hãy liệt kê rõ ràng các mã đơn.
+- Tuyệt đối không nói 'tôi không có quyền truy cập' vì dữ liệu đã được cung cấp ngay bên dưới câu hỏi.`;
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -21,140 +43,67 @@ export default async function handler(req, res) {
     }
 
     try {
-        console.log("--- Connecting to Hugging Face AI & Supabase ---");
+        console.log("--- Chatbot OVN IQ Upgrade ---");
 
-        let finalContext = context || "Bạn là trợ lý ảo sản xuất thông minh tại Ortholite Việt Nam (OVN).";
+        let dataContext = "";
+        const queryLower = prompt.toLowerCase();
+        const today = new Date().toISOString().split('T')[0];
 
-        // --- 1. TÌM KIẾM CHI TIẾT THEO RPRO ---
+        // 1. Tự động lấy tổng quan tình hình (Snapshot)
+        const { data: snapshot } = await supabase.from('powerapp').select('Delay-Urgent, STATUS');
+        const delay = snapshot?.filter(o => o['Delay-Urgent'] === 'PRODUCTION DELAY').length || 0;
+        const urgent = snapshot?.filter(o => o['Delay-Urgent'] === 'URGENT').length || 0;
+
+        dataContext += `[TỔNG QUAN HỆ THỐNG]: Có ${delay} đơn trễ (Delay) và ${urgent} đơn gấp (Urgent).`;
+
+        // 2. Nếu hỏi về Scan / Tiến độ hôm nay
+        if (queryLower.includes("scan") || queryLower.includes("hàng bù") || queryLower.includes("tiến độ") || queryLower.includes("thống kê")) {
+            const { data: scans } = await supabase
+                .from('supplement_tracking')
+                .select('section, rpro, action')
+                .gte('scan_date', today);
+
+            if (scans && scans.length > 0) {
+                const sections = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
+                dataContext += "\n[TIẾN ĐỘ SCAN HÔM NAY]:";
+                sections.forEach(s => {
+                    const rpros = [...new Set(scans.filter(r => r.section === s).map(r => r.rpro))];
+                    if (rpros.length > 0) {
+                        dataContext += `\n- ${s}: ${rpros.length} đơn. Danh sách mã: ${rpros.join(', ')}`;
+                    }
+                });
+            } else {
+                dataContext += "\n- Hôm nay chưa có dữ liệu scan thực tế.";
+            }
+        }
+
+        // 3. Nếu hỏi về mã RPRO cụ thể
         const rproMatch = prompt.match(/RPRO-[\d-]+/i);
         if (rproMatch) {
             const searchRpro = rproMatch[0].toUpperCase();
-            try {
-                const { data: orderDetail } = await supabase
-                    .from('powerapp')
-                    .select('*')
-                    .eq('PRO ODER', searchRpro)
-                    .maybeSingle();
+            const { data: order } = await supabase.from('powerapp').select('*').eq('PRO ODER', searchRpro).maybeSingle();
+            const { data: history } = await supabase.from('supplement_tracking').select('*').eq('rpro', searchRpro).order('created_at', { ascending: true });
 
-                if (orderDetail) {
-                    finalContext += `\n\n[DỮ LIỆU THỰC TẾ SUPABASE]:\nĐơn hàng ${searchRpro} có thông tin:\n${JSON.stringify(orderDetail, null, 2)}`;
-                    finalContext += `\nBẠN PHẢI TRẢ LỜI dựa trên dữ liệu này.`;
+            if (order) {
+                dataContext += `\n[CHI TIẾT ĐƠN ${searchRpro}]: Brand: ${order['Brand Code']}, Qty: ${order['Total Qty']}, Hạn: ${order['Finish date']}, Trạng thái: ${order['STATUS']}.`;
+                if (history && history.length > 0) {
+                    dataContext += `\nLịch sử scan: ` + history.map(h => `${h.section}-${h.action}`).join(' -> ');
                 }
-            } catch (err) { console.error("RPRO Search Err:", err); }
+            }
         }
 
-        // --- 2. THỐNG KÊ CHI TIẾT & LẬP KẾ HOẠCH (PLANNING INSIGHTS) ---
-        const queryLower = prompt.toLowerCase();
-        const planningKeywords = ["kế hoạch", "ưu tiên", "tư vấn", "chạy đơn", "sắp xếp", "lịch", "nên làm"];
-        const generalKeywords = ["tổng", "lượng", "bao nhiêu", "tình hình", "báo cáo", "delay", "chậm", "trễ", "gấp"];
-
-        if (planningKeywords.some(k => queryLower.includes(k)) || generalKeywords.some(k => queryLower.includes(k))) {
-            try {
-                // --- 2A. PHÁT HIỆN BRAND CỤ THỂ TRONG CÂU HỎI ---
-                const knownBrands = ["ASICS", "NIKE", "BROOKS", "ON RUNNING", "PUMA", "ADIDAS", "NEW BALANCE"];
-                const detectedBrand = knownBrands.find(b => queryLower.includes(b.toLowerCase()));
-
-                if (detectedBrand) {
-                    console.log(`Detected brand: ${detectedBrand} - Fetching stats...`);
-                    const { data: brandData } = await supabase
-                        .from('powerapp')
-                        .select('Total Qty, Delay-Urgent')
-                        .ilike('Brand Code', `%${detectedBrand}%`);
-
-                    if (brandData && brandData.length > 0) {
-                        const brandDelayQty = brandData
-                            .filter(o => (o['Delay-Urgent'] || '').toString().toLowerCase().includes('delay'))
-                            .reduce((sum, o) => {
-                                const val = String(o['Total Qty'] || '0').replace(/,/g, '');
-                                return sum + (parseFloat(val) || 0);
-                            }, 0);
-
-                        const brandTotalQty = brandData.reduce((sum, o) => {
-                            const val = String(o['Total Qty'] || '0').replace(/,/g, '');
-                            return sum + (parseFloat(val) || 0);
-                        }, 0);
-
-                        finalContext += `\n\n[DỮ LIỆU HỆ THỐNG XÁC THỰC - BRAND ${detectedBrand}]:
-- TỔNG SỐ LƯỢNG của thương hiệu ${detectedBrand}: ${brandTotalQty.toLocaleString()} đôi.
-- SỐ LƯỢNG ĐANG CHẬM (DELAY): ${brandDelayQty.toLocaleString()} đôi.
-- Số lượng GẤP (Urgent): ${brandData.filter(o => (o['Delay-Urgent'] || '').toString().toLowerCase().includes('urgent')).reduce((sum, o) => sum + (parseFloat(o['Total Qty']) || 0), 0).toLocaleString()} đôi.
-
-CHỈ THỊ QUAN TRỌNG: Bạn hãy dùng con số ${brandDelayQty.toLocaleString()} để trả lời về lượng hàng delay của ${detectedBrand}. TUYỆT ĐỐI KHÔNG nói là "cần truy cập hệ thống" hay "viết code SQL". Hãy trả lời: "Dựa vào dữ liệu từ hệ thống, thương hiệu ${detectedBrand} đang có ${brandDelayQty.toLocaleString()} đôi bị delay..."`;
-                    }
-                }
-
-                // --- 2C. THỐNG KÊ SCAN HÀNG BÙ HÔM NAY ---
-                const scanKeywords = ["scan", "đếm", "hàng bù", "thống kê hôm nay", "tiến độ"];
-                if (scanKeywords.some(k => queryLower.includes(k))) {
-                    console.log("Detecting scan-related query, fetching supplement_tracking...");
-                    const today = new Date().toISOString().split('T')[0];
-                    const { data: scanData } = await supabase
-                        .from('supplement_tracking')
-                        .select('section, rpro, action')
-                        .gte('scan_date', today);
-
-                    if (scanData && scanData.length > 0) {
-                        const sections = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
-                        let scanSummary = "\n\n[DỮ LIỆU SCAN HÀNG BÙ HÔM NAY]:";
-                        sections.forEach(s => {
-                            const sectionRows = scanData.filter(r => r.section === s);
-                            const totalScans = sectionRows.length;
-                            const distinctOrders = new Set(sectionRows.map(r => r.rpro)).size;
-                            if (totalScans > 0) {
-                                scanSummary += `\n- Bộ phận ${s}: ${distinctOrders} đơn (Tổng ${totalScans} lượt quét IN/OUT)`;
-                            }
-                        });
-                        finalContext += scanSummary;
-                        finalContext += `\nLƯU Ý: Số lượng đơn (RPRO) được tính bằng cách đếm các mã đơn khác nhau (Distinct), còn tổng lượt quét bao gồm cả Nhập (IN) và Xuất (OUT). Bạn nên ưu tiên dùng số lượng đơn để báo cáo. Sau khi liệt kê xong, nếu người dùng muốn biết đơn cụ thể nào thì hãy nói họ xem trang Tổng Hợp.`;
-                    } else {
-                        finalContext += "\n\n[DỮ LIỆU HỆ THỐNG]: Hôm nay chưa có dữ liệu scan hàng bù nào được ghi nhận.";
-                    }
-                }
-
-                // --- 2D. LẤY SNAPSHOT TỔNG QUÁT ---
-                const { data: allStats } = await supabase.from('powerapp').select('Brand Code, STATUS, Delay-Urgent, Total Qty, Finish date, PRO ODER, CUSTOMERS').limit(400);
-
-                if (allStats && allStats.length > 0) {
-                    // --- THỐNG KÊ NHANH ---
-                    const totalOrders = allStats.length;
-                    const delayOrders = allStats.filter(o => o['Delay-Urgent'] === 'PRODUCTION DELAY').length;
-                    const urgentOrders = allStats.filter(o => o['Delay-Urgent'] === 'URGENT').length;
-
-                    // --- LẬP KẾ HOẠCH ƯU TIÊN (Priority Planning) ---
-                    // Lọc đơn chưa nhập kho, ưu tiên Urgent và Finish date sớm
-                    const priorityList = allStats
-                        .filter(o => o['STATUS'] !== '9.STORED' && o['STATUS'] !== '8.DELIVERY')
-                        .sort((a, b) => {
-                            // Ưu tiên Gấp (URGENT)
-                            if (a['Delay-Urgent'] === 'URGENT' && b['Delay-Urgent'] !== 'URGENT') return -1;
-                            if (a['Delay-Urgent'] !== 'URGENT' && b['Delay-Urgent'] === 'URGENT') return 1;
-                            // Sau đó ưu tiên Finish date (Càng nhỏ/càng sớm càng ưu tiên)
-                            return (new Date(a['Finish date']).getTime() || Infinity) - (new Date(b['Finish date']).getTime() || Infinity);
-                        })
-                        .slice(0, 20); // Lấy 20 đơn quan trọng nhất
-
-                    finalContext += `\n\n[BÁO CÁO NHANH]: Tổng ${totalOrders} đơn, ${delayOrders} delay, ${urgentOrders} gấp.`;
-
-                    finalContext += `\n\n[DANH SÁCH ĐƠN HÀNG CẦN ƯU TIÊN (TOP 20)]:`;
-                    priorityList.forEach((o, i) => {
-                        finalContext += `\n${i + 1}. ${o['PRO ODER']} | KH: ${o['CUSTOMERS']} | Hạn: ${o['Finish date']} | Trạng thái: ${o['STATUS']} | Loại: ${o['Delay-Urgent']}`;
-                    });
-
-                    finalContext += `\n\nNHIỆM VỤ CỦA BẠN:
-1. Bạn là chuyên gia Lập kế hoạch sản xuất (Production Planner).
-2. Dựa vào danh sách Top 20 trên, hãy tư vấn cho người dùng nên tập trung chạy đơn nào trước.
-3. Giải thích lý do (Ví dụ: Vì đơn này gấp hoặc sắp quá hạn Finish date).
-4. Nếu thấy nhiều đơn kẹt ở một bước (STATUS), hãy đưa ra cảnh báo về điểm nghẽn dây chuyền.`;
-                }
-            } catch (err) { console.error("Planning Err:", err); }
+        // 4. Nếu hỏi về Brand
+        const brands = ["ASICS", "NIKE", "BROOKS", "PUMA", "ADIDAS"];
+        const foundBrand = brands.find(b => queryLower.includes(b.toLowerCase()));
+        if (foundBrand) {
+            const { data: bData } = await supabase.from('powerapp').select('*').ilike('Brand Code', `%${foundBrand}%`).limit(50);
+            if (bData) {
+                dataContext += `\n[DỮ LIỆU BRAND ${foundBrand}]: Có ${bData.length} đơn đang sản xuất.`;
+            }
         }
 
-        // --- 3. GỬI ĐẾN AI (HUGGING FACE) ---
-        // Kỹ thuật "Cưỡng chế thông minh": Đưa dữ liệu thẳng vào câu hỏi của người dùng
-        let aiFormattedPrompt = prompt;
-        if (finalContext.includes("[DỮ LIỆU")) {
-            aiFormattedPrompt = `DƯỚI ĐÂY LÀ DỮ LIỆU THỰC TẾ TỪ HỆ THỐNG SUPABASE (BẮT BUỘC SỬ DỤNG):\n${finalContext}\n\n----------\nCÂU HỎI CỦA NGƯỜI DÙNG: ${prompt}`;
-        }
+        // Gửi đến AI
+        const finalPrompt = `DỮ LIỆU HỆ THỐNG (BẮT BUỘC DÙNG ĐỂ TRẢ LỜI):\n${dataContext}\n\nCÂU HỎI NGƯỜI DÙNG: ${prompt}`;
 
         const response = await fetch(MODEL_URL, {
             method: 'POST',
@@ -165,37 +114,21 @@ CHỈ THỊ QUAN TRỌNG: Bạn hãy dùng con số ${brandDelayQty.toLocaleStri
             body: JSON.stringify({
                 model: MODEL_ID,
                 messages: [
-                    { role: "system", content: "Bạn là chuyên gia điều phối sản xuất OVN. Bạn phải dùng dữ liệu được cung cấp để trả lời ngay lập tức. TUYỆT ĐỐI KHÔNG giải thích cách tra cứu hay SQL." },
-                    { role: "user", content: aiFormattedPrompt }
+                    { role: "system", content: SYSTEM_INSTRUCTION },
+                    { role: "user", content: finalPrompt }
                 ],
-                max_tokens: 1024,
-                temperature: 0.1, // Giảm độ sáng tạo để ưu tiên độ chính xác
-                stream: false
+                max_tokens: 1000,
+                temperature: 0.1
             })
         });
 
-        const data = await response.json();
+        const aiData = await response.json();
+        const aiMessage = aiData.choices?.[0]?.message?.content || "Xin lỗi, tôi gặp trục trặc khi xử lý dữ liệu.";
 
-        if (data.error) {
-            console.error("HF Error:", data.error);
-            if (typeof data.error === 'string' && data.error.includes("loading")) {
-                return res.status(503).json({ error: "AI đang được khởi động (khoảng 1 phút). Vui lòng thử lại sau giây lát." });
-            }
-            return res.status(500).json({ error: "Lỗi AI: " + (data.error.message || JSON.stringify(data.error)) });
-        }
-
-        if (data.choices && data.choices.length > 0) {
-            const aiResponse = data.choices[0].message.content;
-            return res.status(200).json({
-                response: aiResponse,
-                model_active: MODEL_ID
-            });
-        }
-
-        throw new Error("Không nhận được phản hồi định dạng chuẩn từ AI");
+        return res.status(200).json({ response: aiMessage });
 
     } catch (err) {
-        console.error('❌ [CHAT API ERROR]:', err);
-        res.status(500).json({ error: 'Lỗi hệ thống AI: ' + err.message });
+        console.error("Chat API Error:", err);
+        res.status(500).json({ error: "Lỗi hệ thống: " + err.message });
     }
 }
