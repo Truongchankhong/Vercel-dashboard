@@ -83,7 +83,35 @@ CHỈ THỊ QUAN TRỌNG: Bạn hãy dùng con số ${brandDelayQty.toLocaleStri
                     }
                 }
 
-                // --- 2B. LẤY SNAPSHOT TỔNG QUÁT ---
+                // --- 2C. THỐNG KÊ SCAN HÀNG BÙ HÔM NAY ---
+                const scanKeywords = ["scan", "đếm", "hàng bù", "thống kê hôm nay", "tiến độ"];
+                if (scanKeywords.some(k => queryLower.includes(k))) {
+                    console.log("Detecting scan-related query, fetching supplement_tracking...");
+                    const today = new Date().toISOString().split('T')[0];
+                    const { data: scanData } = await supabase
+                        .from('supplement_tracking')
+                        .select('section, rpro, action')
+                        .gte('scan_date', today);
+
+                    if (scanData && scanData.length > 0) {
+                        const sections = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
+                        let scanSummary = "\n\n[DỮ LIỆU SCAN HÀNG BÙ HÔM NAY]:";
+                        sections.forEach(s => {
+                            const sectionRows = scanData.filter(r => r.section === s);
+                            const totalScans = sectionRows.length;
+                            const distinctOrders = new Set(sectionRows.map(r => r.rpro)).size;
+                            if (totalScans > 0) {
+                                scanSummary += `\n- Bộ phận ${s}: ${distinctOrders} đơn (Tổng ${totalScans} lượt quét IN/OUT)`;
+                            }
+                        });
+                        finalContext += scanSummary;
+                        finalContext += `\nLƯU Ý: Số lượng đơn (RPRO) được tính bằng cách đếm các mã đơn khác nhau (Distinct), còn tổng lượt quét bao gồm cả Nhập (IN) và Xuất (OUT). Bạn nên ưu tiên dùng số lượng đơn để báo cáo. Sau khi liệt kê xong, nếu người dùng muốn biết đơn cụ thể nào thì hãy nói họ xem trang Tổng Hợp.`;
+                    } else {
+                        finalContext += "\n\n[DỮ LIỆU HỆ THỐNG]: Hôm nay chưa có dữ liệu scan hàng bù nào được ghi nhận.";
+                    }
+                }
+
+                // --- 2D. LẤY SNAPSHOT TỔNG QUÁT ---
                 const { data: allStats } = await supabase.from('powerapp').select('Brand Code, STATUS, Delay-Urgent, Total Qty, Finish date, PRO ODER, CUSTOMERS').limit(400);
 
                 if (allStats && allStats.length > 0) {
