@@ -684,15 +684,15 @@ function initStatsCharts(statsData) {
         }
     });
 
-    // 3. Gap Analysis Chart (Bar)
-    const gapData = statsData.topGaps.slice(0, 10); // Show top 10 gaps
+    // 3. Latency Analysis Chart (Bar)
+    const latencyData = statsData.topLatencies.slice(0, 10);
     monitorCharts.gapMonitor = new Chart(document.getElementById('chart-gap-monitor'), {
         type: 'bar',
         data: {
-            labels: gapData.map(d => d.rpro),
+            labels: latencyData.map(d => d.rpro),
             datasets: [{
-                label: 'Số lượng chênh lệch (Gap)',
-                data: gapData.map(d => d.totalGap),
+                label: 'Thời gian chờ (Giờ)',
+                data: latencyData.map(d => d.maxWait.toFixed(1)),
                 backgroundColor: '#ef4444' // Red-500
             }]
         },
@@ -701,10 +701,13 @@ function initStatsCharts(statsData) {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                title: { display: true, text: 'Top 10 Đơn hàng có Gap lớn nhất' }
+                title: { display: true, text: 'Top 10 đơn hàng chờ chuyển công đoạn lâu nhất' }
             },
             scales: {
-                y: { beginAtZero: true }
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Giờ' }
+                }
             }
         }
     });
@@ -736,7 +739,7 @@ async function showStats() {
     const sections = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
     const stats = {
         sections: {},
-        topGaps: [],
+        topLatencies: [],
         brands: {}
     };
 
@@ -745,12 +748,7 @@ async function showStats() {
     });
 
     progressData.forEach(item => {
-        let totalOrderGap = 0;
-
-        // Brand data
-        const b = item.brand || 'N/A';
-        stats.brands[b] = (stats.brands[b] || 0) + 1;
-
+        // 1. Basic counts
         sections.forEach(s => {
             const stage = item.stages[s];
             if (stage.out) {
@@ -758,22 +756,34 @@ async function showStats() {
             } else if (stage.in) {
                 stats.sections[s].processing++;
             }
-
-            // Calculation for Gap Analysis
-            if (stage.in && stage.out) {
-                const inQty = stage.in.qty || 0;
-                const outQty = stage.out.qty || 0;
-                if (inQty > outQty) totalOrderGap += (inQty - outQty);
-            }
         });
 
-        if (totalOrderGap > 0) {
-            stats.topGaps.push({ rpro: item.rpro, totalGap: totalOrderGap });
+        // 2. Brand data
+        const b = item.brand || 'N/A';
+        stats.brands[b] = (stats.brands[b] || 0) + 1;
+
+        // 3. Transfer Latency Calculation
+        let maxWait = 0;
+        for (let i = 0; i < sections.length - 1; i++) {
+            const currentStage = item.stages[sections[i]];
+            const nextStage = item.stages[sections[i + 1]];
+
+            if (currentStage.out && nextStage.in) {
+                const outTime = new Date(currentStage.out.time);
+                const inTime = new Date(nextStage.in.time);
+                const diffHours = (inTime - outTime) / (1000 * 60 * 60);
+
+                if (diffHours > maxWait) maxWait = diffHours;
+            }
+        }
+
+        if (maxWait > 0) {
+            stats.topLatencies.push({ rpro: item.rpro, maxWait: maxWait });
         }
     });
 
-    // Sort gaps descending
-    stats.topGaps.sort((a, b) => b.totalGap - a.totalGap);
+    // Sort latencies descending
+    stats.topLatencies.sort((a, b) => b.maxWait - a.maxWait);
 
     // Sort brands
     stats.topBrands = Object.entries(stats.brands)
