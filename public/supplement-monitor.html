@@ -56,39 +56,59 @@
 <body class="bg-gray-50 min-h-screen p-4">
     <div class="max-w-[1600px] mx-auto">
         <!-- Header -->
-        <div class="bg-white rounded-xl shadow-sm p-4 mb-4 flex justify-between items-center border border-gray-200">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">📊 Tiến Độ Hàng Bù (Realtime)</h1>
-                <p class="text-xs text-gray-500 mt-1">Theo dõi trạng thái IN/OUT qua các công đoạn</p>
-            </div>
-            <div class="flex gap-2 items-center">
-                <div class="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border">
-                    <input type="date" id="date-start"
-                        class="bg-transparent text-sm font-medium text-gray-600 outline-none px-1">
-                    <span class="text-gray-400">-</span>
-                    <input type="date" id="date-end"
-                        class="bg-transparent text-sm font-medium text-gray-600 outline-none px-1">
+        <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border border-gray-200">
+            <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-bold text-gray-800">📊 Tiến Độ Hàng Bù (Realtime)</h1>
+                        <p class="text-[10px] md:text-xs text-gray-500 mt-1">Theo dõi trạng thái IN/OUT qua các công
+                            đoạn</p>
+                    </div>
+                    <!-- Back button on mobile title row -->
+                    <button onclick="window.location.href='supplement-count.html'"
+                        class="lg:hidden px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition text-sm">
+                        ← Scan
+                    </button>
                 </div>
-                <div class="relative">
-                    <input type="text" id="search-input" placeholder="🔍 Tìm mã RPRO..."
-                        class="pl-3 pr-10 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-48 uppercase">
+
+                <div class="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
+                    <!-- Date Group -->
+                    <div
+                        class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border flex-1 sm:flex-none justify-between">
+                        <input type="date" id="date-start"
+                            class="bg-transparent text-sm font-bold text-gray-700 outline-none px-1 w-full">
+                        <span class="text-gray-400">→</span>
+                        <input type="date" id="date-end"
+                            class="bg-transparent text-sm font-bold text-gray-700 outline-none px-1 w-full">
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="relative flex-1 sm:min-w-[200px]">
+                        <input type="text" id="search-input" placeholder="🔍 Tìm mã RPRO..."
+                            class="w-full pl-3 pr-10 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase shadow-sm">
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="grid grid-cols-3 sm:flex gap-2">
+                        <button id="btn-refresh"
+                            class="flex-1 px-3 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition shadow-md text-sm font-bold active:scale-95">
+                            🔄 Xem
+                        </button>
+                        <button id="btn-export"
+                            class="flex-1 px-3 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition shadow-md text-sm font-bold active:scale-95">
+                            Excel
+                        </button>
+                        <button id="btn-show-stats"
+                            class="flex-1 px-3 py-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition shadow-md text-sm font-bold active:scale-95">
+                            📊 Thống kê
+                        </button>
+                        <!-- Back button only on Desktop -->
+                        <button onclick="window.location.href='supplement-count.html'"
+                            class="hidden lg:block px-3 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition shadow-md text-sm font-bold active:scale-95">
+                            ← Scan
+                        </button>
+                    </div>
                 </div>
-                <button id="btn-refresh"
-                    class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-sm text-sm font-bold whitespace-nowrap">
-                    🔄 Xem
-                </button>
-                <button id="btn-export"
-                    class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm text-sm font-bold whitespace-nowrap">
-                    Excel
-                </button>
-                <button id="btn-show-stats"
-                    class="px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition shadow-sm text-sm font-bold whitespace-nowrap">
-                    📊 Thống kê
-                </button>
-                <button onclick="window.location.href='supplement-count.html'"
-                    class="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition shadow-sm text-sm whitespace-nowrap">
-                    ← Scan
-                </button>
             </div>
         </div>
 
