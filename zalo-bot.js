@@ -621,6 +621,13 @@ async function sendReply(page, text) {
                     await page.click(selector);
                     await new Promise(r => setTimeout(r, 500)); // Chờ 0.5s cho chắc
 
+                    // XÓA NỘI DUNG CŨ (đề phòng bị kẹt chữ)
+                    await page.keyboard.down('Control');
+                    await page.keyboard.press('a');
+                    await page.keyboard.up('Control');
+                    await page.keyboard.press('Backspace');
+                    await new Promise(r => setTimeout(r, 300));
+
                     // Gõ tin nhắn
                     await page.keyboard.type(text, { delay: 5 });
                     await page.keyboard.press('Enter');
@@ -635,7 +642,11 @@ async function sendReply(page, text) {
         if (!inputFound) {
             console.error("❌ Không tìm thấy ô nhập liệu hoặc Zalo bị khóa màn hình.");
             // Fallback: Thử gõ đại nếu không tìm thấy selector chính xác
-            await page.keyboard.press('Escape'); // Thoát các popup nếu có
+            await page.keyboard.press('Escape');
+            await page.keyboard.down('Control');
+            await page.keyboard.press('a');
+            await page.keyboard.up('Control');
+            await page.keyboard.press('Backspace');
             await page.keyboard.type(text);
             await page.keyboard.press('Enter');
         }
