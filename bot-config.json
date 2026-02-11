@@ -1,0 +1,24 @@
+{
+    "group_name": "AI Assistant",
+    "triggers": [
+        "@AI",
+        "/ai",
+        "bot",
+        "@Auto Report",
+        "AI ơi",
+        "lu lu",
+        "Lu lu",
+        "Lulu",
+        "lulu",
+        "AI",
+        "Lu",
+        "lu",
+        "bot",
+        "chi ơi",
+        "chị ơi",
+        "em ơi",
+        "hỗ trợ",
+        "giúp em"
+    ],
+    "check_interval_ms": 3000
+}

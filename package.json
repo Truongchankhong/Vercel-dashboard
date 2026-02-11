@@ -12,6 +12,7 @@
     "cleanup": "node cleanup-supabase.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.52.0",
     "@tailwindcss/vite": "^4.1.8",
     "cors": "^2.8.5",
@@ -19,6 +20,7 @@
     "express": "^4.21.2",
     "luxon": "^3.7.1",
     "node-fetch": "^3.3.2",
+    "puppeteer": "^24.2.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
