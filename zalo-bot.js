@@ -7,6 +7,90 @@ const GROUP_NAME_KEYWORD = "AI Assistant"; // Tên nhóm Zalo cần theo dõi
 const BOT_TRIGGER = "@AI"; // Từ khóa để gọi Bot
 const CHECK_INTERVAL = 3000; // Kiểm tra tin nhắn mỗi 3 giây
 
+// --- HELPER: Auto-navigate to the correct group ---
+async function navigateToGroup(page, groupName) {
+    try {
+        console.log(`🔄 Đang tự động chuyển về nhóm "${groupName}"...`);
+
+        // Bước 1: Tìm và click thanh search
+        const searchSelectors = [
+            '#contact-search-input',
+            'input[placeholder="Tìm kiếm"]',
+            'input[placeholder="Search"]',
+            '.global-search-box input'
+        ];
+
+        let searchFound = false;
+        for (const selector of searchSelectors) {
+            try {
+                const el = await page.$(selector);
+                if (el) {
+                    await el.click();
+                    await new Promise(r => setTimeout(r, 500));
+                    // Clear existing text
+                    await page.keyboard.down('Control');
+                    await page.keyboard.press('a');
+                    await page.keyboard.up('Control');
+                    await page.keyboard.press('Backspace');
+                    await new Promise(r => setTimeout(r, 300));
+                    // Type group name
+                    await page.keyboard.type(groupName, { delay: 100 });
+                    searchFound = true;
+                    break;
+                }
+            } catch (e) { }
+        }
+
+        if (!searchFound) {
+            // Fallback: use Ctrl+F
+            await page.keyboard.down('Control');
+            await page.keyboard.press('F');
+            await page.keyboard.up('Control');
+            await new Promise(r => setTimeout(r, 1000));
+            await page.keyboard.type(groupName, { delay: 100 });
+        }
+
+        // Bước 2: Chờ kết quả search
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Bước 3: Tìm và click vào kết quả có tên nhóm chính xác
+        const clicked = await page.evaluate((name) => {
+            const nameLower = name.toLowerCase();
+            // Tìm tất cả element có thể là item search result
+            const allElements = document.querySelectorAll('div, span, a, li, p');
+            for (const el of allElements) {
+                const text = (el.textContent || '').trim();
+                // Tìm element chứa đúng tên nhóm, có kích thước hợp lý (không quá lớn)
+                if (text.toLowerCase().includes(nameLower) && text.length < 100 && text.length > name.length - 3) {
+                    // Kiểm tra element này có clickable không (có height > 0)
+                    const rect = el.getBoundingClientRect();
+                    if (rect.height > 10 && rect.height < 200) {
+                        el.click();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }, groupName);
+
+        if (clicked) {
+            console.log(`✅ Đã click vào nhóm "${groupName}" từ kết quả search.`);
+        } else {
+            // Fallback: Enter để chọn kết quả đầu tiên
+            await page.keyboard.press('Enter');
+            console.log(`↵ Đã nhấn Enter để chọn kết quả đầu tiên.`);
+        }
+
+        // Bước 4: Đóng search panel (nhấn Escape)
+        await new Promise(r => setTimeout(r, 2000));
+        await page.keyboard.press('Escape');
+
+        console.log(`🔄 Hoàn tất chuyển nhóm. Chờ verify...`);
+    } catch (err) {
+        console.error(`❌ Lỗi khi chuyển nhóm: ${err.message}`);
+    }
+}
+
 async function startZaloBot() {
     console.log("🚀 Đang khởi động Zalo AI Bot...");
 
@@ -121,8 +205,10 @@ async function startZaloBot() {
     console.log("👀 Đang theo dõi tin nhắn mới...");
 
     // Default triggers (will be updated from config)
-    let currentTriggers = ["@AI", "/ai", "bot", "@Xuân Trường", "Trường ơi"];
+    let currentTriggers = ["@AI", "@Auto Report", "/ai", "bot", "@Xuân Trường", "Trường ơi"];
     let lastConfigCheck = 0;
+    let debugCounter = 0; // Đếm số lần debug log (chỉ log 3 lần đầu)
+    let lastBotReply = ""; // Lưu câu trả lời cuối cùng của bot để bỏ qua
 
     while (true) {
         // --- RELOAD CONFIG (LIVE UPDATE) ---
@@ -153,118 +239,312 @@ async function startZaloBot() {
 
         try {
             // --- SAFETY CHECK: Verify we are in the correct group ---
-            // Zalo header title selectors (may change, need multiple fallbacks)
-            const headerTitleEl = await page.evaluate(() => {
-                const selectors = ['header .header-title', '.title-header', '.header-info h1', '.header-info .title', '#header-title', '.chat-info-header .text'];
+            // Zalo Web DOM thay đổi liên tục, cần nhiều chiến lược để detect tên nhóm
+            const headerTitleEl = await page.evaluate((keyword) => {
+                // Strategy 1: Các selector cụ thể cho header nhóm Zalo
+                const selectors = [
+                    'header .header-title',
+                    '.title-header',
+                    '.header-info h1',
+                    '.header-info .title',
+                    '#header-title',
+                    '.chat-info-header .text',
+                    '.conv-name',
+                    '.chat-title',
+                    '.group-name',
+                    // Zalo web 2024-2026 selectors
+                    'h2.truncate',
+                    '.truncate.font-medium',
+                    'span.truncate',
+                    '.header-chat .name',
+                    '.chat-header .name',
+                    // "4 thành viên" pattern - tìm element gần nó
+                    'header h1', 'header h2', 'header h3',
+                    'header span.font-bold', 'header span.font-semibold',
+                    'header p.font-bold', 'header p.font-semibold'
+                ];
                 for (const s of selectors) {
                     const el = document.querySelector(s);
-                    if (el) return el.textContent;
+                    if (el && el.textContent && el.textContent.trim().length > 0) {
+                        return el.textContent.trim();
+                    }
                 }
-                return "";
-            });
 
-            // Nếu tiêu đề KHÔNG chứa tên nhóm cần theo dõi -> BỎ QUA (Safety Mode)
+                // Strategy 2: Tìm trong header area - lấy text đầu tiên có vẻ là tên nhóm
+                const headerEl = document.querySelector('header') || document.querySelector('[class*="header"]');
+                if (headerEl) {
+                    // Tìm tất cả text nodes có nội dung ngắn (tên nhóm thường < 50 ký tự)
+                    const walker = document.createTreeWalker(headerEl, NodeFilter.SHOW_TEXT, null, false);
+                    const candidates = [];
+                    let node;
+                    while (node = walker.nextNode()) {
+                        const text = node.textContent.trim();
+                        // Tên nhóm: > 2 ký tự, < 50 ký tự, không phải số thuần, không phải "thành viên"
+                        if (text.length > 2 && text.length < 50 &&
+                            !text.match(/^\d+$/) &&
+                            !text.includes('thành viên') &&
+                            !text.includes('member') &&
+                            !text.includes('online') &&
+                            !text.includes('Đang hoạt động')) {
+                            candidates.push(text);
+                        }
+                    }
+                    if (candidates.length > 0) return candidates[0];
+                }
+
+                // Strategy 3: Fallback - tìm keyword trực tiếp trong page title hoặc top area
+                const pageTitle = document.title;
+                if (pageTitle && pageTitle.includes(keyword)) return keyword;
+
+                return "";
+            }, GROUP_NAME_KEYWORD);
+
             // Chuẩn hóa chuỗi để so sánh (Trim + lowercase + collapse spaces)
             const cleanHeader = headerTitleEl ? headerTitleEl.trim().replace(/\s+/g, ' ').toLowerCase() : "";
             const cleanKeyword = GROUP_NAME_KEYWORD.trim().replace(/\s+/g, ' ').toLowerCase();
 
-            if (cleanHeader && !cleanHeader.includes(cleanKeyword)) {
+            // CRITICAL FIX: Nếu KHÔNG detect được header → coi như KHÔNG AN TOÀN
+            if (!cleanHeader) {
+                if (lastMessageContent !== "NO_HEADER") {
+                    console.log(`⚠️ Không detect được tên nhóm hiện tại. Đang thử tìm lại nhóm "${GROUP_NAME_KEYWORD}"...`);
+                    lastMessageContent = "NO_HEADER";
+                    // Auto-navigate lại nhóm đúng
+                    await navigateToGroup(page, GROUP_NAME_KEYWORD);
+                }
+                await new Promise(r => setTimeout(r, 3000));
+                continue;
+            }
+
+            if (!cleanHeader.includes(cleanKeyword)) {
                 if (lastMessageContent !== "WRONG_GROUP") {
-                    console.log(`🔒 Đang ở nhóm khác: "${headerTitleEl}" (Clean: "${cleanHeader}"). Bot tạm dừng...`);
+                    console.log(`🔒 Đang ở nhóm khác: "${headerTitleEl}" (Clean: "${cleanHeader}"). Đang tự động chuyển về "${GROUP_NAME_KEYWORD}"...`);
                     console.log(`   (Yêu cầu: "${GROUP_NAME_KEYWORD}" - Clean: "${cleanKeyword}")`);
                     lastMessageContent = "WRONG_GROUP";
+                    // Auto-navigate lại nhóm đúng
+                    await navigateToGroup(page, GROUP_NAME_KEYWORD);
                 }
-                await new Promise(r => setTimeout(r, 2000));
+                await new Promise(r => setTimeout(r, 3000));
                 continue; // Skip this loop iteration
-            } else if (lastMessageContent === "WRONG_GROUP") {
+            } else if (lastMessageContent === "WRONG_GROUP" || lastMessageContent === "NO_HEADER") {
                 console.log(`✅ Đã trở lại nhóm "${GROUP_NAME_KEYWORD}". Bot tiếp tục hoạt động.`);
                 lastMessageContent = "";
             }
 
-            // --- DEBUG MODE: DETECTIVE ---
-            // Find the element containing "@AI ping" to learn the correct class name
-            const debugInfo = await page.evaluate(() => {
-                // Limit search to likely containers to avoid performance hit, but searching all divs is safer here
-                const allElements = document.querySelectorAll('div, span, p');
-                for (let el of allElements) {
-                    if (el.textContent && el.textContent.includes('@AI ping') && el.textContent.length < 100) {
-                        return {
-                            found: true,
-                            tag: el.tagName,
-                            id: el.id,
-                            className: el.className,
-                            parentClass: el.parentElement ? el.parentElement.className : 'none',
-                            text: el.textContent
-                        };
-                    }
-                }
-                return { found: false };
-            });
-
-            if (debugInfo.found) {
-                console.log("🕵️‍♂️ [THÁM TỬ] Tìm thấy tin nhắn mẫu!");
-                console.log(`   - Tag: ${debugInfo.tag}`);
-                console.log(`   - Class: ${debugInfo.className}`);
-                console.log(`   - Parent Class: ${debugInfo.parentClass}`);
-                console.log(`   - ID: ${debugInfo.id}`);
-            }
-
-            // STRATEGY 1: Try specific known classes for message text
-            // Update 2024: Zalo Web classes change frequently
-            // STRATEGY 1: Try specific known classes for message text
-            // Update 2024: Zalo Web classes change frequently
-            // Ưu tiên các class chắc chắn là nội dung tin nhắn (Bubble chat)
-            const msgSelectors = [
-                '.msg-item .text',
-                '.msg-item .card-text',
-                '.msg-item span[data-translate-inner]',
-                '.card--text .text',
-                '.card-content',
-                '.bubble-content .text',
-                '.message-view__content .text-content',
-                '.msg-content .text'
-            ];
+            // =================================================================
+            // CRITICAL: CHỈ ĐỌC TIN NHẮN TRONG VÙNG CHAT CHÍNH (BÊN PHẢI)
+            // Chiến lược: GENERIC DOM WALK + POSITION FILTER
+            // Không dựa vào CSS class cụ thể (vì Zalo thay đổi liên tục)
+            // =================================================================
 
             let lastMsgEl = null;
             let textContent = "";
 
-            // Try to find the last message element using broad search
-            for (const selector of msgSelectors) {
-                const elements = await page.$$(selector);
-                if (elements && elements.length > 0) {
-                    // Get the last one
-                    const el = elements[elements.length - 1];
-                    const text = await page.evaluate(e => e.innerText || e.textContent, el);
+            const allCandidates = await page.evaluate((debugMode) => {
+                const results = [];
 
-                    // Lọc rác: Bỏ qua timestamp, status system
-                    if (text && text.trim().length > 0) {
-                        const cleanText = text.trim();
-                        const ignoreList = ["Vài giây", "Đã gửi", "Đã xem", "Chưa có tin nhắn", "Tin nhắn đã thu hồi", "Hình ảnh"];
+                // === BƯỚC 1: Xác định ranh giới LEFT/RIGHT ===
+                // Tìm input box (#input_line_0) - CHẮC CHẮN nằm bên phải
+                const inputBox = document.querySelector('#input_line_0') ||
+                    document.querySelector('div[contenteditable="true"]');
 
-                        // Nếu text nằm trong blacklist hoặc quá ngắn (dưới 2 ký tự) mà không phải số -> Bỏ qua
-                        if (ignoreList.includes(cleanText) || (cleanText.length < 2 && isNaN(cleanText))) continue;
+                let rightBoundary = 250; // Default: sidebar thường rộng ~250px
+                if (inputBox) {
+                    const inputRect = inputBox.getBoundingClientRect();
+                    // Input box nằm bên phải → lấy x của nó làm ranh giới tối thiểu
+                    // Trừ thêm margin (tin nhắn có thể nằm lệch trái hơn input)
+                    rightBoundary = Math.max(200, inputRect.x - 100);
+                }
 
-                        lastMsgEl = el;
-                        textContent = cleanText;
-                        break; // Found valid text
+                // === BƯỚC 2: DOM INSPECTION (chạy 1 lần để debug) ===
+                let debugData = null;
+                if (debugMode) {
+                    // Tìm TẤT CẢ elements có text, lọc theo vị trí x > rightBoundary
+                    const allEls = document.querySelectorAll('div, span, p');
+                    const samples = [];
+                    for (const el of allEls) {
+                        const rect = el.getBoundingClientRect();
+                        if (rect.x < rightBoundary) continue; // Bỏ qua sidebar
+                        if (rect.width < 50 || rect.height < 10) continue; // Quá nhỏ
+                        if (rect.height > 500) continue; // Quá lớn (container)
+
+                        const text = (el.innerText || el.textContent || '').trim();
+                        if (text.length > 2 && text.length < 500) {
+                            samples.push({
+                                tag: el.tagName,
+                                class: el.className ? el.className.substring(0, 80) : '',
+                                id: el.id || '',
+                                text: text.substring(0, 100),
+                                x: Math.round(rect.x),
+                                y: Math.round(rect.y),
+                                w: Math.round(rect.width),
+                                h: Math.round(rect.height)
+                            });
+                        }
+                    }
+                    // Lấy 20 sample cuối (tin nhắn mới nhất ở cuối page)
+                    debugData = samples.slice(-20);
+                }
+
+                // === BƯỚC 3: TÌM TIN NHẮN - MESSAGE CONTAINER APPROACH ===
+                // Thay vì đọc leaf elements (bị tách mention ra riêng),
+                // tìm MESSAGE CONTAINER (parent chứa đầy đủ nội dung tin nhắn)
+                const allEls = document.querySelectorAll('div, span, p');
+                const seenTexts = new Set();
+                const rawCandidates = [];
+
+                for (const el of allEls) {
+                    const rect = el.getBoundingClientRect();
+
+                    // CHỈ lấy elements bên PHẢI (chat panel)
+                    if (rect.x < rightBoundary) continue;
+                    if (rect.width < 30 || rect.height < 10) continue;
+                    if (rect.height > 400) continue;
+
+                    const elText = (el.innerText || '').trim();
+                    if (elText.length < 2 || elText.length > 2000) continue;
+
+                    // === WALK UP: Tìm message container ===
+                    // Zalo render mention (@Auto Report) trong <span> riêng
+                    // → cần lấy text từ PARENT để có đầy đủ nội dung
+                    let bestText = elText;
+                    let bestEl = el;
+                    let parent = el.parentElement;
+                    for (let d = 0; d < 8 && parent; d++) {
+                        const pRect = parent.getBoundingClientRect();
+                        // Parent hợp lệ: bên phải, height hợp lý (20-300px)
+                        if (pRect.x >= rightBoundary && pRect.height > 15 && pRect.height < 300) {
+                            const pText = (parent.innerText || '').trim();
+                            // Nếu parent có NHIỀU text hơn và chứa text con → ưu tiên parent
+                            if (pText.length > bestText.length && pText.length < 2000) {
+                                // Nhưng KHÔNG lấy nếu parent chứa quá nhiều tin nhắn
+                                // (ví dụ: container chứa 10 tin nhắn liền nhau)
+                                const lineCount = pText.split('\n').length;
+                                if (lineCount <= 5) {
+                                    bestText = pText;
+                                    bestEl = parent;
+                                }
+                            }
+                        }
+                        parent = parent.parentElement;
+                    }
+
+                    // === LỌC RÁC ===
+                    const text = bestText;
+
+                    // 1. Timestamp patterns
+                    if (/^\d{1,2}:\d{2}$/.test(text)) continue;
+                    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(text)) continue;
+
+                    // 2. Zalo reaction/emoji fragments
+                    if (/^\/-?\w+$/.test(text)) continue;
+                    if ((text.startsWith('/-') || text.startsWith('/')) && text.length < 20) continue;
+
+                    // 3. Typing indicators & system text
+                    const garbage = [
+                        'Chưa có tin nhắn', 'Tin nhắn đã thu hồi', 'Đã thu hồi',
+                        'Hình ảnh', 'Video', 'File đính kèm', 'Sticker',
+                        'Gửi vị trí', 'Thẻ liên hệ', 'Đã gửi', 'Đã nhận', 'Đã xem',
+                        'Tải Zalo PC', 'Sử dụng Zalo PC', 'Nhập @',
+                        'thành viên', 'member', 'trò chuyện',
+                        'Zalo chỉ hiển thị', 'đầu tiên trên trình duyệt',
+                        'Vui lòng sử dụng', 'lưu trữ dài hạn',
+                        'Tải ngay', 'Tải Zalo', 'xem đầy đủ',
+                        'Activate Windows', 'Go to Setti',
+                        'đang soạn tin', 'Đang soạn tin', 'đang nhập',
+                        'typing', 'Đang gõ', 'soạn tin',
+                        'Nhóm:', 'nhắc đến bạn'
+                    ];
+                    if (garbage.some(g => text.includes(g))) continue;
+
+                    // 4. Quá ngắn + chỉ là timestamp/label/symbols
+                    if (text.length < 4 && /^[\d:\/\s\-\w]+$/.test(text)) continue;
+
+                    // 5. [REMOVED] Sender name filter was too aggressive and filtered out short messages
+                    // We rely on DOM order (message usually comes after name) and deduplication.
+
+                    // Clean newlines to spaces for better keyword matching
+                    text = text.replace(/\n/g, ' ');
+
+                    // 6. Tránh duplicate
+                    if (seenTexts.has(text)) continue;
+                    seenTexts.add(text);
+
+                    rawCandidates.push({
+                        text: text,
+                        x: Math.round(rect.x),
+                        y: Math.round(bestEl.getBoundingClientRect().y),
+                        h: Math.round(bestEl.getBoundingClientRect().height),
+                        tag: bestEl.tagName
+                    });
+                }
+
+                // === BƯỚC 4: DEDUP - Giữ lại text DÀI NHẤT khi trùng lặp ===
+                // Nếu text A là substring của text B → loại A, giữ B
+                const finalResults = [];
+                for (const candidate of rawCandidates) {
+                    let isSubstring = false;
+                    for (const other of rawCandidates) {
+                        if (other === candidate) continue;
+                        if (other.text.length > candidate.text.length &&
+                            other.text.includes(candidate.text)) {
+                            isSubstring = true;
+                            break;
+                        }
+                    }
+                    if (!isSubstring) {
+                        // Cũng kiểm tra xem đã có text tương tự chưa
+                        const alreadyExists = finalResults.some(r => r.text === candidate.text);
+                        if (!alreadyExists) {
+                            finalResults.push(candidate);
+                        }
+                    }
+                }
+
+                return {
+                    candidates: finalResults,
+                    rightBoundary: rightBoundary,
+                    totalFound: finalResults.length,
+                    debugData: debugData
+                };
+            }, debugCounter < 3);
+
+            // Debug logging (chỉ log 3 lần đầu)
+            if (debugCounter < 3) {
+                debugCounter++;
+                console.log(`\n🔍 [DEBUG #${debugCounter}] Right boundary: x >= ${allCandidates.rightBoundary}px`);
+                console.log(`   Tìm thấy ${allCandidates.totalFound} text elements bên phải.`);
+
+                if (allCandidates.debugData) {
+                    console.log(`   📋 DOM SAMPLES (20 cuối cùng):`);
+                    for (const s of allCandidates.debugData) {
+                        console.log(`      <${s.tag} class="${s.class}"> x=${s.x} y=${s.y} ${s.w}x${s.h} → "${s.text}"`);
+                    }
+                }
+
+                if (allCandidates.candidates) {
+                    console.log(`   📨 Candidates sau lọc rác:`);
+                    for (const c of allCandidates.candidates.slice(-5)) {
+                        console.log(`      [x=${c.x} y=${c.y}] "${c.text.substring(0, 80)}"`);
                     }
                 }
             }
 
-            // Backup strategy: Check generic message items if specific text selectors failed
-            if (!textContent) {
-                const messages = await page.$$('.msg-item, div[id^="msg-"] .content, .chat-message .content');
-                if (messages.length > 0) {
-                    const el = messages[messages.length - 1];
-                    const text = await page.evaluate(el => el.innerText || el.textContent, el);
-                    if (text) {
-                        const cleanText = text.trim();
-                        const ignoreList = ["Vài giây", "Đã gửi", "Đã xem", "Chưa có tin nhắn", "Tin nhắn đã thu hồi"];
-                        if (!ignoreList.includes(cleanText) && cleanText.length > 1) {
-                            textContent = cleanText;
-                            lastMsgEl = el;
-                        }
+            // Lấy tin nhắn MỚI NHẤT (cuối cùng trong danh sách, vì đã sort theo DOM order)
+            const candidates = allCandidates.candidates || [];
+            if (candidates.length > 0) {
+                // Duyệt ngược từ cuối để tìm tin nhắn KHÔNG PHẢI của bot
+                for (let i = candidates.length - 1; i >= 0; i--) {
+                    const candidateText = candidates[i].text;
+                    // Bỏ qua nếu text = câu trả lời cuối của bot (hoặc 1 phần của nó)
+                    if (lastBotReply && (
+                        candidateText === lastBotReply ||
+                        lastBotReply.includes(candidateText) ||
+                        candidateText.includes(lastBotReply.substring(0, 50))
+                    )) {
+                        continue;
                     }
+                    textContent = candidateText;
+                    break;
                 }
             }
 
@@ -274,9 +554,12 @@ async function startZaloBot() {
                     lastMessageContent = textContent;
                     console.log(`📩 Hệ thống nhận thấy text thô: "${textContent}"`);
 
-                    // Check triggers
-                    const lowerText = textContent.toLowerCase();
-                    const triggerMatch = currentTriggers.find(t => lowerText.includes(t.toLowerCase()));
+                    // Check triggers with normalized whitespace
+                    const lowerText = textContent.toLowerCase().replace(/\s+/g, ' ');
+
+                    // Normalize triggers too just in case (optional, but good practice)
+                    const cleanTriggers = currentTriggers.map(t => t.toLowerCase().replace(/\s+/g, ' '));
+                    const triggerMatch = cleanTriggers.find(t => lowerText.includes(t));
 
                     if (triggerMatch) {
                         console.log(`🤖 Phát hiện lệnh gọi "${triggerMatch}" trong tin nhắn.`);
@@ -287,21 +570,30 @@ async function startZaloBot() {
                         }
 
                         // Generate AI response
-                        // Extract Query - If trigger is not at start, we take everything after it
                         const triggerIndex = lowerText.indexOf(triggerMatch.toLowerCase());
                         const query = textContent.slice(triggerIndex + triggerMatch.length).trim();
 
                         if (query.length > 0) {
-                            const aiReply = await generateAIResponse(textContent); // Send full context just in case
-                            if (aiReply) {
-                                await sendReply(page, aiReply);
+                            console.log(`🔄 Đang xử lý câu hỏi: "${query}"`);
+                            try {
+                                const aiReply = await generateAIResponse(textContent);
+                                if (aiReply) {
+                                    await sendReply(page, aiReply);
+                                    // LƯU câu trả lời của bot để bỏ qua lần sau
+                                    lastBotReply = aiReply.substring(0, 100);
+                                    console.log(`✅ Đã gửi phản hồi. Sẵn sàng cho câu hỏi tiếp theo.`);
+                                }
+                            } catch (aiErr) {
+                                console.error(`❌ Lỗi AI: ${aiErr.message}`);
+                                await sendReply(page, "🤖 Xin lỗi, có lỗi xảy ra. Vui lòng thử lại!");
+                                lastBotReply = "Xin lỗi, có lỗi xảy ra";
                             }
                         } else {
-                            // Case: "Lu lu" (empty query)
                             await sendReply(page, "Dạ em nghe? Anh/Chị cần em giúp gì không ạ?");
+                            lastBotReply = "Dạ em nghe? Anh/Chị cần em giúp gì không ạ?";
                         }
                     } else {
-                        console.log(`   (Bỏ qua message: "${textContent}" - Không có từ khóa)`);
+                        console.log(`   (Bỏ qua message: "${textContent.substring(0, 60)}" - Không có từ khóa)`);
                     }
                 }
             }
