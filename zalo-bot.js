@@ -440,10 +440,14 @@ async function startZaloBot() {
                         'Activate Windows', 'Go to Setti',
                         'đang soạn tin', 'Đang soạn tin', 'đang nhập',
                         'typing', 'Đang gõ', 'soạn tin',
-                        'Nhóm:', 'nhắc đến bạn',
-                        'vài giây', 'phút', 'giờ', 'hôm nay', 'hôm qua', 'vừa xong'
+                        'Nhóm:', 'nhắc đến bạn'
                     ];
-                    if (garbage.some(g => text.includes(g))) continue;
+                    // Chỉ lọc rác nếu text chứa từ khóa rác (tránh lọc tin nhắn dài có chứa từ khóa)
+                    if (text.length < 100 && garbage.some(g => text.includes(g))) continue;
+
+                    // Lọc riêng các nhãn thời gian (chỉ khi chúng đứng một mình hoặc rất ngắn)
+                    const timeLabels = ['vài giây', 'phút', 'giờ', 'hôm nay', 'hôm qua', 'vừa xong'];
+                    if (text.length < 15 && timeLabels.some(t => text.toLowerCase().includes(t))) continue;
 
                     // 4. Quá ngắn + chỉ là timestamp/label/symbols
                     if (text.length < 4 && /^[\d:\/\s\-\w]+$/.test(text)) continue;
