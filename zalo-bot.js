@@ -452,7 +452,8 @@ async function startZaloBot() {
                         'Activate Windows', 'Go to Setti',
                         'đang soạn tin', 'Đang soạn tin', 'đang nhập',
                         'typing', 'Đang gõ', 'soạn tin',
-                        'Nhóm:', 'nhắc đến bạn'
+                        'Nhóm:', 'nhắc đến bạn',
+                        'vài giây', 'phút', 'giờ', 'hôm nay', 'hôm qua', 'vừa xong'
                     ];
                     if (garbage.some(g => text.includes(g))) continue;
 
@@ -479,8 +480,7 @@ async function startZaloBot() {
                 }
 
                 // === BƯỚC 4: DEDUP - Giữ lại text DÀI NHẤT khi trùng lặp ===
-                // Nếu text A là substring của text B → loại A, giữ B
-                const finalResults = [];
+                const validCandidates = [];
                 for (const candidate of rawCandidates) {
                     let isSubstring = false;
                     for (const other of rawCandidates) {
@@ -492,13 +492,17 @@ async function startZaloBot() {
                         }
                     }
                     if (!isSubstring) {
-                        // Cũng kiểm tra xem đã có text tương tự chưa
-                        const alreadyExists = finalResults.some(r => r.text === candidate.text);
+                        const alreadyExists = validCandidates.some(r => r.text === candidate.text);
                         if (!alreadyExists) {
-                            finalResults.push(candidate);
+                            validCandidates.push(candidate);
                         }
                     }
                 }
+
+                // === BƯỚC 5: SORT BY POSITION (Y-coordinate) ===
+                // Rất quan trọng: Phải lấy theo vị trí hiển thị từ trên xuống dưới
+                // Tránh trường hợp banner/tooltip nằm ở cuối DOM nhưng hiển thị ở trên đầu
+                const finalResults = validCandidates.sort((a, b) => a.y - b.y);
 
                 return {
                     candidates: finalResults,
