@@ -550,15 +550,39 @@ async function startZaloBot() {
                     lastMessageContent = textContent;
                     console.log(`📩 Hệ thống nhận thấy text thô: "${textContent}"`);
 
+                    // Bỏ qua nếu text chứa nội dung bot vừa trả lời (tránh loop)
+                    if (lastBotReply && (
+                        textContent.includes(lastBotReply) ||
+                        (textContent.length > 20 && lastBotReply.includes(textContent.substring(0, 20)))
+                    )) {
+                        console.log(`   (Bỏ qua tin nhắn của chính mình để tránh loop)`);
+                        continue;
+                    }
+
                     // Check triggers with normalized whitespace
                     const lowerText = textContent.toLowerCase().replace(/\s+/g, ' ');
 
-                    // Normalize triggers too just in case (optional, but good practice)
-                    const cleanTriggers = currentTriggers.map(t => t.toLowerCase().replace(/\s+/g, ' '));
-                    const triggerMatch = cleanTriggers.find(t => lowerText.includes(t));
+                    // Ưu tiên các trigger dài/rõ ràng trước, tránh trigger quá ngắn như 'ai' gây false positive
+                    const cleanTriggers = currentTriggers
+                        .map(t => t.toLowerCase().replace(/\s+/g, ' '))
+                        .sort((a, b) => b.length - a.length);
+
+                    const triggerMatch = cleanTriggers.find(t => {
+                        // Nếu trigger là 'ai' hoặc 'bot', yêu cầu nó phải là 1 từ riêng biệt hoặc có @
+                        if (t === 'ai' || t === 'bot') {
+                            return lowerText.includes('@' + t) || new RegExp(`\\b${t}\\b`).test(lowerText);
+                        }
+                        return lowerText.includes(t);
+                    });
 
                     if (triggerMatch) {
                         console.log(`🤖 Phát hiện lệnh gọi "${triggerMatch}" trong tin nhắn.`);
+
+                        // Chặn thêm nếu text chứa các prefix hệ thống đặc trưng
+                        if (textContent.includes("🤖[Hệ thống]") || textContent.includes("Tôi sẵn sàng")) {
+                            console.log("   (Xác nhận đây là tin nhắn hệ thống, bỏ qua)");
+                            continue;
+                        }
 
                         // Mark as read (optional, by clicking)
                         if (lastMsgEl) {
@@ -574,19 +598,21 @@ async function startZaloBot() {
                             try {
                                 const aiReply = await generateAIResponse(textContent);
                                 if (aiReply) {
+                                    // LƯU câu trả lời của bot vào lastBotReply TRƯỚC khi gửi để filter bắt được ngay
+                                    lastBotReply = aiReply.substring(0, 50);
                                     await sendReply(page, aiReply);
-                                    // LƯU câu trả lời của bot để bỏ qua lần sau
-                                    lastBotReply = aiReply.substring(0, 100);
                                     console.log(`✅ Đã gửi phản hồi. Sẵn sàng cho câu hỏi tiếp theo.`);
                                 }
                             } catch (aiErr) {
                                 console.error(`❌ Lỗi AI: ${aiErr.message}`);
-                                await sendReply(page, "🤖 Xin lỗi, có lỗi xảy ra. Vui lòng thử lại!");
-                                lastBotReply = "Xin lỗi, có lỗi xảy ra";
+                                const errorMsg = "🤖[Hệ thống]: Không kết nối được bộ não AI. Bạn đợi xíu hoặc hỏi lại nhé!";
+                                lastBotReply = errorMsg.substring(0, 50);
+                                await sendReply(page, errorMsg);
                             }
                         } else {
-                            await sendReply(page, "Dạ em nghe? Anh/Chị cần em giúp gì không ạ?");
-                            lastBotReply = "Dạ em nghe? Anh/Chị cần em giúp gì không ạ?";
+                            const emNghe = "Dạ em nghe? Anh/Chị cần em giúp gì không ạ?";
+                            lastBotReply = emNghe.substring(0, 50);
+                            await sendReply(page, emNghe);
                         }
                     } else {
                         console.log(`   (Bỏ qua message: "${textContent.substring(0, 60)}" - Không có từ khóa)`);
