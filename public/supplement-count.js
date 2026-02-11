@@ -253,33 +253,25 @@ async function fetchDetails(rpro) {
                     : 'text-center text-sm font-semibold text-gray-400 italic';
             }
 
-            // === FETCH PU SHEETS & TOGGLE EDIT/DISPLAY MODE ===
-            if (activeAction === 'IN') {
-                // Scan IN: show editable input
-                if (puSheetsEdit) puSheetsEdit.classList.remove('hidden');
-                if (puSheetsDisplay) puSheetsDisplay.classList.add('hidden');
-                if (inputPuSheets) inputPuSheets.value = 1; // Default
-            } else if (activeAction === 'OUT') {
-                // Scan OUT: fetch pu_sheets from last IN record, show read-only
-                if (puSheetsEdit) puSheetsEdit.classList.add('hidden');
-                if (puSheetsDisplay) puSheetsDisplay.classList.remove('hidden');
+            // === PU SHEETS: always editable for Dán (only OUT now) ===
+            if (puSheetsEdit) puSheetsEdit.classList.remove('hidden');
+            if (puSheetsDisplay) puSheetsDisplay.classList.add('hidden');
 
-                const { data: sheetsData, error: sheetsErr } = await supabase
-                    .from('supplement_tracking')
-                    .select('pu_sheets')
-                    .eq('rpro', rpro)
-                    .eq('section', 'Dán')
-                    .eq('action', 'IN')
-                    .not('pu_sheets', 'is', null)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
+            // Try to load last saved pu_sheets for this RPRO as default
+            const { data: sheetsData, error: sheetsErr } = await supabase
+                .from('supplement_tracking')
+                .select('pu_sheets')
+                .eq('rpro', rpro)
+                .eq('section', 'Dán')
+                .not('pu_sheets', 'is', null)
+                .order('created_at', { ascending: false })
+                .limit(1);
 
-                if (!sheetsErr && sheetsData && sheetsData.length > 0 && sheetsData[0].pu_sheets != null) {
-                    if (puSheetsValue) puSheetsValue.textContent = sheetsData[0].pu_sheets;
-                    console.log(`📐 PU sheets from last IN: ${sheetsData[0].pu_sheets}`);
-                } else {
-                    if (puSheetsValue) puSheetsValue.textContent = '---';
-                }
+            if (!sheetsErr && sheetsData && sheetsData.length > 0 && sheetsData[0].pu_sheets != null) {
+                if (inputPuSheets) inputPuSheets.value = sheetsData[0].pu_sheets;
+                console.log(`📐 PU sheets loaded: ${sheetsData[0].pu_sheets}`);
+            } else {
+                if (inputPuSheets) inputPuSheets.value = 1;
             }
         } else if (['Cắt', 'Molding', 'DC', 'Molded'].includes(activeSection)) {
             // Hide PU info for non-Dán sections
@@ -385,8 +377,8 @@ async function processRPRO(text, mode, note = '') {
             scan_date: new Date().toISOString().split('T')[0]
         };
 
-        // Add pu_sheets for Dán section Scan IN
-        if (activeSection === 'Dán' && activeAction === 'IN' && inputPuSheets) {
+        // Add pu_sheets for Dán section (OUT only now)
+        if (activeSection === 'Dán' && inputPuSheets) {
             const sheets = parseInt(inputPuSheets.value) || 0;
             if (sheets > 0) insertRecord.pu_sheets = sheets;
         }
@@ -550,27 +542,37 @@ sectionBtns.forEach(btn => {
 
         activeSection = btn.dataset.section;
         activeSectionLabel.innerText = btn.innerText;
-        actionContainer.classList.remove('hidden');
 
-        // Show/hide PU info panel based on section
-        if (puInfoContainer) {
-            if (activeSection === 'Dán') {
-                // Will be populated on scan/fetch
-                puInfoContainer.classList.add('hidden');
-            } else {
-                puInfoContainer.classList.add('hidden');
+        // Hide PU info panel (will be shown on scan/fetch for Dán)
+        if (puInfoContainer) puInfoContainer.classList.add('hidden');
+
+        // Reset note input
+        if (manualNoteInput) manualNoteInput.value = "";
+
+        // Dán & Cắt: only OUT, skip action selection
+        if (activeSection === 'Dán' || activeSection === 'Cắt') {
+            activeAction = 'OUT';
+            activeActionLabel.innerText = '⬆️ XUẤT ĐI (OUT)';
+            actionContainer.classList.add('hidden');
+            actionBtns.forEach(b => b.classList.remove('active'));
+            scannerContainer.classList.remove('hidden');
+
+            // Focus scanner
+            if (scannerInputOverlay) {
+                scannerInputOverlay.setAttribute('inputmode', 'none');
+                scannerInputOverlay.focus();
             }
+        } else {
+            // Other sections: show action selection (IN/OUT)
+            actionContainer.classList.remove('hidden');
+            activeAction = null;
+            actionBtns.forEach(b => b.classList.remove('active'));
+            scannerContainer.classList.add('hidden');
         }
 
-        // Reset note input and re-fetch if RPRO exists
-        if (manualNoteInput) manualNoteInput.value = "";
+        // Re-fetch if RPRO exists
         const rpro = manualRproInput ? manualRproInput.value.trim() : "";
         if (rpro) fetchDetails(rpro);
-
-        // Reset action
-        activeAction = null;
-        actionBtns.forEach(b => b.classList.remove('active'));
-        scannerContainer.classList.add('hidden');
     });
 });
 
@@ -584,15 +586,10 @@ actionBtns.forEach(btn => {
         activeActionLabel.innerText = btn.innerText;
         scannerContainer.classList.remove('hidden');
 
-        // Toggle PU sheets edit/display mode for Dán
+        // For Dán: PU sheets always editable (only OUT action available)
         if (activeSection === 'Dán' && puSheetsEdit && puSheetsDisplay) {
-            if (activeAction === 'IN') {
-                puSheetsEdit.classList.remove('hidden');
-                puSheetsDisplay.classList.add('hidden');
-            } else {
-                puSheetsEdit.classList.add('hidden');
-                puSheetsDisplay.classList.remove('hidden');
-            }
+            puSheetsEdit.classList.remove('hidden');
+            puSheetsDisplay.classList.add('hidden');
         }
 
         // Focus on hidden input for handheld scanner
