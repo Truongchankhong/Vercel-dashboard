@@ -20,6 +20,8 @@ const inputQty = document.getElementById('input-qty');
 const btnIncQty = document.getElementById('btn-inc-qty');
 const btnDecQty = document.getElementById('btn-dec-qty');
 const manualNoteInput = document.getElementById('manual-note');
+const puInfoContainer = document.getElementById('pu-info-container');
+const puCodeDisplay = document.getElementById('pu-code-display');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -209,7 +211,45 @@ async function fetchDetails(rpro) {
                     }
                 }
             }
+
+            // === FETCH PU CODE ===
+            let puCode = null;
+            // 1. Try powerapp table
+            const { data: puData, error: puError } = await supabase
+                .from('powerapp')
+                .select('PU')
+                .eq('PRO ODER', rpro)
+                .limit(1);
+
+            if (!puError && puData && puData.length > 0 && puData[0].PU) {
+                puCode = puData[0].PU;
+                console.log(`🧪 PU from powerapp: ${puCode}`);
+            } else {
+                // 2. Fallback to Masterdata
+                const { data: puMaster, error: puMasterErr } = await supabase
+                    .from('Masterdata')
+                    .select('PU')
+                    .eq('PRO ODER', rpro)
+                    .limit(1);
+
+                if (!puMasterErr && puMaster && puMaster.length > 0 && puMaster[0].PU) {
+                    puCode = puMaster[0].PU;
+                    console.log(`🧪 PU from Masterdata: ${puCode}`);
+                }
+            }
+
+            // Display PU code
+            if (puInfoContainer && puCodeDisplay) {
+                puInfoContainer.classList.remove('hidden');
+                puCodeDisplay.textContent = puCode || 'Không tìm thấy thông tin';
+                puCodeDisplay.className = puCode
+                    ? 'text-center text-lg font-black text-teal-800'
+                    : 'text-center text-sm font-semibold text-gray-400 italic';
+            }
         } else if (['Cắt', 'Molding', 'DC', 'Molded'].includes(activeSection)) {
+            // Hide PU info for non-Dán sections
+            if (puInfoContainer) puInfoContainer.classList.add('hidden');
+
             // "lấy mặc định theo số scan Out của section dán"
             const { data: trackingData, error: trackingError } = await supabase
                 .from('supplement_tracking')
@@ -222,6 +262,9 @@ async function fetchDetails(rpro) {
                 defaultQty = trackingData.reduce((sum, item) => sum + (item.quantity || 0), 0);
                 console.log(`📦 ${activeSection}: Default quantity from Dán Scan Out: ${defaultQty}`);
             }
+        } else {
+            // Hide PU info for any other sections
+            if (puInfoContainer) puInfoContainer.classList.add('hidden');
         }
 
         if (inputQty && defaultQty > 0) {
@@ -463,6 +506,16 @@ sectionBtns.forEach(btn => {
         activeSection = btn.dataset.section;
         activeSectionLabel.innerText = btn.innerText;
         actionContainer.classList.remove('hidden');
+
+        // Show/hide PU info panel based on section
+        if (puInfoContainer) {
+            if (activeSection === 'Dán') {
+                // Will be populated on scan/fetch
+                puInfoContainer.classList.add('hidden');
+            } else {
+                puInfoContainer.classList.add('hidden');
+            }
+        }
 
         // Reset note input and re-fetch if RPRO exists
         if (manualNoteInput) manualNoteInput.value = "";
