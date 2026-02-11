@@ -22,6 +22,12 @@ const btnDecQty = document.getElementById('btn-dec-qty');
 const manualNoteInput = document.getElementById('manual-note');
 const puInfoContainer = document.getElementById('pu-info-container');
 const puCodeDisplay = document.getElementById('pu-code-display');
+const puSheetsEdit = document.getElementById('pu-sheets-edit');
+const puSheetsDisplay = document.getElementById('pu-sheets-display');
+const inputPuSheets = document.getElementById('input-pu-sheets');
+const puSheetsValue = document.getElementById('pu-sheets-value');
+const btnIncSheets = document.getElementById('btn-inc-sheets');
+const btnDecSheets = document.getElementById('btn-dec-sheets');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -246,6 +252,35 @@ async function fetchDetails(rpro) {
                     ? 'text-center text-lg font-black text-teal-800'
                     : 'text-center text-sm font-semibold text-gray-400 italic';
             }
+
+            // === FETCH PU SHEETS & TOGGLE EDIT/DISPLAY MODE ===
+            if (activeAction === 'IN') {
+                // Scan IN: show editable input
+                if (puSheetsEdit) puSheetsEdit.classList.remove('hidden');
+                if (puSheetsDisplay) puSheetsDisplay.classList.add('hidden');
+                if (inputPuSheets) inputPuSheets.value = 1; // Default
+            } else if (activeAction === 'OUT') {
+                // Scan OUT: fetch pu_sheets from last IN record, show read-only
+                if (puSheetsEdit) puSheetsEdit.classList.add('hidden');
+                if (puSheetsDisplay) puSheetsDisplay.classList.remove('hidden');
+
+                const { data: sheetsData, error: sheetsErr } = await supabase
+                    .from('supplement_tracking')
+                    .select('pu_sheets')
+                    .eq('rpro', rpro)
+                    .eq('section', 'Dán')
+                    .eq('action', 'IN')
+                    .not('pu_sheets', 'is', null)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (!sheetsErr && sheetsData && sheetsData.length > 0 && sheetsData[0].pu_sheets != null) {
+                    if (puSheetsValue) puSheetsValue.textContent = sheetsData[0].pu_sheets;
+                    console.log(`📐 PU sheets from last IN: ${sheetsData[0].pu_sheets}`);
+                } else {
+                    if (puSheetsValue) puSheetsValue.textContent = '---';
+                }
+            }
         } else if (['Cắt', 'Molding', 'DC', 'Molded'].includes(activeSection)) {
             // Hide PU info for non-Dán sections
             if (puInfoContainer) puInfoContainer.classList.add('hidden');
@@ -339,17 +374,26 @@ async function processRPRO(text, mode, note = '') {
 
         console.log("💾 Inserting new record...");
         // 3. Save to Supabase
+        // Build insert record
+        const insertRecord = {
+            rpro,
+            section: activeSection,
+            action: activeAction,
+            operator: 'User',
+            quantity: quantity,
+            note: note || (manualNoteInput ? manualNoteInput.value.trim() : ''),
+            scan_date: new Date().toISOString().split('T')[0]
+        };
+
+        // Add pu_sheets for Dán section Scan IN
+        if (activeSection === 'Dán' && activeAction === 'IN' && inputPuSheets) {
+            const sheets = parseInt(inputPuSheets.value) || 0;
+            if (sheets > 0) insertRecord.pu_sheets = sheets;
+        }
+
         const { data: insertData, error: insertError } = await supabase
             .from('supplement_tracking')
-            .insert([{
-                rpro,
-                section: activeSection,
-                action: activeAction,
-                operator: 'User',
-                quantity: quantity, // NEW: Add Quantity
-                note: note || (manualNoteInput ? manualNoteInput.value.trim() : ''), // Use current note if not provided
-                scan_date: new Date().toISOString().split('T')[0]
-            }])
+            .insert([insertRecord])
             .select('id');
 
         if (insertError) {
@@ -370,6 +414,7 @@ async function processRPRO(text, mode, note = '') {
         // Clear note input after successful save
         if (manualNoteInput) manualNoteInput.value = "";
         if (inputQty) inputQty.value = "1"; // Reset Qty to 1 for next scan
+        if (inputPuSheets) inputPuSheets.value = "1"; // Reset PU sheets
 
     } catch (err) {
         console.error("❌ System Error:", err);
@@ -539,9 +584,19 @@ actionBtns.forEach(btn => {
         activeActionLabel.innerText = btn.innerText;
         scannerContainer.classList.remove('hidden');
 
+        // Toggle PU sheets edit/display mode for Dán
+        if (activeSection === 'Dán' && puSheetsEdit && puSheetsDisplay) {
+            if (activeAction === 'IN') {
+                puSheetsEdit.classList.remove('hidden');
+                puSheetsDisplay.classList.add('hidden');
+            } else {
+                puSheetsEdit.classList.add('hidden');
+                puSheetsDisplay.classList.remove('hidden');
+            }
+        }
+
         // Focus on hidden input for handheld scanner
         if (scannerInputOverlay) {
-            // Set inputmode none again just in case
             scannerInputOverlay.setAttribute('inputmode', 'none');
             scannerInputOverlay.focus();
         }
@@ -603,6 +658,20 @@ if (inputQty) {
     btnDecQty.addEventListener('click', () => {
         if (parseInt(inputQty.value) > 1) {
             inputQty.value = parseInt(inputQty.value) - 1;
+        }
+    });
+}
+
+// PU Sheets +/- buttons
+if (btnIncSheets && inputPuSheets) {
+    btnIncSheets.addEventListener('click', () => {
+        inputPuSheets.value = parseInt(inputPuSheets.value) + 1;
+    });
+}
+if (btnDecSheets && inputPuSheets) {
+    btnDecSheets.addEventListener('click', () => {
+        if (parseInt(inputPuSheets.value) > 1) {
+            inputPuSheets.value = parseInt(inputPuSheets.value) - 1;
         }
     });
 }

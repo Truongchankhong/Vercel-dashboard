@@ -147,6 +147,24 @@
                 class="hidden p-4 bg-gradient-to-r from-teal-50 to-cyan-50 border-2 border-teal-200 rounded-xl mb-4 shadow-sm">
                 <p class="text-xs font-bold text-teal-700 mb-1 uppercase">🧪 Mã PU:</p>
                 <p id="pu-code-display" class="text-center text-lg font-black text-teal-800">---</p>
+
+                <!-- Số tấm PU -->
+                <div class="mt-3 pt-3 border-t border-teal-200">
+                    <p class="text-xs font-bold text-teal-700 mb-2 uppercase">📐 Số tấm PU:</p>
+                    <!-- Editable mode (Scan IN) -->
+                    <div id="pu-sheets-edit" class="flex items-center gap-2">
+                        <button id="btn-dec-sheets"
+                            class="w-10 h-10 bg-teal-100 rounded-lg font-bold text-lg hover:bg-teal-200 text-teal-700 transition">-</button>
+                        <input type="number" id="input-pu-sheets" value="1" min="1"
+                            class="flex-1 text-center text-2xl font-black text-teal-800 h-10 border-2 border-teal-300 rounded-lg focus:ring-2 focus:ring-teal-400 focus:border-teal-400 outline-none">
+                        <button id="btn-inc-sheets"
+                            class="w-10 h-10 bg-teal-100 rounded-lg font-bold text-lg hover:bg-teal-200 text-teal-700 transition">+</button>
+                    </div>
+                    <!-- Read-only mode (Scan OUT) -->
+                    <div id="pu-sheets-display" class="hidden">
+                        <p id="pu-sheets-value" class="text-center text-2xl font-black text-teal-800">---</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Current Status Display -->
