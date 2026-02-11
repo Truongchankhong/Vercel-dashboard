@@ -139,12 +139,14 @@ export async function generateAIResponse(prompt) {
         console.warn("⚠️ Lỗi database:", dbErr.message);
     }
 
-    // Danh sách model ưu tiên (Nhanh nhất & Mới nhất)
+    // Danh sách model ưu tiên (Dựa trên danh sách thực tế của anh)
     const candidateModels = [
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite-preview-02-05",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
+        "gemini-3-flash-preview",    // Mới nhất & cực nhanh (Thế hệ 3)
+        "gemini-3-pro-preview",     // Mới nhất & thông minh nhất
+        "gemini-2.5-flash",          // Đời 2.5, cực kỳ ổn định và nhanh
+        "gemini-2.5-pro",           // Đời 2.5, bản Pro mạnh mẽ
+        "gemini-2.0-flash",          // Đời 2.0 
+        "gemini-flash-latest"        // Bản Flash ổn định nhất
     ];
 
     for (const modelName of candidateModels) {
