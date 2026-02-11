@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import XLSX from 'xlsx';
 import fetch from 'node-fetch';
+import { generateAIResponse } from './api/ai-core.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -84,80 +85,11 @@ app.post('/supplement', (req, res) => {
   }
 });
 
-// --- NEW: AI CHAT ENDPOINT (HUGGING FACE VERSION) ---
-const HF_TOKEN = "hf_" + "oclaBATrCCZUVRcEvBiGPFNCSHWOyfpGhu";
-const MODEL_URL = "https://router.huggingface.co/v1/chat/completions";
-const MODEL_ID = "Qwen/Qwen2.5-72B-Instruct";
-
-// Supabase config for AI
-const SUPABASE_URL = "https://ixdtdrbytwdmnlqgunzu.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4ZHRkcmJ5dHdkbW5scWd1bnp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyMzkyODYsImV4cCI6MjA2ODgxNTI4Nn0.5FLdLDf0d1yA70UBmAbJYW95kVWdta31QmEjm9oX4jg";
-import { createClient } from '@supabase/supabase-js';
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
+// --- NEW: AI CHAT ENDPOINT (CENTRALIZED) ---
 app.post('/api/chat', async (req, res) => {
   const { prompt, context } = req.body;
   try {
-    let finalContext = context || "Bạn là trợ lý sản xuất OVN.";
-    const queryLower = prompt.toLowerCase();
-
-    // 1. Chi tiết theo RPRO
-    const rproMatch = prompt.match(/RPRO-[\d-]+/i);
-    if (rproMatch) {
-      const searchRpro = rproMatch[0].toUpperCase();
-      const { data: orderDetail } = await supabase.from('powerapp').select('*').eq('PRO ODER', searchRpro).maybeSingle();
-      if (orderDetail) {
-        finalContext += `\n\n[DỮ LIỆU ĐƠN HÀNG ${searchRpro}]:\n${JSON.stringify(orderDetail, null, 2)}`;
-        finalContext += `\nCHỈ THỊ: Dùng dữ liệu này để trả lời.`;
-      }
-    }
-
-    // 2. Thống kê & Lập kế hoạch
-    const planningKeywords = ["kế hoạch", "ưu tiên", "tư vấn", "chạy đơn", "sắp xếp", "lịch", "nên làm"];
-    const statsKeywords = ["tổng", "lượng", "bao nhiêu", "tình hình", "báo cáo", "delay", "chậm", "trễ", "gấp"];
-
-    if (planningKeywords.some(k => queryLower.includes(k)) || statsKeywords.some(k => queryLower.includes(k))) {
-      // Phát hiện Brand
-      const brands = ["ASICS", "NIKE", "BROOKS", "ON RUNNING", "PUMA", "ADIDAS", "NEW BALANCE"];
-      const bFound = brands.find(b => queryLower.includes(b.toLowerCase()));
-
-      if (bFound) {
-        const { data: bData } = await supabase.from('powerapp').select('Total Qty, Delay-Urgent').ilike('Brand Code', `%${bFound}%`);
-        if (bData && bData.length > 0) {
-          const dQty = bData.filter(o => (o['Delay-Urgent'] || '').toString().toLowerCase().includes('delay')).reduce((s, o) => s + (parseFloat(String(o['Total Qty'] || '0').replace(/,/g, '')) || 0), 0);
-          const tQty = bData.reduce((s, o) => s + (parseFloat(String(o['Total Qty'] || '0').replace(/,/g, '')) || 0), 0);
-          finalContext += `\n\n[DỮ LIỆU HỆ THỐNG - BRAND ${bFound}]:\n- Tổng: ${tQty.toLocaleString()}\n- Delay: ${dQty.toLocaleString()}\nCHỈ THỊ: Trả lời về ${bFound} dựa trên các số này. CẤM giải thích lý do không có quyền.`;
-        }
-      }
-
-      // Snapshot tổng quát
-      const { data: snapshot } = await supabase.from('powerapp').select('PRO ODER, CUSTOMERS, Finish date, STATUS, Delay-Urgent').limit(50);
-      if (snapshot) {
-        finalContext += `\n\n[DỮ LIỆU KẾ HOẠCH HÔM NAY]:\n${JSON.stringify(snapshot)}`;
-      }
-    }
-
-    // --- Kỹ Thuật "Cưỡng Chế Thông Minh" ---
-    let aiPrompt = prompt;
-    if (finalContext.includes("[DỮ LIỆU")) {
-      aiPrompt = `DỮ LIỆU HỆ THỐNG:\n${finalContext}\n\n----------\nCHỈ THỊ: Dùng dữ liệu trên trả lời câu này: ${prompt}`;
-    }
-
-    const response = await fetch(MODEL_URL, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${HF_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: MODEL_ID,
-        messages: [
-          { role: "system", content: "Bạn là chuyên gia sản xuất OVN. Trả lời ngay lập tức bằng số liệu được cung cấp. CẤM giải thích cách tra cứu." },
-          { role: "user", content: aiPrompt }
-        ],
-        max_tokens: 1024, temperature: 0.1, stream: false
-      })
-    });
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-    const aiResponse = data.choices[0].message.content;
+    const aiResponse = await generateAIResponse(prompt, context);
     res.json({ response: aiResponse });
   } catch (err) {
     res.status(500).json({ error: "Lỗi kết nối AI: " + err.message });
