@@ -305,29 +305,17 @@ async function startZaloBot() {
 
             // CRITICAL FIX: Nếu KHÔNG detect được header → coi như KHÔNG AN TOÀN
             if (!cleanHeader) {
-                if (lastMessageContent !== "NO_HEADER") {
-                    console.log(`⚠️ Không detect được tên nhóm hiện tại. Đang thử tìm lại nhóm "${GROUP_NAME_KEYWORD}"...`);
-                    lastMessageContent = "NO_HEADER";
-                    // Auto-navigate lại nhóm đúng
-                    await navigateToGroup(page, GROUP_NAME_KEYWORD);
-                }
-                await new Promise(r => setTimeout(r, 3000));
+                console.log(`⚠️ Không detect được tên nhóm hiện tại. Đang thử tìm lại nhóm "${GROUP_NAME_KEYWORD}"...`);
+                await navigateToGroup(page, GROUP_NAME_KEYWORD);
+                await new Promise(r => setTimeout(r, 5000));
                 continue;
             }
 
             if (!cleanHeader.includes(cleanKeyword)) {
-                if (lastMessageContent !== "WRONG_GROUP") {
-                    console.log(`🔒 Đang ở nhóm khác: "${headerTitleEl}" (Clean: "${cleanHeader}"). Đang tự động chuyển về "${GROUP_NAME_KEYWORD}"...`);
-                    console.log(`   (Yêu cầu: "${GROUP_NAME_KEYWORD}" - Clean: "${cleanKeyword}")`);
-                    lastMessageContent = "WRONG_GROUP";
-                    // Auto-navigate lại nhóm đúng
-                    await navigateToGroup(page, GROUP_NAME_KEYWORD);
-                }
-                await new Promise(r => setTimeout(r, 3000));
-                continue; // Skip this loop iteration
-            } else if (lastMessageContent === "WRONG_GROUP" || lastMessageContent === "NO_HEADER") {
-                console.log(`✅ Đã trở lại nhóm "${GROUP_NAME_KEYWORD}". Bot tiếp tục hoạt động.`);
-                lastMessageContent = "";
+                console.log(`🔒 Đang ở nhóm khác: "${headerTitleEl}". Đang tự động chuyển về "${GROUP_NAME_KEYWORD}"...`);
+                await navigateToGroup(page, GROUP_NAME_KEYWORD);
+                await new Promise(r => setTimeout(r, 5000));
+                continue;
             }
 
             // =================================================================

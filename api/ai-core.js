@@ -90,12 +90,19 @@ export async function generateAIResponse(prompt) {
             // Nếu người dùng nhắc đến trạng thái cụ thể (ví dụ: 9.STORED)
             const statusMatch = prompt.match(/\d\.[A-Z]+/i);
             if (statusMatch) {
-                // SỬA LỖI: Dùng ilike và % để tìm gần đúng (ví dụ tìm "9.STORED" thì khớp cả "9.STORED" có khoảng trắng)
-                // Hoặc tìm theo đầu số (ví dụ: 9.)
                 const statusKey = statusMatch[0].toUpperCase();
-                // Nếu tìm "9.STORED" -> tìm "9.%" để bao quát hết
                 const statusPrefix = statusKey.split('.')[0];
                 query = query.ilike('STATUS', `${statusPrefix}.%`);
+            }
+
+            // Nếu nhắc đến "hôm nay"
+            if (prompt.toLowerCase().includes("hôm nay") || prompt.toLowerCase().includes("today")) {
+                const now = new Date();
+                const d = String(now.getDate()).padStart(2, '0');
+                const m = String(now.getMonth() + 1).padStart(2, '0');
+                const y = now.getFullYear();
+                const todayStr = `${d}/${m}/${y}`;
+                query = query.eq('Finish date', todayStr);
             }
 
             const { data: list } = await query.order('Finish date', { ascending: false }).limit(50);
@@ -134,11 +141,8 @@ export async function generateAIResponse(prompt) {
 
     // Danh sách model ưu tiên (Bản cao cấp hơn)
     const candidateModels = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash-exp",
-        "gemini-1.5-pro-latest",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-flash"
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
     ];
 
     for (const modelName of candidateModels) {
