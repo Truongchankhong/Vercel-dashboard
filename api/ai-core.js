@@ -139,8 +139,10 @@ export async function generateAIResponse(prompt) {
         console.warn("⚠️ Lỗi database:", dbErr.message);
     }
 
-    // Danh sách model ưu tiên (Bản cao cấp hơn)
+    // Danh sách model ưu tiên (Nhanh nhất & Mới nhất)
     const candidateModels = [
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite-preview-02-05",
         "gemini-1.5-flash",
         "gemini-1.5-pro",
     ];
