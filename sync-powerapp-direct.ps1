@@ -28,18 +28,22 @@ $mapping = @{
     'PRE (PRO)' = 'Prefitting (Pro)';
     'Slipting (PRO)' = 'Slipting (Pro)';
     'Sub Return' = $THANG_HOA;
+    'SubIFM' = 'SubIFM';
     'Instruction Sub' = 'SUB';
     'MOLD_IN (PRO)' = 'Molding Pro (IN)';
     'MOLD_OUT (PRO)' = 'Molding Pro';
     'LEAN_IN (PRO)' = 'IN lean Line (Pro)';
     'LEAN_OUT (PRO)' = 'Out lean Line (Pro)';
     'LINE CODE' = 'IN lean Line (MACHINE)';
+    'Returned Line' = 'Returned Line';
     'STORED' = 'STORED';
     'Finish Date (PPC)' = 'Finish date';
     'PPC CMF' = 'PPC Confirm';
     'Status' = 'STATUS';
     'BOM' = 'BOM';
     '#LAST' = '#Last';
+    'Instruction Skiving' = 'Instruction Skiving';
+    'ArticleCode' = 'Article Code';
     'Gender' = 'GENDER';
     'CODE PU1' = 'PU';
     'Description PU1' = 'PU DESCRIPTION';
@@ -65,6 +69,7 @@ $mapping = @{
     'CODE LOGO4' = 'CODE LOGO4';
     'Description LOGO4' = 'Description LOGO4';
     'DL LOGO4' = 'DL LOGO4';
+    'S1' = '1'; 'S1_5' = '1.5'; 'S2' = '2'; 'S2.5' = '2.5';
     'S3' = '3'; 'S3.5' = '3.5'; 'S4' = '4'; 'S4.5' = '4.5'; 'S5' = '5';
     'S5.5' = '5.5'; 'S6' = '6'; 'S6.5' = '6.5'; 'S7' = '7'; 'S7.5' = '7.5';
     'S8' = '8'; 'S8.5' = '8.5'; 'S9' = '9'; 'S9.5' = '9.5'; 'S10' = '10';
@@ -84,11 +89,25 @@ $mapping = @{
     'S43' = '43'; 'S43.5' = '43.5'; 'S44' = '44'; 'S44.5' = '44.5'; 'S45' = '45';
     'S45.5' = '45.5'; 'S46' = '46'; 'S46.5' = '46.5'; 'S47' = '47'; 'S47.5' = '47.5';
     'S48' = '48'; 'S48.5' = '48.5'; 'S49' = '49'; 'S49.5' = '49.5'; 'S50' = '50';
+    'S3.5Y' = '3.5Y'; 'S4Y' = '4Y'; 'S4.5Y' = '4.5Y'; 'S5Y' = '5Y'; 'S5.5Y' = '5.5Y';
+    'S6Y' = '6Y'; 'S6.5Y' = '6.5Y'; 'S7Y' = '7Y';
+    'S10K' = '10K'; 'S10.5K' = '10.5K'; 'S11K' = '11K'; 'S11.5K' = '11.5K'; 'S12K' = '12K';
+    'NG Fabric' = 'NG Fabric';
+    'Inventory_Logo_Inhouse' = 'Inventory_Logo_Inhouse';
     'M.LAM (PLAN)' = 'LAMINATION MACHINE (PLAN)';
     'M. LEANLINE(PLAN)' = 'LEANLINE PLAN';
     'LAMINATION MACHINE (REALTIME)' = 'LAMINATION MACHINE (REALTIME)';
     'LEANLINE (REALTIME)' = 'LEANLINE (REALTIME)';
     'DL-XG' = 'Delay-Urgent';
+    'Check2' = 'Check2';
+    'CheckLL' = 'CheckLL';
+    'loadMaterial (PPC)' = 'loadMaterial PPC';
+    'Lamination (PPC)' = 'Lamination PPC';
+    'Sawcutting (PPC)' = 'Sawcutting PPC';
+    'SUB (PPC)' = 'SUB PPC';
+    'MOLDING (PPC)' = 'MOLDING PPC';
+    'INLEANLINE (PPC)' = 'INLEANLINE PPC';
+    'OUTLEANLINE (PPC)' = 'OUTLEANLINE PPC';
 }
 
 Write-Host ">>> Starting Sync Powerapp Direct..."
@@ -164,6 +183,17 @@ try {
             $mappedHeaders += $target
             $headerIndices[$target] = $i + 1
         }
+        # Fuzzy match for Vietnamese encoded headers
+        elseif ($h -like "KHO*T*M") {
+            $target = "KHO TAM"
+            $mappedHeaders += $target
+            $headerIndices[$target] = $i + 1
+        }
+        elseif ($h -like "T*ch B*o (PPC)*") {
+            $target = "TachBao PPC"
+            $mappedHeaders += $target
+            $headerIndices[$target] = $i + 1
+        }
     }
     
     if (-not $headerIndices.ContainsKey('STT')) {
@@ -189,9 +219,29 @@ try {
             $isNumericCol = ($oldH -eq "STT") -or 
             ($oldH -eq "Total Qty") -or 
             ($oldH -like "DL *") -or
-            ($oldH -match "^\d+(\.\d+)?$") # Matches size keys like '3', '3.5'
+            ($oldH -match "^\d+(\.\d+)?$") -or # Standard sizes: '3', '3.5'
+            ($oldH -match "^\d+(\.\d+)?(Y|K)$")          # Youth/Kids sizes: '3.5Y', '10K'
 
-            if ($isNumericCol) {
+            # PPC date columns (Excel serial date → yyyy-MM-dd)
+            $isPPCDateCol = ($oldH -like "*PPC") -and ($oldH -ne "PPC Confirm")
+
+            if ($isPPCDateCol) {
+                if ($null -eq $val -or $val -eq "") {
+                    $rowObj[$oldH] = $null
+                }
+                else {
+                    $num = 0
+                    if ([double]::TryParse("$val", [ref]$num) -and $num -gt 40000 -and $num -lt 60000) {
+                        # Excel date serial → .NET DateTime
+                        $dateVal = ([datetime]"1899-12-30").AddDays($num)
+                        $rowObj[$oldH] = $dateVal.ToString("yyyy-MM-dd")
+                    }
+                    else {
+                        $rowObj[$oldH] = "$val"
+                    }
+                }
+            }
+            elseif ($isNumericCol) {
                 # If null, empty, or "NONE" (case-insensitive), or not a number -> set to null
                 if ($null -eq $val -or $val -eq "" -or "$val" -eq "NONE") {
                     $rowObj[$oldH] = $null

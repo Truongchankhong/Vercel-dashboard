@@ -54,37 +54,28 @@ async function syncPowerApp() {
   // Exception: 'STT', 'Total Qty', 'DL ...' are numeric in SQL.
   // Supabase/Postgres is picky about empty string "" for numeric columns. We should convert "" to null.
 
-  const numericCols = ['STT', 'Total Qty', 'DL PU', 'DL FB', 'DL LOGO'];
+  const numericCols = ['STT', 'Total Qty', 'DL PU', 'DL FB', 'DL LOGO',
+    'DL PU2', 'DL PU3', 'DL LOGO2', 'DL LOGO3', 'DL LOGO4'];
+
+  // Pattern to match size columns: '3', '3.5', '3.5Y', '10K', etc.
+  const isSizeCol = (key) => /^\d+(\.\d+)?(Y|K)?$/.test(key);
 
   const cleanRows = rows.map(row => {
     const newRow = { ...row };
-    // Convert keys to match SQL column names exactly (Case Sensitive in quotes)
-    // JSON keys are already exact matches based on schema generation.
 
-    // Fix numeric columns: "" -> null
     for (const key of Object.keys(newRow)) {
-      // If the value is empty string and we want it to be text, it's fine.
-      // But if we defined it as numeric in SQL, "" will fail.
-      // Let's rely on the schema I wrote: 
-      // "STT" bigint, "Total Qty" numeric, "DL PU" numeric, "DL FB" numeric, "DL LOGO" numeric
-      // All others are text.
-      if (numericCols.includes(key) || key.startsWith('DL ')) {
-        if (newRow[key] === "" || newRow[key] === null) {
+      if (numericCols.includes(key) || key.startsWith('DL ') || isSizeCol(key)) {
+        if (newRow[key] === "" || newRow[key] === null || newRow[key] === "NONE") {
           newRow[key] = null;
         } else {
-          // try parse
           const num = Number(newRow[key]);
           if (!isNaN(num)) {
             newRow[key] = num;
           } else {
-            // Keep as is, let Supabase error if invalid
             newRow[key] = null;
           }
         }
       }
-      // Supabase `upsert` ignores unknown columns? No, strict by default.
-      // We must ensure all keys in JSON exist in Table.
-      // My schema included ALL keys from the JSON sample I saw.
     }
     return newRow;
   });
