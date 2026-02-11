@@ -55,8 +55,11 @@ NGUYÊN TẮC CỐT LÕI:
 3. Nếu không có dữ liệu cho mã đơn RPRO hoặc không thấy số liệu liên quan, hãy trả lời: "Tôi xin lỗi, tôi không tìm thấy dữ liệu cho mã này trong hệ thống hiện tại."
 4. Trả lời súc tích, Tiếng Việt chuyên nghiệp.`;
 
-export async function generateAIResponse(prompt) {
+export async function generateAIResponse(prompt, extraContext = "") {
     let dataContext = "";
+    if (extraContext) {
+        dataContext += `[CONTEXT TỪ TRANG WEB]:\n${extraContext}\n\n`;
+    }
     try {
         const queryLower = prompt.toLowerCase();
         const now = new Date();

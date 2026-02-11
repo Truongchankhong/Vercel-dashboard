@@ -4,47 +4,10 @@
  * Tích hợp trí tuệ nhân tạo vào Dashboard sản xuất
  */
 
-const SYSTEM_PROMPT = `Bạn là trợ lý ảo sản xuất thông minh tại Ortholite Việt Nam (OVN). 
-Nhiệm vụ của bạn là:
-1. Hỗ trợ người dùng tra cứu tiến độ sản xuất (đặc biệt là hàng bù).
-2. Phân tích dữ liệu và cảnh báo các đơn hàng bị chậm.
-3. Giải thích các thuật ngữ sản xuất.
-4. Ưu tiên sử dụng dữ liệu hệ thống được cung cấp để trả lời.
-
-QUY TẮC TRA CỨU DỮ LIỆU (MAPPING):
-- "Mã khuôn" / "Khuôn": Lấy ở cột [#MOLD].
-- "Giới tính": Lấy ở cột [GENDER].
-- "Số lượng": Lấy ở cột [Total Qty].
-- "Mẫu dao": Lấy ở cột [#Last].
-- "Brand" / "Thương hiệu": Lấy ở cột [Brand Code].
-- "Khách hàng": Lấy ở cột [CUSTOMERS].
-- "Trạng thái Gấp/Delay": Cột [Delay-Urgent] (Production delay: hàng bị delay, Urgent: hàng gấp).
-- "Mã PU": Cột [PU], "Tên PU": Cột [PU DESCRIPTION].
-- "Mã vải": Cột [FB], "Tên vải": Cột [FB DESCRIPTION].
-- "Logo": Cột [LOGO], "Tên logo": Cột [LOGO DESCRIPTION].
-- "Loại hàng": Cột [#MOLDED] (Die cut hoặc Molded).
-- "Ngày lãnh liệu": Cột [RECEIVED (MATERIAL)].
-- "Ngày lãnh logo": Cột [RECEIVED (LOGO)].
-- "Ngày thực tế dán": Cột [Laminating (Pro)].
-- "Ngày thực tế cắt": Cột [Prefitting (Pro)].
-- "Ngày tách bào": Cột [Slipting (Pro)].
-- "Ngày thăng hoa": Cột [THĂNG HOA].
-- "Ngày thực tế molding": Cột [Molding Pro].
-- "Ngày thực tế scan In Leanline": Cột [IN lean Line (Pro)].
-- "Ngày thực tế scan Out Leanline": Cột [Out lean Line (Pro)].
-- "Ngày nhập kho": Cột [STORED].
-- "Ngày hoàn thành (Finish date)": Cột [Finish date].
-- "Máy/Line thực tế chạy": Cột [IN lean Line (MACHINE)].
-- "Mã BOM": Cột [BOM].
-- "Trạng thái hiện tại": Cột [STATUS].
-
-Hãy phản hồi lịch sự, chuyên nghiệp bằng tiếng Việt. Tập trung vào dữ liệu và giải pháp.`;
-
 class AIChatbot {
     constructor() {
         this.isOpen = false;
         this.messages = [];
-        this.apiKey = localStorage.getItem('gemini_api_key') || '';
         this.init();
     }
 
@@ -121,16 +84,15 @@ class AIChatbot {
 
         try {
             // Get context data from the page
-            let contextData = SYSTEM_PROMPT;
+            let contextData = "";
             try {
                 const rows = document.querySelectorAll('#progress-table-body tr');
                 if (rows.length > 0) {
-                    const dataSummary = Array.from(rows).slice(0, 15).map(row => {
+                    const dataSummary = Array.from(rows).slice(0, 5).map(row => {
                         const rpro = row.querySelector('td:first-child')?.innerText || "Unknown";
-                        // Get status from each cell if possible (optional enhancement)
                         return `RPRO: ${rpro}`;
                     }).join(', ');
-                    contextData += `\n\nDữ liệu thực tế trên trang (15 đơn đầu): ${dataSummary}`;
+                    contextData = `Dữ liệu đang hiển thị trên bảng: ${dataSummary}`;
                 }
             } catch (e) { }
 
@@ -154,38 +116,6 @@ class AIChatbot {
             this.addMessage('ai', '❌ Không thể kết nối với trung tâm AI. Vui lòng liên hệ IT hoặc thử lại sau.');
             console.error(err);
         }
-    }
-
-    async callGeminiAPI(prompt) {
-        // Collect context data from the page if available
-        let contextData = "";
-        try {
-            // Check if there's table data available on the page
-            const rows = document.querySelectorAll('#progress-table-body tr');
-            if (rows.length > 0) {
-                const dataSummary = Array.from(rows).slice(0, 10).map(row => {
-                    const rpro = row.querySelector('td:first-child')?.innerText || "Unknown";
-                    return `RPRO: ${rpro}`;
-                }).join(', ');
-                contextData = `\nDữ liệu thực tế đang hiển thị trên trang (10 đơn đầu): ${dataSummary}`;
-            }
-        } catch (e) { }
-
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${this.apiKey}`;
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: `${SYSTEM_PROMPT}${contextData}\n\nNgười dùng hỏi: ${prompt}` }]
-                }]
-            })
-        });
-
-        const data = await response.json();
-        if (data.error) throw new Error(data.error.message);
-        return data.candidates[0].content.parts[0].text;
     }
 
     addMessage(type, text) {
