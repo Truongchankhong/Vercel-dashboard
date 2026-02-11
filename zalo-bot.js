@@ -429,7 +429,7 @@ async function startZaloBot() {
                     }
 
                     // === LỌC RÁC ===
-                    const text = bestText;
+                    let text = bestText;
 
                     // 1. Timestamp patterns
                     if (/^\d{1,2}:\d{2}$/.test(text)) continue;
@@ -462,8 +462,8 @@ async function startZaloBot() {
                     // 5. [REMOVED] Sender name filter was too aggressive and filtered out short messages
                     // We rely on DOM order (message usually comes after name) and deduplication.
 
-                    // Clean newlines to spaces for better keyword matching
-                    text = text.replace(/\n/g, ' ');
+                    // Clean whitespace and newlines for better keyword matching
+                    text = text.replace(/\s+/g, ' ').trim();
 
                     // 6. Tránh duplicate
                     if (seenTexts.has(text)) continue;
