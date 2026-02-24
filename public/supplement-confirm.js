@@ -71,7 +71,12 @@ function renderTable() {
       <td class="px-4 py-2 border font-mono text-[12px] font-bold sticky left-0 z-10 drop-shadow-sm ${isSelected ? 'bg-blue-50' : 'bg-white'}">${row.rpro}</td>
       <td class="px-4 py-2 border text-[12px]">${row.pu || ''}</td>
       <td class="px-4 py-2 border text-[12px]">${row.fabric || ''}</td>
-      <td class="px-4 py-2 border text-right font-bold">${row.total}</td>
+      <td class="px-4 py-2 border">
+        <input type="number" min="0" 
+               value="${row.total}" 
+               onchange="handleTotalUpdate('${row.rpro}', this.value)"
+               class="w-16 border rounded px-2 py-1 text-right font-bold bg-blue-50 focus:bg-white transition">
+      </td>
       <td class="px-4 py-2 border bg-yellow-50">
         <input type="number" min="0" 
                value="${row.so_tam !== null ? row.so_tam : ''}" 
@@ -106,6 +111,9 @@ function renderTable() {
           </button>
           <span id="saved-${row.rpro}" class="text-[10px] text-blue-600 font-bold hidden col-span-2">✅ Đã lưu</span>
         </div>
+      </td>
+      <td class="px-4 py-2 border text-[11px] text-gray-600 max-w-[120px] truncate" title="${row.remark2 || ''}">
+        ${row.remark2 || ''}
       </td>
       <td class="px-4 py-2 border text-center">
         <input type="checkbox" class="row-check w-5 h-5 cursor-pointer" 
@@ -147,6 +155,31 @@ window.handleDeleteOrder = async (rpro) => {
     alert('Lỗi khi xóa đơn');
   } else {
     loadConfirmList();
+  }
+};
+
+window.handleTotalUpdate = async (rpro, value) => {
+  const numValue = Number(value) || 0;
+  const { error } = await supabase
+    .from('supplement_confirm')
+    .update({
+      total: numValue,
+      updated_at: new Date().toISOString()
+    })
+    .eq('rpro', rpro);
+
+  if (error) {
+    console.error('Error updating total:', error);
+    alert('Lỗi khi lưu số lượng Qty');
+  } else {
+    // Refresh list locally to update other calculations if needed
+    currentData = currentData.map(r => r.rpro === rpro ? { ...r, total: numValue } : r);
+    const savedEl = document.getElementById(`saved-${rpro}`);
+    if (savedEl) {
+      savedEl.textContent = "✅ Đã lưu Qty";
+      savedEl.classList.remove('hidden');
+      setTimeout(() => savedEl.classList.add('hidden'), 2000);
+    }
   }
 };
 
@@ -399,8 +432,8 @@ async function handleNewRproScan(rawText) {
   if (statusEl) statusEl.classList.remove('hidden');
 
   try {
-    // 1. Lookup in 'supplement' table (where user entered missing quantities)
-    const { data: supplementRow, error: sError } = await supabase
+    // 1. TẦNG 1: Tìm trong bảng 'supplement' (đã qua team team team team hàng bù)
+    let { data: finalRecord, error: sError } = await supabase
       .from('supplement')
       .select('*')
       .eq('rpro', rpro)
@@ -408,25 +441,53 @@ async function handleNewRproScan(rawText) {
 
     if (sError) throw sError;
 
-    if (!supplementRow) {
-      alert(`⚠️ Đơn ${rpro} chưa được nhập số lượng thiếu ở trang Bù hàng.\nVui lòng nhập liệu ở trang Supplement trước khi xác nhận.`);
+    if (!finalRecord) {
+      console.log(`🔍 Không thấy ${rpro} trong supplement, chuyển tầng 2: powerapp`);
+
+      // 2. TẦNG 2: Tìm trong bảng 'powerapp'
+      let { data: pRec, error: pError } = await supabase
+        .from('powerapp')
+        .select('*')
+        .eq('PRO ODER', rpro)
+        .maybeSingle();
+
+      if (pRec) {
+        finalRecord = mapTableToSupplement(pRec, "Đơn chưa scan ở team hàng bù");
+      } else {
+        console.log(`🔍 Không thấy ${rpro} trong powerapp, chuyển tầng 3: Masterdata`);
+
+        // 3. TẦNG 3: Tìm trong bảng 'Masterdata'
+        let { data: mRec, error: mError } = await supabase
+          .from('Masterdata')
+          .select('*')
+          .eq('PRO ODER', rpro)
+          .maybeSingle();
+
+        if (mRec) {
+          finalRecord = mapTableToSupplement(mRec, "Đơn chưa scan ở team hàng bù");
+        }
+      }
+    }
+
+    if (!finalRecord) {
+      alert(`❌ Không tìm thấy thông tin cho đơn ${rpro} trong toàn hệ thống (Supplement, Powerapp, Masterdata).`);
       return;
     }
 
-    // 2. Prepare data to copy (exclude record metadata)
-    const { id, created_at, updated_at, ...dataToCopy } = supplementRow;
+    // Prepare data (exclude id)
+    const { id, created_at, updated_at, ...dataToCopy } = finalRecord;
 
-    // 3. Upsert into supplement_confirm (creates or updates)
+    // Upsert into supplement_confirm
     const { error: insError } = await supabase
       .from('supplement_confirm')
       .upsert([{
         ...dataToCopy,
-        created_at: new Date().toISOString() // Set new timestamp for the confirmation list
+        created_at: new Date().toISOString()
       }]);
 
     if (insError) throw insError;
 
-    // Success (No alert for seamless scanning)
+    // Success (Seamless)
     const input = document.getElementById('scan-input');
     if (input) {
       input.value = '';
@@ -440,6 +501,32 @@ async function handleNewRproScan(rawText) {
   } finally {
     if (statusEl) statusEl.classList.add('hidden');
   }
+}
+
+// Helper to map powerapp/Masterdata to supplement structure
+function mapTableToSupplement(rec, remarkValue) {
+  const result = {
+    rpro: rec['PRO ODER'],
+    so: rec['SO'] || rec['Sales Order'] || '',
+    customers: rec['CUSTOMERS'] || '',
+    gender: (rec['Giới tính'] || rec['GENDER'] || '').trim(),
+    mold: rec['Mã Khuôn'] || rec['#MOLD'] || '',
+    pu: rec['Mã dao'] || rec['PU'] || '',
+    fabric: rec['Tên vải'] || rec['FB DESCRIPTION'] || '',
+    bom: rec['BOM'] || '',
+    total: 0, // Default to 0 so user can enter manually
+    remark2: remarkValue
+  };
+
+  // Add all size columns as 0
+  Object.keys(rec).forEach(k => {
+    if (!isNaN(parseFloat(k))) {
+      const dbKey = 'size_' + k.replace(/\./g, '_');
+      result[dbKey] = 0;
+    }
+  });
+
+  return result;
 }
 
 // ================= STATS LOGIC ================= //
