@@ -112,13 +112,13 @@ function renderTable() {
           <span id="saved-${row.rpro}" class="text-[10px] text-blue-600 font-bold hidden col-span-2">✅ Đã lưu</span>
         </div>
       </td>
-      <td class="px-4 py-2 border text-[11px] text-gray-600 max-w-[120px] truncate" title="${row.remark2 || ''}">
-        ${row.remark2 || ''}
-      </td>
       <td class="px-4 py-2 border text-center">
         <input type="checkbox" class="row-check w-5 h-5 cursor-pointer" 
                data-rpro="${row.rpro}" ${isSelected ? 'checked' : ''} 
                onchange="toggleSelect('${row.rpro}', this.checked)">
+      </td>
+      <td class="px-4 py-2 border text-[11px] text-gray-600 max-w-[120px] truncate" title="${row.remark2 || ''}">
+        ${row.remark2 || ''}
       </td>
     </tr>
   `;
