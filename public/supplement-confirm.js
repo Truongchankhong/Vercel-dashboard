@@ -376,69 +376,30 @@ async function handleNewRproScan(rawText) {
   if (statusEl) statusEl.classList.remove('hidden');
 
   try {
-    // 1. Check if already in supplement_confirm
-    const { data: existing } = await supabase
-      .from('supplement_confirm')
-      .select('rpro')
+    // 1. Lookup in 'supplement' table (where user entered missing quantities)
+    const { data: supplementRow, error: sError } = await supabase
+      .from('supplement')
+      .select('*')
       .eq('rpro', rpro)
       .maybeSingle();
 
-    if (existing) {
-      alert(`Đơn ${rpro} đã có trong danh sách xác nhận!`);
-      // Scroll to it or highlight it? For now just refresh
-      loadConfirmList();
+    if (sError) throw sError;
+
+    if (!supplementRow) {
+      alert(`⚠️ Đơn ${rpro} chưa được nhập số lượng thiếu ở trang Bù hàng.\nVui lòng nhập liệu ở trang Supplement trước khi xác nhận.`);
       return;
     }
 
-    // 2. Lookup in powerapp
-    let { data: rec, error: pError } = await supabase
-      .from('powerapp')
-      .select('*')
-      .eq('PRO ODER', rpro)
-      .maybeSingle();
+    // 2. Prepare data to copy (exclude record metadata)
+    const { id, created_at, updated_at, ...dataToCopy } = supplementRow;
 
-    // 3. If not in powerapp, lookup in Masterdata
-    if (!rec) {
-      const { data: mRec, error: mError } = await supabase
-        .from('Masterdata')
-        .select('*')
-        .eq('PRO ODER', rpro)
-        .maybeSingle();
-      if (mRec) rec = mRec;
-    }
-
-    if (!rec) {
-      alert(`❌ Không tìm thấy thông tin cho đơn ${rpro} trong hệ thống.`);
-      return;
-    }
-
-    // 4. Map and Insert into supplement_confirm
-    // Calculate total from sizes if not simple
-    const sizeKeys = Object.keys(rec).filter(k => !isNaN(parseFloat(k)));
-    const totalQty = sizeKeys.reduce((sum, k) => sum + (Number(rec[k]) || 0), 0);
-
-    const payload = {
-      rpro: rec['PRO ODER'],
-      so: rec['SO'] || rec['Sales Order'] || '',
-      customers: rec['CUSTOMERS'] || '',
-      gender: (rec['Giới tính'] || rec['GENDER'] || '').trim(),
-      mold: rec['Mã Khuôn'] || rec['#MOLD'] || '',
-      pu: rec['Mã dao'] || rec['PU'] || '',
-      fabric: rec['Tên vải'] || rec['FB DESCRIPTION'] || '',
-      bom: rec['BOM'] || '',
-      total: totalQty,
-      created_at: new Date().toISOString()
-    };
-
-    // Add sizes to payload
-    sizeKeys.forEach(k => {
-      const dbKey = 'size_' + k.replace(/\./g, '_');
-      payload[dbKey] = Number(rec[k]) || 0;
-    });
-
+    // 3. Upsert into supplement_confirm (creates or updates)
     const { error: insError } = await supabase
       .from('supplement_confirm')
-      .insert([payload]);
+      .upsert([{
+        ...dataToCopy,
+        created_at: new Date().toISOString() // Set new timestamp for the confirmation list
+      }]);
 
     if (insError) throw insError;
 
@@ -446,7 +407,7 @@ async function handleNewRproScan(rawText) {
     const input = document.getElementById('scan-input');
     if (input) input.value = '';
     loadConfirmList();
-    alert(`✅ Đã thêm đơn ${rpro} vào danh sách.`);
+    alert(`✅ Đã lấy dữ liệu từ trang Bù hàng cho đơn ${rpro}.`);
 
   } catch (err) {
     console.error('Scan Error:', err);
