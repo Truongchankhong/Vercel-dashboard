@@ -65,6 +65,13 @@ function renderTable() {
       <td class="px-4 py-2 border text-[12px]">${row.pu || ''}</td>
       <td class="px-4 py-2 border text-[12px]">${row.fabric || ''}</td>
       <td class="px-4 py-2 border text-right font-bold">${row.total}</td>
+      <td class="px-4 py-2 border bg-yellow-50">
+        <input type="number" min="0" 
+               value="${row.so_tam !== null ? row.so_tam : ''}" 
+               placeholder="Số tấm"
+               onchange="handleSoTamUpdate('${row.rpro}', this.value)"
+               class="w-20 border-2 border-yellow-200 px-2 py-1 rounded text-center font-bold focus:border-yellow-500 outline-none">
+      </td>
       <td class="px-4 py-2 border">
         <input type="number" min="0" max="${row.total}" 
                value="${row.available_supplement !== null ? row.available_supplement : ''}" 
@@ -119,6 +126,29 @@ if (checkAll) {
     renderTable();
   });
 }
+
+window.handleSoTamUpdate = async (rpro, value) => {
+  const numValue = value === '' ? null : Number(value);
+  const { error } = await supabase
+    .from('supplement_confirm')
+    .update({
+      so_tam: numValue,
+      updated_at: new Date().toISOString()
+    })
+    .eq('rpro', rpro);
+
+  if (error) {
+    console.error('Error updating so_tam:', error);
+    alert('Lỗi khi lưu số tấm');
+  } else {
+    const savedEl = document.getElementById(`saved-${rpro}`);
+    if (savedEl) {
+      savedEl.textContent = "✅ Đã lưu số tấm";
+      savedEl.classList.remove('hidden');
+      setTimeout(() => savedEl.classList.add('hidden'), 2000);
+    }
+  }
+};
 
 window.handleAvailableUpdate = async (rpro, value, total) => {
   const numValue = value === '' ? total : Number(value);
@@ -310,6 +340,7 @@ async function exportToExcel() {
       'Fabric': r.fabric || '',
       'BOM': r.bom || '',
       'Qty': r.total,
+      'Số tấm': r.so_tam || '',
       'Qty_Sup': r.available_supplement !== null ? r.available_supplement : r.total,
       'Size': formatSizeBreakdown(r),
       'Xác nhận': r.confirm || 'Chưa xác nhận',
@@ -324,6 +355,105 @@ async function exportToExcel() {
   // File name based on filter dates
   const filename = `Xac_nhan_Bu_hang_${dateFromInput.value}_den_${dateToInput.value}.xlsx`;
   XLSX.writeFile(workbook, filename);
+}
+
+// ================= RPRO SCAN LOGIC ================= //
+
+async function handleNewRproScan(rawText) {
+  let rpro = rawText.trim();
+  if (rpro.includes('|')) {
+    const parts = rpro.split('|');
+    const rproPart = parts.find(p => p.startsWith('RPRO'));
+    if (rproPart) rpro = rproPart;
+  }
+
+  if (!rpro.startsWith('RPRO')) {
+    alert('⚠️ QR không hợp lệ. Vui lòng quét mã RPRO.');
+    return;
+  }
+
+  const statusEl = document.getElementById('scan-status');
+  if (statusEl) statusEl.classList.remove('hidden');
+
+  try {
+    // 1. Check if already in supplement_confirm
+    const { data: existing } = await supabase
+      .from('supplement_confirm')
+      .select('rpro')
+      .eq('rpro', rpro)
+      .maybeSingle();
+
+    if (existing) {
+      alert(`Đơn ${rpro} đã có trong danh sách xác nhận!`);
+      // Scroll to it or highlight it? For now just refresh
+      loadConfirmList();
+      return;
+    }
+
+    // 2. Lookup in powerapp
+    let { data: rec, error: pError } = await supabase
+      .from('powerapp')
+      .select('*')
+      .eq('PRO ODER', rpro)
+      .maybeSingle();
+
+    // 3. If not in powerapp, lookup in Masterdata
+    if (!rec) {
+      const { data: mRec, error: mError } = await supabase
+        .from('Masterdata')
+        .select('*')
+        .eq('PRO ODER', rpro)
+        .maybeSingle();
+      if (mRec) rec = mRec;
+    }
+
+    if (!rec) {
+      alert(`❌ Không tìm thấy thông tin cho đơn ${rpro} trong hệ thống.`);
+      return;
+    }
+
+    // 4. Map and Insert into supplement_confirm
+    // Calculate total from sizes if not simple
+    const sizeKeys = Object.keys(rec).filter(k => !isNaN(parseFloat(k)));
+    const totalQty = sizeKeys.reduce((sum, k) => sum + (Number(rec[k]) || 0), 0);
+
+    const payload = {
+      rpro: rec['PRO ODER'],
+      so: rec['SO'] || rec['Sales Order'] || '',
+      customers: rec['CUSTOMERS'] || '',
+      gender: (rec['Giới tính'] || rec['GENDER'] || '').trim(),
+      mold: rec['Mã Khuôn'] || rec['#MOLD'] || '',
+      pu: rec['Mã dao'] || rec['PU'] || '',
+      fabric: rec['Tên vải'] || rec['FB DESCRIPTION'] || '',
+      bom: rec['BOM'] || '',
+      total: totalQty,
+      created_at: new Date().toISOString()
+    };
+
+    // Add sizes to payload
+    sizeKeys.forEach(k => {
+      const dbKey = 'size_' + k.replace(/\./g, '_');
+      payload[dbKey] = Number(rec[k]) || 0;
+    });
+
+    const { error: insError } = await supabase
+      .from('supplement_confirm')
+      .insert([payload]);
+
+    if (insError) throw insError;
+
+    // Success
+    const input = document.getElementById('scan-input');
+    if (input) input.value = '';
+    loadConfirmList();
+    alert(`✅ Đã thêm đơn ${rpro} vào danh sách.`);
+
+  } catch (err) {
+    console.error('Scan Error:', err);
+    alert('Lỗi khi xử lý đơn hàng: ' + err.message);
+  } finally {
+    if (statusEl) statusEl.classList.add('hidden');
+  }
 }
 
 // ================= STATS LOGIC ================= //
@@ -573,5 +703,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('stats') === 'true') {
     showStats();
+  }
+
+  // Scan Input listeners
+  const scanInput = document.getElementById('scan-input');
+  const btnAddScan = document.getElementById('btn-add-scan');
+
+  if (scanInput) {
+    scanInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        handleNewRproScan(scanInput.value);
+      }
+    });
+
+    // Auto-focus after 1s
+    setTimeout(() => scanInput.focus(), 1000);
+  }
+
+  if (btnAddScan) {
+    btnAddScan.addEventListener('click', () => {
+      handleNewRproScan(scanInput.value);
+    });
   }
 });
