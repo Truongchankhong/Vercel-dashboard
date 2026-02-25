@@ -143,6 +143,10 @@ if (checkAll) {
 }
 
 window.handleDeleteOrder = async (id, rpro) => {
+  if (!id || id === 'undefined' || id === 'null') {
+    alert('❌ Lỗi: Không tìm thấy ID định danh của dòng này. Vui lòng F5 làm mới trang.');
+    return;
+  }
   if (!confirm(`Bạn chắc chắn muốn xóa dòng xác nhận đơn [${rpro}] này không?`)) return;
 
   const { error } = await supabase
@@ -159,6 +163,7 @@ window.handleDeleteOrder = async (id, rpro) => {
 };
 
 window.handleTotalUpdate = async (id, value) => {
+  if (!id || id === 'undefined' || id === 'null') return;
   const numValue = Number(value) || 0;
   const { error } = await supabase
     .from('supplement_confirm')
@@ -182,6 +187,7 @@ window.handleTotalUpdate = async (id, value) => {
 };
 
 window.handleSoTamUpdate = async (id, value) => {
+  if (!id || id === 'undefined' || id === 'null') return;
   const numValue = value === '' ? null : Number(value);
   const { error } = await supabase
     .from('supplement_confirm')
@@ -205,6 +211,7 @@ window.handleSoTamUpdate = async (id, value) => {
 };
 
 window.handleAvailableUpdate = async (id, value, total) => {
+  if (!id || id === 'undefined' || id === 'null') return;
   const numValue = value === '' ? total : Number(value);
   const { error } = await supabase
     .from('supplement_confirm')
@@ -228,6 +235,10 @@ window.handleAvailableUpdate = async (id, value, total) => {
 };
 
 window.handleConfirmation = async (id, newStatus, currentStatus) => {
+  if (!id || id === 'undefined' || id === 'null') {
+    alert('❌ Không thể xác nhận: Thiếu ID dòng.');
+    return;
+  }
   // Tìm mã RPRO từ id trong currentData để hiển thị cảnh báo chính xác hơn
   const targetRow = currentData.find(r => String(r.id) === String(id));
   const rpro = targetRow ? targetRow.rpro : 'đang chọn';

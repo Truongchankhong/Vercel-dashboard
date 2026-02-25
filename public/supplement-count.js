@@ -113,13 +113,18 @@ async function onCameraScanSuccess(decodedText) {
     const rproMatches = decodedText.match(/RPRO-[\d-]+/g);
     if (rproMatches && rproMatches.length > 1) {
         showMultiRproConfirmation(rproMatches, "CAMERA", "");
-    } else if (rproMatches && rproMatches.length === 1) {
-        const code = rproMatches[0];
-        await fetchDetails(code);
-        await processRPRO(code, "CAMERA");
     } else {
-        await fetchDetails(decodedText);
-        await processRPRO(decodedText, "CAMERA");
+        const code = (rproMatches && rproMatches.length === 1) ? rproMatches[0] : decodedText.trim().toUpperCase();
+        if (!code) return;
+
+        // Chỉ load lên giao diện, không lưu tự động
+        if (manualRproInput) manualRproInput.value = code;
+        showFeedback(`🔍 Đã nhận mã ${code}. Đang lấy thông tin...`, "text-blue-600");
+
+        await fetchDetails(code);
+
+        showFeedback(`✅ Đã load mã ${code}. Kiểm tra Qty và bấm [LƯU]`, "text-green-600 font-bold bg-green-50 p-2 rounded-lg border-2 border-green-200");
+        playAudioFeedback(true);
     }
 }
 
@@ -153,19 +158,17 @@ document.addEventListener('keydown', (e) => {
             if (rproMatches && rproMatches.length > 1) {
                 const note = manualNoteInput ? manualNoteInput.value.trim() : '';
                 showMultiRproConfirmation(rproMatches, "HANDHELD", note);
-            } else if (rproMatches && rproMatches.length === 1) {
-                const code = rproMatches[0];
-                const note = manualNoteInput ? manualNoteInput.value.trim() : '';
+            } else {
+                const code = (rproMatches && rproMatches.length === 1) ? rproMatches[0] : scannedText;
                 if (!isProcessing) {
+                    if (manualRproInput) manualRproInput.value = code;
+                    showFeedback(`🔍 Máy quét: ${code}. Đang lấy thông tin...`, "text-blue-600");
+
                     fetchDetails(code).then(() => {
-                        processRPRO(code, "HANDHELD", note);
+                        showFeedback(`✅ Đã load mã ${code}. Kiểm tra Qty và bấm [LƯU]`, "text-green-600 font-bold bg-green-50 p-2 rounded-lg border-2 border-green-200");
+                        playAudioFeedback(true);
                     });
                 }
-            } else if (!isProcessing) {
-                const note = manualNoteInput ? manualNoteInput.value.trim() : '';
-                fetchDetails(scannedText).then(() => {
-                    processRPRO(scannedText, "HANDHELD", note);
-                });
             }
         }
     } else if (e.key.length === 1) {
