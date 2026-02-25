@@ -55,17 +55,39 @@ class AIChatbot {
 
     addEventListeners() {
         const btn = document.getElementById('ai-chatbot-button');
-        const window = document.getElementById('ai-chatbot-window');
+        const chatWindow = document.getElementById('ai-chatbot-window');
         const input = document.getElementById('chatbot-input');
         const sendBtn = document.getElementById('chatbot-send-btn');
 
-        btn.onclick = () => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
             this.isOpen = !this.isOpen;
-            window.classList.toggle('active', this.isOpen);
-            if (this.isOpen) input.focus();
+            console.log("Chatbot state:", this.isOpen ? "OPEN" : "CLOSED");
+            chatWindow.classList.toggle('active', this.isOpen);
+            if (this.isOpen) {
+                // Đảm bảo window đã hiện ra trước khi focus
+                setTimeout(() => {
+                    input.focus();
+                    input.click(); // Đôi khi cần click để hiện bàn phím di động
+                }, 300);
+            }
         };
 
-        sendBtn.onclick = () => this.handleSendMessage();
+        // Ngăn chặn việc click bên trong cửa sổ chat làm nó bị bị mất focus hoặc đóng lại
+        chatWindow.onclick = (e) => {
+            e.stopPropagation();
+        };
+
+        input.onclick = (e) => {
+            e.stopPropagation();
+            input.focus();
+        };
+
+        sendBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.handleSendMessage();
+        };
+
         input.onkeypress = (e) => {
             if (e.key === 'Enter') this.handleSendMessage();
         };
