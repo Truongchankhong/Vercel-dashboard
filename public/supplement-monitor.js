@@ -310,7 +310,7 @@ function renderStageCell(stageData, rpro, section) {
     if (stageData.in && !stageData.out) {
         // IN Only
         const elapsedHours = (new Date() - new Date(stageData.in.time)) / (1000 * 60 * 60);
-        const isWarning = elapsedHours > 4;
+        const isWarning = elapsedHours > 12;
         bgClass = isWarning ? 'bg-red-50 animate-pulse border-red-200 border' : 'bg-yellow-50 border-yellow-200 border';
 
         statusHtml = `
@@ -319,7 +319,7 @@ function renderStageCell(stageData, rpro, section) {
                 <div class="text-blue-600 font-mono mb-1 whitespace-nowrap">${inTime}</div>
                 <div class="text-gray-800 font-bold">SL: ${inQty}</div>
                 <span class="w-full text-center px-2 py-0.5 rounded text-[10px] font-black uppercase mt-1 ${isWarning ? 'bg-red-500 text-white' : 'bg-yellow-400 text-yellow-900'}">
-                    ${isWarning ? '⚠️ QUÁ HẠN >4H' : '⏳ ĐANG XỬ LÝ'}
+                    ${isWarning ? '⚠️ QUÁ HẠN >12H' : '⏳ ĐANG XỬ LÝ'}
                 </span>
             </div>`;
     } else if (stageData.in && stageData.out) {
