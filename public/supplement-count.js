@@ -28,6 +28,10 @@ const inputPuSheets = document.getElementById('input-pu-sheets');
 const puSheetsValue = document.getElementById('pu-sheets-value');
 const btnIncSheets = document.getElementById('btn-inc-sheets');
 const btnDecSheets = document.getElementById('btn-dec-sheets');
+const multiRproModal = document.getElementById('multi-rpro-modal');
+const multiRproCount = document.getElementById('multi-rpro-count');
+const btnMultiContinue = document.getElementById('btn-multi-continue');
+const btnMultiRescan = document.getElementById('btn-multi-rescan');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -102,12 +106,20 @@ async function stopCamera() {
     }
 }
 
-function onCameraScanSuccess(decodedText) {
+async function onCameraScanSuccess(decodedText) {
     if (isProcessing) return;
-    // Set defaults as soon as we have a code
-    fetchDetails(decodedText).then(() => {
-        processRPRO(decodedText, "CAMERA");
-    });
+
+    const rproMatches = decodedText.match(/RPRO-[\d-]+/g);
+    if (rproMatches && rproMatches.length > 1) {
+        showMultiRproConfirmation(rproMatches, "CAMERA", "");
+    } else if (rproMatches && rproMatches.length === 1) {
+        const code = rproMatches[0];
+        await fetchDetails(code);
+        await processRPRO(code, "CAMERA");
+    } else {
+        await fetchDetails(decodedText);
+        await processRPRO(decodedText, "CAMERA");
+    }
 }
 
 // ==================== HANDHELD SCANNER ====================
@@ -130,13 +142,28 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         // Process the buffer
         if (scanBuffer.length > 0) {
-            const scannedCode = scanBuffer.trim();
+            const scannedText = scanBuffer.trim();
             scanBuffer = '';
-            console.log("🔫 Handheld scan:", scannedCode);
-            if (!isProcessing) {
+            console.log("🔫 Handheld scan raw:", scannedText);
+
+            // Tự động tách mã nếu bị dính nhau (RPRO-1RPRO-2...)
+            const rproMatches = scannedText.match(/RPRO-[\d-]+/g);
+
+            if (rproMatches && rproMatches.length > 1) {
                 const note = manualNoteInput ? manualNoteInput.value.trim() : '';
-                fetchDetails(scannedCode).then(() => {
-                    processRPRO(scannedCode, "HANDHELD", note);
+                showMultiRproConfirmation(rproMatches, "HANDHELD", note);
+            } else if (rproMatches && rproMatches.length === 1) {
+                const code = rproMatches[0];
+                const note = manualNoteInput ? manualNoteInput.value.trim() : '';
+                if (!isProcessing) {
+                    fetchDetails(code).then(() => {
+                        processRPRO(code, "HANDHELD", note);
+                    });
+                }
+            } else if (!isProcessing) {
+                const note = manualNoteInput ? manualNoteInput.value.trim() : '';
+                fetchDetails(scannedText).then(() => {
+                    processRPRO(scannedText, "HANDHELD", note);
                 });
             }
         }
@@ -144,10 +171,10 @@ document.addEventListener('keydown', (e) => {
         // Append character to buffer
         scanBuffer += e.key;
 
-        // Auto-reset buffer after 100ms of inactivity
+        // Auto-reset buffer after 150ms of inactivity (tăng nhẹ thời gian cho máy quét chậm)
         scanTimeout = setTimeout(() => {
             scanBuffer = '';
-        }, 100);
+        }, 150);
     }
 });
 
@@ -303,11 +330,36 @@ async function fetchDetails(rpro) {
     }
 }
 
-// ==================== CORE LOGIC: PROCESS RPRO ====================
-async function processRPRO(text, mode, note = '') {
+// ==================== BATCH PROCESSING MODAL ====================
+function showMultiRproConfirmation(matches, mode, note) {
+    isProcessing = true; // Lock scanning
+    multiRproCount.textContent = matches.length;
+    multiRproModal.classList.remove('hidden');
+
+    // Button: Tiếp tục
+    btnMultiContinue.onclick = async () => {
+        multiRproModal.classList.add('hidden');
+        showFeedback(`⏳ Đang xử lý ${matches.length} mã...`, "text-blue-600");
+
+        for (const code of matches) {
+            await fetchDetails(code);
+            await processRPRO(code, mode, note, true);
+        }
+        finishProcessingBatch();
+    };
+
+    // Button: Scan lại
+    btnMultiRescan.onclick = () => {
+        multiRproModal.classList.add('hidden');
+        isProcessing = false;
+        showFeedback("🔄 Vui lòng scan lại từng mã chậm lại.", "text-gray-500");
+        playAudioFeedback(false);
+    };
+}
+async function processRPRO(text, mode, note = '', isInBatch = false) {
     console.log(`🚀 Processing RPRO: ${text} | Mode: ${mode} | Note: ${note} | Section: ${activeSection} | Action: ${activeAction}`);
 
-    isProcessing = true;
+    if (!isInBatch) isProcessing = true;
 
     // Parse QR if pipe-delimited
     let cleanText = text.trim().toUpperCase();
@@ -319,13 +371,10 @@ async function processRPRO(text, mode, note = '') {
 
     const rpro = cleanText;
 
-    // Reset undo state
-    lastRecordId = null;
-    undoContainer.classList.add('hidden');
-
-    // Validation
-    if (!rpro.startsWith("RPRO")) {
-        const errorMsg = `❌ Mã không hợp lệ: ${rpro}`;
+    // Validation (Strict check: ensure it's a single clean RPRO)
+    const isSingleRpro = /^RPRO-[\d-]+$/.test(rpro);
+    if (!isSingleRpro) {
+        const errorMsg = `❌ Mã sai định dạng hoặc bị dính: ${rpro}`;
         showFeedback(errorMsg, "text-red-600");
         showToast(errorMsg, "error");
         playAudioFeedback(false);
@@ -415,15 +464,20 @@ async function processRPRO(text, mode, note = '') {
         showToast(errorMsg, "error");
         playAudioFeedback(false);
     } finally {
-        setTimeout(() => {
-            isProcessing = false;
-            // Clear feedback only if success message is showing
-            if (scanFeedback.innerText.includes("✅")) {
-                scanFeedback.innerText = "Sẵn sàng cho mã tiếp theo...";
-                scanFeedback.className = "mt-3 text-center min-h-[50px] font-bold text-lg text-gray-400";
-            }
-        }, 2000);
+        if (!isInBatch) {
+            finishProcessingBatch();
+        }
     }
+}
+
+function finishProcessingBatch() {
+    setTimeout(() => {
+        isProcessing = false;
+        if (scanFeedback.innerText.includes("✅")) {
+            scanFeedback.innerText = "Sẵn sàng cho mã tiếp theo...";
+            scanFeedback.className = "mt-3 text-center min-h-[50px] font-bold text-lg text-gray-400";
+        }
+    }, 2000);
 }
 
 // ==================== TOAST NOTIFICATION ====================
