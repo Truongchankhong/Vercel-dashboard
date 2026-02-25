@@ -85,17 +85,42 @@ export async function generateAIResponse(prompt, extraContext = "") {
         console.warn("⚠️ Lỗi database:", dbErr.message);
     }
 
-    const candidateModels = ["gemini-2.0-flash", "gemini-1.5-flash"];
+    const candidateModels = [
+        "gemini-1.5-flash",
+        "gemini-2.0-flash-exp",
+        "gemini-1.5-pro",
+        "gemini-2.0-flash"
+    ];
+
+    console.log(`🤖 Đang xử lý câu hỏi: "${prompt.substring(0, 50)}..."`);
 
     for (const modelName of candidateModels) {
         try {
+            console.log(`   Trying model: ${modelName}...`);
             const model = genAI.getGenerativeModel({ model: modelName });
             const finalPrompt = `${SYSTEM_INSTRUCTION}\n\n[DỮ LIỆU HỆ THỐNG]:\n${dataContext}\n\n[CÂU HỎI]: ${prompt}`;
+
             const result = await model.generateContent(finalPrompt);
-            return result.response.text();
+            const response = await result.response;
+            const text = response.text();
+
+            if (text) {
+                console.log(`   ✅ Success with ${modelName}`);
+                return text;
+            }
         } catch (err) {
+            console.warn(`   ❌ Model ${modelName} failed: ${err.message}`);
+            // Check for quota or key issues
+            if (err.message.includes("API_KEY_INVALID") || err.message.includes("API key not found")) {
+                return "🤖 [Hệ thống]: Lỗi xác thực API Key. Vui lòng kiểm tra lại GEMINI_API_KEY trong file ai-core.js.";
+            }
+            if (err.message.includes("429") || err.message.includes("quota")) {
+                console.warn("   ⚠️ Quota exceeded for this model.");
+            }
+
             if (modelName === candidateModels[candidateModels.length - 1]) {
-                return "🤖 [Hệ thống]: Không kết nối được AI. Vui lòng thử lại sau!";
+                console.error("   ‼️ All AI models failed.");
+                return "🤖 [Hệ thống]: Không kết nối được bộ não AI (Cạn quota hoặc lỗi mạng). Vui lòng báo IT kiểm tra lại hoặc thử lại sau giây lát.";
             }
         }
     }
