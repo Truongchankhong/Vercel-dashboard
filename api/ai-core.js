@@ -121,16 +121,29 @@ export async function generateAIResponse(prompt, extraContext = "") {
                     rproMap[t.rpro][t.section][t.action] = true;
                 });
 
+                const rproDetails = {};
+                sections.forEach(s => rproDetails[s] = { inProgress: [], completed: [] });
+
                 Object.keys(rproMap).forEach(r => {
                     sections.forEach(s => {
-                        if (rproMap[r][s]?.IN && !rproMap[r][s]?.OUT) stats[s].in++;
-                        if (rproMap[r][s]?.OUT) stats[s].out++;
+                        if (rproMap[r][s]?.IN && !rproMap[r][s]?.OUT) {
+                            stats[s].in++;
+                            rproDetails[s].inProgress.push(r);
+                        }
+                        if (rproMap[r][s]?.OUT) {
+                            stats[s].out++;
+                            rproDetails[s].completed.push(r);
+                        }
                     });
                 });
 
-                dataContext += `\n[THỐNG KÊ HÀNG BÙ (100 đơn gần nhất)]: 
-- Đang xử lý (Chưa xong): Dán(${stats['Dán'].in}), Cắt(${stats['Cắt'].in}), Molding(${stats['Molding'].in}), DC(${stats['DC'].in}), Molded(${stats['Molded'].in})
-- Đã hoàn tất công đoạn: Dán(${stats['Dán'].out}), Cắt(${stats['Cắt'].out}), Molding(${stats['Molding'].out}), DC(${stats['DC'].out}), Molded(${stats['Molded'].out})\n`;
+                dataContext += `\n[THỐNG KÊ CHI TIẾT HÀNG BÙ (100 lệnh quét gần nhất)]:`;
+                sections.forEach(s => {
+                    dataContext += `\n- CÔNG ĐOẠN ${s.toUpperCase()}:
+  + Đang xử lý (${stats[s].in} đơn): ${stats[s].in > 0 ? rproDetails[s].inProgress.join(', ') : 'Không có'}
+  + Đã xong (${stats[s].out} đơn): ${stats[s].out > 0 ? rproDetails[s].completed.join(', ') : 'Không có'}`;
+                });
+                dataContext += `\n`;
             }
         }
 
