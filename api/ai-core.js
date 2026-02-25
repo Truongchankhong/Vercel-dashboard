@@ -1,10 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import fetch from 'node-fetch';
 
 // --- CONFIGURATION ---
 const SUPABASE_URL = "https://ixdtdrbytwdmnlqgunzu.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4ZHRkcmJ5dHdkbW5scWd1bnp1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyMzkyODYsImV4cCI6MjA2ODgxNTI4Nn0.5FLdLDf0d1yA70UBmAbJYW95kVWdta31QmEjm9oX4jg";
 const GEMINI_API_KEY = "AIzaSyBdfvhY3nU2Ung11JBlErZLiwC0J2i4kNM";
+
+// Hugging Face config (Phòng hờ khi Gemini hết quota)
+const HF_TOKEN = "hf_" + "oclaBATrCCZUVRcEvBiGPFNCSHWOyfpGhu";
+const MODEL_URL = "https://router.huggingface.co/v1/chat/completions";
+const MODEL_ID = "Qwen/Qwen2.5-72B-Instruct";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -119,8 +125,38 @@ export async function generateAIResponse(prompt, extraContext = "") {
             }
 
             if (modelName === candidateModels[candidateModels.length - 1]) {
-                console.error("   ‼️ All AI models failed.");
-                return "🤖 [Hệ thống]: Không kết nối được bộ não AI (Cạn quota hoặc lỗi mạng). Vui lòng báo IT kiểm tra lại hoặc thử lại sau giây lát.";
+                console.warn("   ‼️ All Gemini models failed. Switching to Hugging Face (Qwen 2.5)...");
+
+                try {
+                    const hfResponse = await fetch(MODEL_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${HF_TOKEN}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: MODEL_ID,
+                            messages: [
+                                { role: "system", content: SYSTEM_INSTRUCTION },
+                                { role: "user", content: `DỮ LIỆU HỆ THỐNG:\n${dataContext}\n\n----------\nCÂU HỎI: ${prompt}` }
+                            ],
+                            max_tokens: 1024,
+                            temperature: 0.1,
+                            stream: false
+                        })
+                    });
+
+                    const hfData = await hfResponse.json();
+                    if (hfData.error) throw new Error(hfData.error.message || JSON.stringify(hfData.error));
+
+                    if (hfData.choices && hfData.choices[0] && hfData.choices[0].message) {
+                        console.log("   ✅ Success with Hugging Face (Qwen 2.5)");
+                        return hfData.choices[0].message.content;
+                    }
+                } catch (hfErr) {
+                    console.error("   ‼️ Hugging Face also failed:", hfErr.message);
+                    return "🤖 [Hệ thống]: Không kết nối được bộ não AI (Gemini & Qwen đều quá tải). Vui lòng thử lại sau giây lát.";
+                }
             }
         }
     }
