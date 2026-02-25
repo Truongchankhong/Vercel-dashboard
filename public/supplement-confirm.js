@@ -231,6 +231,12 @@ window.handleAvailableUpdate = async (rpro, value, total) => {
 };
 
 window.handleConfirmation = async (rpro, newStatus, currentStatus) => {
+  // Nếu đã có trạng thái cũ và trạng thái mới khác trạng thái cũ (không phải là hủy chọn)
+  if (currentStatus && newStatus !== currentStatus) {
+    const ok = confirm(`⚠️ Bạn có thực sự muốn thay đổi Xác nhận liệu cho đơn RPRO [${rpro}] không?`);
+    if (!ok) return;
+  }
+
   const statusToSave = (newStatus === currentStatus) ? null : newStatus;
 
   const { error } = await supabase
@@ -432,7 +438,19 @@ async function handleNewRproScan(rawText) {
   if (statusEl) statusEl.classList.remove('hidden');
 
   try {
-    // 1. TẦNG 1: Tìm trong bảng 'supplement' (đã qua team team team team hàng bù)
+    // 0. KIỂM TRA TRÙNG: Xem đơn đã có trong supplement_confirm chưa
+    const { data: existConfirm } = await supabase
+      .from('supplement_confirm')
+      .select('rpro')
+      .eq('rpro', rpro)
+      .maybeSingle();
+
+    if (existConfirm) {
+      const ok = confirm(`⚠️ Đơn [${rpro}] đã có trong danh sách xác nhận rồi. Bạn có muốn tiếp tục làm mới thông tin cho đơn này không?`);
+      if (!ok) return;
+    }
+
+    // 1. TẦNG 1: Tìm trong bảng 'supplement'
     let { data: finalRecord, error: sError } = await supabase
       .from('supplement')
       .select('*')
