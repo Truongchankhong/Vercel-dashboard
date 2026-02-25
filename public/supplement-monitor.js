@@ -263,6 +263,9 @@ function renderTable() {
                     class="p-4 border-r font-mono font-bold text-blue-600 cursor-pointer hover:text-blue-800 hover:underline bg-white group-hover:bg-gray-50 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                     ${item.rpro} <span class="text-xs text-gray-400 ml-1">ℹ️</span>
                 </td>
+                <td class="p-3 border-r text-center font-bold text-gray-700 bg-gray-50 text-xs">
+                    ${item.mold || '-'}
+                </td>
                 ${renderStageCell(item.stages['Dán'], item.rpro, 'Dán')}
                 ${renderStageCell(item.stages['Cắt'], item.rpro, 'Cắt')}
                 ${renderStageCell(item.stages['Molding'], item.rpro, 'Molding')}
