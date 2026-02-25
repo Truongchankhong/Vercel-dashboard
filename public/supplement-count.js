@@ -31,6 +31,7 @@ const btnDecSheets = document.getElementById('btn-dec-sheets');
 const multiRproModal = document.getElementById('multi-rpro-modal');
 const multiRproCount = document.getElementById('multi-rpro-count');
 const btnMultiContinue = document.getElementById('btn-multi-continue');
+const btnMultiGroup = document.getElementById('btn-multi-group');
 const btnMultiRescan = document.getElementById('btn-multi-rescan');
 
 // ==================== STATE VARIABLES ====================
@@ -346,6 +347,19 @@ function showMultiRproConfirmation(matches, mode, note) {
             await processRPRO(code, mode, note, true);
         }
         finishProcessingBatch();
+    };
+
+    // Button: Đơn chùm (Chỉ lấy mã đầu tiên)
+    btnMultiGroup.onclick = async () => {
+        multiRproModal.classList.add('hidden');
+        isProcessing = false;
+        const firstRpro = matches[0];
+
+        showFeedback(`📦 Đơn chùm: Đã chọn mã đại diện ${firstRpro}`, "text-blue-600");
+        if (manualRproInput) manualRproInput.value = firstRpro;
+
+        await fetchDetails(firstRpro);
+        playAudioFeedback(true);
     };
 
     // Button: Scan lại
