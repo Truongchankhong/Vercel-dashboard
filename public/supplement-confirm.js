@@ -61,7 +61,7 @@ function renderTable() {
     return `
     <tr class="${isSelected ? 'bg-blue-50' : ''}">
       <td class="px-2 py-2 border text-center">
-        <button onclick="handleDeleteOrder('${row.rpro}')" class="text-red-500 hover:text-red-700 transition transform active:scale-125 p-1" title="Xóa đơn này">
+        <button onclick="handleDeleteOrder('${row.id}', '${row.rpro}')" class="text-red-500 hover:text-red-700 transition transform active:scale-125 p-1" title="Xóa dòng này">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
           </svg>
@@ -74,42 +74,42 @@ function renderTable() {
       <td class="px-4 py-2 border">
         <input type="number" min="0" 
                value="${row.total}" 
-               onchange="handleTotalUpdate('${row.rpro}', this.value)"
+               onchange="handleTotalUpdate('${row.id}', this.value)"
                class="w-16 border rounded px-2 py-1 text-right font-bold bg-blue-50 focus:bg-white transition">
       </td>
       <td class="px-4 py-2 border bg-yellow-50">
         <input type="number" min="0" 
                value="${row.so_tam !== null ? row.so_tam : ''}" 
                placeholder="Số tấm"
-               onchange="handleSoTamUpdate('${row.rpro}', this.value)"
+               onchange="handleSoTamUpdate('${row.id}', this.value)"
                class="w-20 border-2 border-yellow-200 px-2 py-1 rounded text-center font-bold focus:border-yellow-500 outline-none">
       </td>
       <td class="px-4 py-2 border">
         <input type="number" min="0" max="${row.total}" 
                value="${row.available_supplement !== null ? row.available_supplement : ''}" 
                placeholder="Full (${row.total})"
-               onchange="handleAvailableUpdate('${row.rpro}', this.value, ${row.total})"
+               onchange="handleAvailableUpdate('${row.id}', this.value, ${row.total})"
                class="w-24 border px-2 py-1 rounded text-center">
       </td>
       <td class="px-4 py-2 border text-center">
         <div class="grid grid-cols-2 lg:flex lg:flex-nowrap items-center justify-center gap-2 min-w-[200px] lg:min-w-0">
-          <button onclick="handleConfirmation('${row.rpro}', 'Có liệu', '${row.confirm || ''}')" 
+          <button onclick="handleConfirmation('${row.id}', 'Có liệu', '${row.confirm || ''}')" 
                   class="px-2 py-1 bg-green-500 text-white rounded text-[10px] sm:text-xs hover:bg-green-600 ${row.confirm === 'Có liệu' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
             Có liệu
           </button>
-          <button onclick="handleConfirmation('${row.rpro}', 'Có PU - ko Vải', '${row.confirm || ''}')" 
+          <button onclick="handleConfirmation('${row.id}', 'Có PU - ko Vải', '${row.confirm || ''}')" 
                   class="px-2 py-1 bg-amber-500 text-white rounded text-[10px] sm:text-xs hover:bg-amber-600 ${row.confirm === 'Có PU - ko Vải' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
             Có PU-Ko Vải
           </button>
-          <button onclick="handleConfirmation('${row.rpro}', 'Có Vải - ko PU', '${row.confirm || ''}')" 
+          <button onclick="handleConfirmation('${row.id}', 'Có Vải - ko PU', '${row.confirm || ''}')" 
                   class="px-2 py-1 bg-cyan-500 text-white rounded text-[10px] sm:text-xs hover:bg-cyan-600 ${row.confirm === 'Có Vải - ko PU' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
             Có Vải-Ko PU
           </button>
-          <button onclick="handleConfirmation('${row.rpro}', 'Không có liệu', '${row.confirm || ''}')" 
+          <button onclick="handleConfirmation('${row.id}', 'Không có liệu', '${row.confirm || ''}')" 
                   class="px-2 py-1 bg-gray-600 text-white rounded text-[10px] sm:text-xs hover:bg-gray-700 ${row.confirm === 'Không có liệu' ? 'ring-4 ring-red-500 shadow-lg' : ''}">
             Không liệu
           </button>
-          <span id="saved-${row.rpro}" class="text-[10px] text-blue-600 font-bold hidden col-span-2">✅ Đã lưu</span>
+          <span id="saved-${row.id}" class="text-[10px] text-blue-600 font-bold hidden col-span-2">✅ Đã lưu</span>
         </div>
       </td>
       <td class="px-4 py-2 border text-center">
@@ -142,23 +142,23 @@ if (checkAll) {
   });
 }
 
-window.handleDeleteOrder = async (rpro) => {
-  if (!confirm(`Bạn chắc chắn muốn xóa đơn ${rpro} khỏi danh sách xác nhận này?`)) return;
+window.handleDeleteOrder = async (id, rpro) => {
+  if (!confirm(`Bạn chắc chắn muốn xóa dòng xác nhận đơn [${rpro}] này không?`)) return;
 
   const { error } = await supabase
     .from('supplement_confirm')
     .delete()
-    .eq('rpro', rpro);
+    .eq('id', id);
 
   if (error) {
     console.error('Error deleting order:', error);
-    alert('Lỗi khi xóa đơn');
+    alert('Lỗi khi xóa dòng');
   } else {
     loadConfirmList();
   }
 };
 
-window.handleTotalUpdate = async (rpro, value) => {
+window.handleTotalUpdate = async (id, value) => {
   const numValue = Number(value) || 0;
   const { error } = await supabase
     .from('supplement_confirm')
@@ -166,15 +166,13 @@ window.handleTotalUpdate = async (rpro, value) => {
       total: numValue,
       updated_at: new Date().toISOString()
     })
-    .eq('rpro', rpro);
+    .eq('id', id);
 
   if (error) {
     console.error('Error updating total:', error);
     alert('Lỗi khi lưu số lượng Qty');
   } else {
-    // Refresh list locally to update other calculations if needed
-    currentData = currentData.map(r => r.rpro === rpro ? { ...r, total: numValue } : r);
-    const savedEl = document.getElementById(`saved-${rpro}`);
+    const savedEl = document.getElementById(`saved-${id}`);
     if (savedEl) {
       savedEl.textContent = "✅ Đã lưu Qty";
       savedEl.classList.remove('hidden');
@@ -183,7 +181,7 @@ window.handleTotalUpdate = async (rpro, value) => {
   }
 };
 
-window.handleSoTamUpdate = async (rpro, value) => {
+window.handleSoTamUpdate = async (id, value) => {
   const numValue = value === '' ? null : Number(value);
   const { error } = await supabase
     .from('supplement_confirm')
@@ -191,13 +189,13 @@ window.handleSoTamUpdate = async (rpro, value) => {
       so_tam: numValue,
       updated_at: new Date().toISOString()
     })
-    .eq('rpro', rpro);
+    .eq('id', id);
 
   if (error) {
     console.error('Error updating so_tam:', error);
     alert('Lỗi khi lưu số tấm');
   } else {
-    const savedEl = document.getElementById(`saved-${rpro}`);
+    const savedEl = document.getElementById(`saved-${id}`);
     if (savedEl) {
       savedEl.textContent = "✅ Đã lưu số tấm";
       savedEl.classList.remove('hidden');
@@ -206,7 +204,7 @@ window.handleSoTamUpdate = async (rpro, value) => {
   }
 };
 
-window.handleAvailableUpdate = async (rpro, value, total) => {
+window.handleAvailableUpdate = async (id, value, total) => {
   const numValue = value === '' ? total : Number(value);
   const { error } = await supabase
     .from('supplement_confirm')
@@ -214,24 +212,26 @@ window.handleAvailableUpdate = async (rpro, value, total) => {
       available_supplement: numValue,
       updated_at: new Date().toISOString()
     })
-    .eq('rpro', rpro);
+    .eq('id', id);
 
   if (error) {
     console.error('Error updating availability:', error);
     alert('Lỗi khi lưu số lượng');
   } else {
-    const savedEl = document.getElementById(`saved-${rpro}`);
+    const savedEl = document.getElementById(`saved-${id}`);
     if (savedEl) {
       savedEl.textContent = value === '' ? "✅ Đã lưu (Full)" : "✅ Đã lưu";
       savedEl.classList.remove('hidden');
       setTimeout(() => savedEl.classList.add('hidden'), 2000);
-      if (value === '') loadConfirmList();
     }
   }
 };
 
-window.handleConfirmation = async (rpro, newStatus, currentStatus) => {
-  // Nếu đã có trạng thái cũ và trạng thái mới khác trạng thái cũ (không phải là hủy chọn)
+window.handleConfirmation = async (id, newStatus, currentStatus) => {
+  // Tìm mã RPRO từ id trong currentData để hiển thị cảnh báo chính xác hơn
+  const targetRow = currentData.find(r => String(r.id) === String(id));
+  const rpro = targetRow ? targetRow.rpro : 'đang chọn';
+
   if (currentStatus && newStatus !== currentStatus) {
     const ok = confirm(`⚠️ Bạn có thực sự muốn thay đổi Xác nhận liệu cho đơn RPRO [${rpro}] không?`);
     if (!ok) return;
@@ -245,15 +245,13 @@ window.handleConfirmation = async (rpro, newStatus, currentStatus) => {
       confirm: statusToSave,
       updated_at: new Date().toISOString()
     })
-    .eq('rpro', rpro);
+    .eq('id', id);
 
   if (error) {
     console.error('Error updating status:', error);
     alert('Lỗi khi lưu xác nhận');
   } else {
-    if (statusToSave) selectedRpros.add(rpro);
-
-    const savedEl = document.getElementById(`saved-${rpro}`);
+    const savedEl = document.getElementById(`saved-${id}`);
     if (savedEl) {
       savedEl.textContent = statusToSave ? "✅ Đã lưu" : "🔄 Đã hủy chọn";
       savedEl.classList.remove('hidden');
@@ -438,16 +436,19 @@ async function handleNewRproScan(rawText) {
   if (statusEl) statusEl.classList.remove('hidden');
 
   try {
-    // 0. KIỂM TRA TRÙNG: Xem đơn đã có trong supplement_confirm chưa
-    const { data: existConfirm } = await supabase
+    // 0. KIỂM TRA TRÙNG: Xem đơn đã có trong supplement_confirm chưa và đếm số lần
+    const { data: existConfirms, error: countErr } = await supabase
       .from('supplement_confirm')
-      .select('rpro')
-      .eq('rpro', rpro)
-      .maybeSingle();
+      .select('rpro, remark2')
+      .eq('rpro', rpro);
 
-    if (existConfirm) {
-      const ok = confirm(`⚠️ Đơn [${rpro}] đã có trong danh sách xác nhận rồi. Bạn có muốn tiếp tục làm mới thông tin cho đơn này không?`);
+    let isRedo = false;
+    let redoCount = 0;
+    if (!countErr && existConfirms && existConfirms.length > 0) {
+      redoCount = existConfirms.length;
+      const ok = confirm(`⚠️ Đơn [${rpro}] đã có trong danh sách xác nhận (${redoCount} lần). Bạn có muốn tiếp tục làm lại đơn này lần nữa không?`);
       if (!ok) return;
+      isRedo = true;
     }
 
     // 1. TẦNG 1: Tìm trong bảng 'supplement'
@@ -495,10 +496,15 @@ async function handleNewRproScan(rawText) {
     // Prepare data (exclude id)
     const { id, created_at, updated_at, ...dataToCopy } = finalRecord;
 
-    // Upsert into supplement_confirm
+    // Nếu là đơn làm lại, cập nhật remark2
+    if (isRedo) {
+      dataToCopy.remark2 = `Đơn làm lại lần thứ ${redoCount + 1}`;
+    }
+
+    // Insert as a NEW record
     const { error: insError } = await supabase
       .from('supplement_confirm')
-      .upsert([{
+      .insert([{
         ...dataToCopy,
         created_at: new Date().toISOString()
       }]);
