@@ -355,10 +355,13 @@ async function exportToZalo() {
     .filter(r => r.confirm === 'Không có liệu')
     .reduce((sum, r) => sum + Number(r.total), 0);
 
-  const pctCoLieu = totalDemand > 0 ? (qtyCoLieu * 100 / totalDemand).toFixed(1) : 0;
-  const pctPuOnly = totalDemand > 0 ? (qtyPuOnly * 100 / totalDemand).toFixed(1) : 0;
-  const pctFabricOnly = totalDemand > 0 ? (qtyFabricOnly * 100 / totalDemand).toFixed(1) : 0;
-  const pctNoLieu = totalDemand > 0 ? (qtyNoLieu * 100 / totalDemand).toFixed(1) : 0;
+  // Calculate detailed quantities based on CONFIRMED records only for ratio calculation
+  const sumConfirmed = qtyCoLieu + qtyPuOnly + qtyFabricOnly + qtyNoLieu;
+
+  const pctCoLieu = sumConfirmed > 0 ? (qtyCoLieu * 100 / sumConfirmed).toFixed(1) : 0;
+  const pctPuOnly = sumConfirmed > 0 ? (qtyPuOnly * 100 / sumConfirmed).toFixed(1) : 0;
+  const pctFabricOnly = sumConfirmed > 0 ? (qtyFabricOnly * 100 / sumConfirmed).toFixed(1) : 0;
+  const pctNoLieu = sumConfirmed > 0 ? (qtyNoLieu * 100 / sumConfirmed).toFixed(1) : 0;
 
   message += `📊 *TỔNG HỢP TỶ LỆ:*\n`;
   message += `- 🟢 Có liệu: ${pctCoLieu}%\n`;
