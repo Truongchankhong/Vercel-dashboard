@@ -19,20 +19,26 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const SYSTEM_INSTRUCTION = `Bạn là Chuyên gia Điều phối Sản xuất (Production Planner) thông minh tại Ortholite Việt Nam (OVN). 
 NHIỆM VỤ: Phân tích dữ liệu hệ thống được cung cấp để trả lời người dùng.
 
-TỪ ĐIỂN DỮ LIỆU (Bảng 'powerapp'):
-- "PRO ODER": Mã đơn hàng sản xuất (Người dùng thường gọi là RPRO).
-- "SO": Mã vận đơn / Đơn hàng bán (Sales Order).
-- "Brand Code": Mã thương hiệu (NIKE, ADIDAS, PUMA...).
-- "CUSTOMERS": Tên khách hàng (Người dùng thường gọi là Customer).
-- "Total Qty": Tổng số lượng sản phẩm.
-- "Article Name": Tên sản phẩm / Article.
-- "STATUS": Các mức level xử lý (10.RECEIVED -> 9.STORED...).
-- "Delay-Urgent": Tình trạng đơn hàng (PRODUCTION DELAY hoặc URGENT).
-- "Finish date": Ngày hoàn thành theo kế hoạch.
+TỪ ĐIỂN DỮ LIỆU:
+1. Bảng 'powerapp' (Dữ liệu tổng):
+   - "PRO ODER": Mã đơn hàng sản xuất (người dùng gọi là RPRO).
+   - "SO": Mã vận đơn / Đơn hàng bán.
+   - "Brand Code": Mã thương hiệu (NIKE, ADIDAS...).
+   - "CUSTOMERS": Tên khách hàng.
+   - "Total Qty": Tổng số lượng sản phẩm.
+   - "Article Name": Tên sản phẩm.
+   - "STATUS": Các mức level xử lý (10.RECEIVED -> 9.STORED...).
+   - "Delay-Urgent": Tình trạng đơn hàng (DELAY hoặc URGENT).
+
+2. Hệ thống 'Hàng bù' (Supplement Tracking):
+   - Các công đoạn chính (Section): Dán, Cắt, Molding, DC, Molded.
+   - Trạng thái (Action): IN (Bắt đầu xử lý), OUT (Hoàn thành công đoạn).
+   - "Đang xử lý": Có quét IN nhưng chưa quét OUT ở công đoạn đó.
+   - "Hoàn thành": Đã quét OUT.
 
 NGUYÊN TẮC QUAN TRỌNG:
 1. TUYỆT ĐỐI KHÔNG BỊA ĐẶT THÔNG TIN. Chỉ nói những gì thấy trong phần [DỮ LIỆU].
-2. Nếu người dùng hỏi "RPRO", "Customer" hãy tự hiểu đó là cột "PRO ODER" và "CUSTOMERS".
+2. Nếu người dùng hỏi về "Molding", "Cắt", "Dán" trong bối cảnh "hàng bù", hãy xem dữ liệu Supplement.
 3. Trả lời súc tích, chuyên nghiệp bằng tiếng Việt.
 4. KHÔNG ĐƯỢC hỏi người dùng cung cấp thêm bảng dữ liệu.`;
 
@@ -81,10 +87,51 @@ export async function generateAIResponse(prompt, extraContext = "") {
             const searchRpro = rproMatch[0].toUpperCase();
             const { data: order } = await supabase.from('powerapp').select('*').eq('PRO ODER', searchRpro).maybeSingle();
             if (order) dataContext += `\n\n[CHI TIẾT ĐƠN ${searchRpro}]:\n${JSON.stringify(order, null, 2)}`;
+
+            // Tra cứu thêm tiến độ hàng bù nếu có
+            const { data: trackings } = await supabase.from('supplement_tracking').select('section, action, scan_date').eq('rpro', searchRpro).order('created_at', { ascending: true });
+            if (trackings && trackings.length > 0) {
+                dataContext += `\n[TIẾN ĐỘ HÀNG BÙ ${searchRpro}]:\n${JSON.stringify(trackings, null, 2)}`;
+            }
         } else if (soMatch) {
             const searchSo = soMatch[0].toUpperCase();
             const { data: orders } = await supabase.from('powerapp').select('*').eq('SO', searchSo).limit(5);
             if (orders) dataContext += `\n\n[DANH SÁCH THEO SO ${searchSo}]:\n${JSON.stringify(orders, null, 2)}`;
+        }
+
+        // 4. TRA CỨU TIẾN ĐỘ HÀNG BÙ (Nếu hỏi về Molding, Cắt, Dán...)
+        const supplementKeywords = ["bù", "supplement", "tiến độ", "molding", "cắt", "dán", "dc", "molded"];
+        if (supplementKeywords.some(k => queryLower.includes(k))) {
+            const { data: recentTrackings } = await supabase
+                .from('supplement_tracking')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(100);
+
+            if (recentTrackings) {
+                // Thống kê sơ bộ tiến độ cho AI
+                const sections = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
+                const stats = {};
+                sections.forEach(s => stats[s] = { in: 0, out: 0 });
+
+                const rproMap = {};
+                recentTrackings.forEach(t => {
+                    if (!rproMap[t.rpro]) rproMap[t.rpro] = {};
+                    if (!rproMap[t.rpro][t.section]) rproMap[t.rpro][t.section] = {};
+                    rproMap[t.rpro][t.section][t.action] = true;
+                });
+
+                Object.keys(rproMap).forEach(r => {
+                    sections.forEach(s => {
+                        if (rproMap[r][s]?.IN && !rproMap[r][s]?.OUT) stats[s].in++;
+                        if (rproMap[r][s]?.OUT) stats[s].out++;
+                    });
+                });
+
+                dataContext += `\n[THỐNG KÊ HÀNG BÙ (100 đơn gần nhất)]: 
+- Đang xử lý (Chưa xong): Dán(${stats['Dán'].in}), Cắt(${stats['Cắt'].in}), Molding(${stats['Molding'].in}), DC(${stats['DC'].in}), Molded(${stats['Molded'].in})
+- Đã hoàn tất công đoạn: Dán(${stats['Dán'].out}), Cắt(${stats['Cắt'].out}), Molding(${stats['Molding'].out}), DC(${stats['DC'].out}), Molded(${stats['Molded'].out})\n`;
+            }
         }
 
     } catch (dbErr) {
