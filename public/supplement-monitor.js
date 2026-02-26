@@ -45,6 +45,9 @@ const loadingSubtext = document.getElementById('loading-subtext');
 const paginationControls = document.getElementById('pagination-controls');
 const showingRangeText = document.getElementById('showing-range');
 const totalCountText = document.getElementById('total-count');
+const currentRangeLabel = document.getElementById('current-range-label');
+
+let lastFetchedRange = "";
 
 // ==================== LOADING LOGIC ====================
 function updateLoading(percent, text) {
@@ -203,6 +206,14 @@ async function fetchProgressData() {
         }
 
         updateLoading(95, 'Đang chuẩn bị hiển thị...');
+
+        // Save current range for display
+        const formatDate = (val) => {
+            const d = new Date(val);
+            return `${d.getDate()}/${d.getMonth() + 1} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        };
+        lastFetchedRange = `${formatDate(fromDateTime)} - ${formatDate(toDateTime)}`;
+
         refreshTableData();
         hideLoading();
 
@@ -325,7 +336,20 @@ function renderTable() {
 
     // Update range text
     if (showingRangeText) showingRangeText.textContent = `${startIdx + 1} - ${endIdx}`;
-    if (totalCountText) totalCountText.textContent = totalItems;
+
+    // Detailed total count
+    if (totalCountText) {
+        if (searchTerm && filtered.length !== progressData.length) {
+            totalCountText.innerHTML = `${filtered.length} <span class="text-[10px] text-gray-400 font-normal">(trong ${progressData.length})</span>`;
+        } else {
+            totalCountText.textContent = totalItems;
+        }
+    }
+
+    if (currentRangeLabel) {
+        currentRangeLabel.textContent = `📅 Bộ lọc: ${lastFetchedRange}`;
+        currentRangeLabel.classList.remove('hidden');
+    }
 
     // Render pagination buttons
     renderPaginationControls(totalPages);
