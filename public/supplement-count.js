@@ -123,6 +123,9 @@ async function onCameraScanSuccess(decodedText) {
 
         await fetchDetails(code);
 
+        // TỰ ĐỘNG TẮT CAMERA SAU KHI QUÉT THÀNH CÔNG
+        stopCamera();
+
         showFeedback(`✅ Đã load mã ${code}. Kiểm tra Qty và bấm [LƯU]`, "text-green-600 font-bold bg-green-50 p-2 rounded-lg border-2 border-green-200");
         playAudioFeedback(true);
     }
