@@ -424,16 +424,9 @@ async function handleNewRproScan(rawText) {
     rpro = cleanText;
   }
 
-  // Logic thông minh: Nếu chỉ nhập số hoặc số có gạch (từ 6 ký tự trở lên) thì tự thêm RPRO-
-  if (/^[\d-]{6,}$/.test(rpro)) {
-    rpro = "RPRO-" + rpro;
-  }
-  // Nếu nhập dạng RPRO123456 (thiếu dấu gạch) thì tự thêm RPRO-
-  else if (/^RPRO[\d-]{6,}$/.test(rpro)) {
-    rpro = "RPRO-" + rpro.substring(4);
-  }
-
-  // Loại bỏ các dấu gạch dính nhau (VD: RPRO-- -> RPRO-)
+  // Chuẩn hóa RPRO: Loại bỏ prefix cũ và thêm lại chuẩn RPRO-
+  rpro = rpro.replace(/^RPRO-+/i, '').replace(/^RPRO/i, '');
+  rpro = "RPRO-" + rpro;
   rpro = rpro.replace(/-+/g, '-');
 
   // Kiểm tra cuối cùng trước khi load

@@ -389,16 +389,14 @@ function handleScanned(text) {
     rpro = cleanText.toUpperCase();
   }
 
-  // Logic thông minh: Tự động thêm RPRO- và xử lý dư dấu gạch (-)
-  if (/^[\d-]{6,}$/.test(rpro)) {
-    rpro = "RPRO-" + rpro;
-  }
-  // Nếu nhập dạng RPRO123456 (thiếu dấu gạch) thì tự thêm RPRO-
-  else if (/^RPRO[\d-]{6,}$/.test(rpro)) {
-    rpro = "RPRO-" + rpro.substring(4);
-  }
+  // Chuẩn hóa RPRO: Loại bỏ prefix cũ và thêm lại chuẩn RPRO-
+  // Bước 1: Loại bỏ chữ RPRO và các dấu gạch ở đầu
+  rpro = rpro.replace(/^RPRO-+/i, '').replace(/^RPRO/i, '');
 
-  // Loại bỏ các dấu gạch dính nhau (VD: RPRO-- -> RPRO-)
+  // Bước 2: Thêm tiền tố RPRO- chuẩn
+  rpro = "RPRO-" + rpro;
+
+  // Bước 3: Loại bỏ các dấu gạch dính nhau nếu có (VD: RPRO-- -> RPRO-)
   rpro = rpro.replace(/-+/g, '-');
 
   loadOrderInfo(rpro);

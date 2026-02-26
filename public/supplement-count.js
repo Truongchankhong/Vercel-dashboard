@@ -399,16 +399,9 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
         if (found) cleanText = found.trim().toUpperCase();
     }
 
-    // Logic thông minh: Nếu chỉ nhập số hoặc số có gạch (từ 6 ký tự trở lên) thì tự thêm RPRO-
-    if (/^[\d-]{6,}$/.test(cleanText)) {
-        cleanText = "RPRO-" + cleanText;
-    }
-    // Nếu nhập dạng RPRO1234 (thiếu dấu gạch) thì tự thêm RPRO-
-    else if (/^RPRO[\d-]{6,}$/.test(cleanText)) {
-        cleanText = "RPRO-" + cleanText.substring(4);
-    }
-
-    // Loại bỏ các dấu gạch dính nhau (VD: RPRO-- -> RPRO-)
+    // Chuẩn hóa RPRO: Loại bỏ prefix cũ và thêm lại chuẩn RPRO-
+    cleanText = cleanText.replace(/^RPRO-+/i, '').replace(/^RPRO/i, '');
+    cleanText = "RPRO-" + cleanText;
     cleanText = cleanText.replace(/-+/g, '-');
 
     const rpro = cleanText;
