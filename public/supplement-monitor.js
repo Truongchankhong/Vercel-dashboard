@@ -32,6 +32,39 @@ let monitorCharts = {}; // Store Chart instances
 // ==================== STATE ====================
 let progressMap = {};
 let progressData = [];
+let currentPage = 1;
+const itemsPerPage = 100;
+
+// Loading State Elements
+const loadingOverlay = document.getElementById('loading-overlay');
+const progressBarFill = document.getElementById('progress-bar-fill');
+const loadingPercentage = document.getElementById('loading-percentage');
+const loadingSubtext = document.getElementById('loading-subtext');
+
+// Pagination Elements
+const paginationControls = document.getElementById('pagination-controls');
+const showingRangeText = document.getElementById('showing-range');
+const totalCountText = document.getElementById('total-count');
+
+// ==================== LOADING LOGIC ====================
+function updateLoading(percent, text) {
+    if (progressBarFill) progressBarFill.style.width = `${percent}%`;
+    if (loadingPercentage) loadingPercentage.textContent = percent;
+    if (loadingSubtext && text) loadingSubtext.textContent = text;
+}
+
+function showLoading() {
+    currentPage = 1; // Reset page on refresh
+    loadingOverlay.classList.remove('hidden');
+    updateLoading(0, 'Đang chuẩn bị kết nối dữ liệu...');
+}
+
+function hideLoading() {
+    updateLoading(100, 'Tải dữ liệu hoàn tất!');
+    setTimeout(() => {
+        loadingOverlay.classList.add('hidden');
+    }, 500);
+}
 
 // ==================== INIT DATES ====================
 function initDates() {
@@ -65,7 +98,10 @@ async function fetchProgressData() {
 
     if (!fromDateTime || !toDateTime) return;
 
+    showLoading();
+
     try {
+        updateLoading(10, 'Đang truy vấn lịch sử quét (Tracking)...');
         const { data, error } = await supabase
             .from('supplement_tracking')
             .select('*')
@@ -75,7 +111,7 @@ async function fetchProgressData() {
 
         if (error) throw error;
 
-        // Reset and rebuild
+        updateLoading(35, 'Đang tổng hợp danh sách đơn hàng...');
         // Reset and rebuild
         progressMap = {};
         data.forEach(updateLocalState);
@@ -83,6 +119,7 @@ async function fetchProgressData() {
         // BULK FETCH FINISH DATES, MOLD AND CONFIRMATION
         const rproList = Object.keys(progressMap);
         if (rproList.length > 0) {
+            updateLoading(50, `Đang tải chi tiết cho ${rproList.length} đơn hàng...`);
             // Fetch PowerApp Details
             const { data: orderDetails } = await supabase
                 .from('powerapp')
@@ -128,6 +165,7 @@ async function fetchProgressData() {
 
             // Fetch Confirmation Details (Qty_Sup and Date make order)
             // Priority: available_supplement (if not null) -> total
+            updateLoading(75, 'Đang tải thông tin xác nhận kho...');
             const { data: confirmDetails } = await supabase
                 .from('supplement_confirm')
                 .select('rpro, total, available_supplement, confirm, updated_at')
@@ -164,10 +202,13 @@ async function fetchProgressData() {
             }
         }
 
+        updateLoading(95, 'Đang chuẩn bị hiển thị...');
         refreshTableData();
+        hideLoading();
 
     } catch (err) {
         console.error("Error fetching data:", err);
+        hideLoading();
         tableBody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-600">❌ Lỗi tải dữ liệu: ${err.message}</td></tr>`;
     }
 }
@@ -262,12 +303,34 @@ function renderTable() {
     if (filtered.length === 0) {
         tableBody.innerHTML = '';
         emptyState.classList.remove('hidden');
+        if (paginationControls) paginationControls.innerHTML = '';
+        if (showingRangeText) showingRangeText.textContent = '0 - 0';
+        if (totalCountText) totalCountText.textContent = '0';
         return;
     }
 
     emptyState.classList.add('hidden');
 
-    tableBody.innerHTML = filtered.map(item => {
+    // Pagination Logic
+    const totalItems = filtered.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    // Ensure currentPage is within bounds
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    const endIdx = Math.min(startIdx + itemsPerPage, totalItems);
+    const paginatedItems = filtered.slice(startIdx, endIdx);
+
+    // Update range text
+    if (showingRangeText) showingRangeText.textContent = `${startIdx + 1} - ${endIdx}`;
+    if (totalCountText) totalCountText.textContent = totalItems;
+
+    // Render pagination buttons
+    renderPaginationControls(totalPages);
+
+    tableBody.innerHTML = paginatedItems.map(item => {
         return `
             <tr class="hover:bg-gray-50 transition border-b border-gray-100 group">
                 <td onclick="window.openDetailModal('${item.rpro}')" 
@@ -369,6 +432,44 @@ function renderStageCell(stageData, rpro, section) {
         ${statusHtml}
     </td>`;
 }
+
+// ==================== PAGINATION CONTROLS ====================
+function renderPaginationControls(totalPages) {
+    if (!paginationControls) return;
+
+    if (totalPages <= 1) {
+        paginationControls.innerHTML = '';
+        return;
+    }
+
+    let buttonsHtml = '';
+
+    // Previous Button
+    buttonsHtml += `<button onclick="window.goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} class="pagination-btn">Trước</button>`;
+
+    // Page Numbers
+    const delta = 2; // Number of pages to show around current page
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - delta && i <= currentPage + delta)) {
+            buttonsHtml += `<button onclick="window.goToPage(${i})" class="pagination-btn ${i === currentPage ? 'active' : ''}">${i}</button>`;
+        } else if (i === currentPage - delta - 1 || i === currentPage + delta + 1) {
+            buttonsHtml += `<span class="px-1 text-gray-400">...</span>`;
+        }
+    }
+
+    // Next Button
+    buttonsHtml += `<button onclick="window.goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} class="pagination-btn">Sau</button>`;
+
+    paginationControls.innerHTML = buttonsHtml;
+}
+
+window.goToPage = (page) => {
+    currentPage = page;
+    renderTable();
+    // Scroll to top of table
+    const tableContainer = document.querySelector('.table-container');
+    if (tableContainer) tableContainer.scrollTop = 0;
+};
 
 // ==================== NOTE LOGIC ====================
 window.openNoteModal = (rpro, section) => {
