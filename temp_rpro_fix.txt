@@ -1,0 +1,19 @@
+﻿
+> function handleScanned(text) {
+    const cleanText = (text || "").trim();
+    let rpro = "";
+  
+    if (cleanText.includes("|")) {
+      const parts = cleanText.split("|");
+      // TÃ¬m pháº§n tá»­ nÃ o báº¯t Ä‘áº§u báº±ng RPRO (khÃ´ng quan trá»ng vá»‹ trÃ­ Ä‘áº§u, giá»¯a hay cuá»‘i)
+      const found = parts.find(p => p.trim().toUpperCase().startsWith("RPRO"));
+      rpro = found ? found.trim() : cleanText;
+    } else if (cleanText.toUpperCase().startsWith("RPRO")) {
+      rpro = cleanText;
+    } else {
+      rpro = cleanText; // Fallback náº¿u khÃ´ng cÃ³ RPRO nhÆ°ng váº«n muá»‘n thá»­ load
+    }
+  
+    loadOrderInfo(rpro);
+
+

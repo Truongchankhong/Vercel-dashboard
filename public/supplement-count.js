@@ -395,8 +395,17 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
     let cleanText = text.trim().toUpperCase();
     if (cleanText.includes('|')) {
         const parts = cleanText.split('|');
-        const rproPart = parts.find(p => p.startsWith('RPRO-'));
-        if (rproPart) cleanText = rproPart;
+        const found = parts.find(p => p.trim().toUpperCase().startsWith('RPRO'));
+        if (found) cleanText = found.trim().toUpperCase();
+    }
+
+    // Logic thông minh: Nếu chỉ nhập số (từ 6 số trở lên) thì tự thêm RPRO-
+    if (/^\d{6,}$/.test(cleanText)) {
+        cleanText = "RPRO-" + cleanText;
+    }
+    // Nếu nhập dạng RPRO1234 (thiếu dấu gạch) thì tự thêm RPRO-
+    else if (/^RPRO\d{6,}$/.test(cleanText)) {
+        cleanText = "RPRO-" + cleanText.substring(4);
     }
 
     const rpro = cleanText;

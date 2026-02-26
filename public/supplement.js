@@ -378,22 +378,30 @@ function updateTotal() {
 
 // ==================== QUÉT HOẶC NHẬP RPRO ==================== //
 function handleScanned(text) {
-  const cleanText = (text || "").trim();
+  let cleanText = (text || "").trim();
   let rpro = "";
 
   if (cleanText.includes("|")) {
     const parts = cleanText.split("|");
-    // Tìm phần tử nào bắt đầu bằng RPRO (không quan trọng vị trí đầu, giữa hay cuối)
     const found = parts.find(p => p.trim().toUpperCase().startsWith("RPRO"));
-    rpro = found ? found.trim() : cleanText;
-  } else if (cleanText.toUpperCase().startsWith("RPRO")) {
-    rpro = cleanText;
+    rpro = found ? found.trim().toUpperCase() : cleanText.toUpperCase();
   } else {
-    rpro = cleanText; // Fallback nếu không có RPRO nhưng vẫn muốn thử load
+    rpro = cleanText.toUpperCase();
+  }
+
+  // Logic thông minh: Nếu chỉ nhập số (từ 6 số trở lên) thì tự thêm RPRO-
+  if (/^\d{6,}$/.test(rpro)) {
+    rpro = "RPRO-" + rpro;
+  }
+  // Nếu nhập dạng RPRO123456 (thiếu dấu gạch) thì tự thêm RPRO-
+  else if (/^RPRO\d{6,}$/.test(rpro)) {
+    rpro = "RPRO-" + rpro.substring(4);
   }
 
   loadOrderInfo(rpro);
 }
+
+
 
 async function askNextAction() {
   return new Promise((resolve) => {
