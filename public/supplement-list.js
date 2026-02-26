@@ -2,20 +2,53 @@
 import { supabase } from './supabaseClient.js';
 
 const listBody = document.getElementById('list-body');
+const dateStartInput = document.getElementById('date-start');
+const dateEndInput = document.getElementById('date-end');
+const searchInput = document.getElementById('search-input');
+const btnRefresh = document.getElementById('btn-refresh');
+
+function initDates() {
+    const today = new Date();
+    const lastThreeDays = new Date();
+    lastThreeDays.setDate(today.getDate() - 3);
+
+    dateEndInput.value = today.toISOString().split('T')[0];
+    dateStartInput.value = lastThreeDays.toISOString().split('T')[0];
+}
 
 async function loadSupplementList() {
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const fromDate = dateStartInput.value;
+    const toDate = dateEndInput.value;
+    const searchTerm = searchInput.value.trim().toUpperCase();
 
-    const { data, error } = await supabase
+    if (!fromDate || !toDate) return;
+
+    // Adjust toDate to end of day
+    const toDateObj = new Date(toDate);
+    toDateObj.setHours(23, 59, 59, 999);
+
+    listBody.innerHTML = `<tr><td colspan="11" class="text-center py-8"><div class="animate-spin text-2xl mb-2">⏳</div> Đang tải dữ liệu...</td></tr>`;
+
+    let query = supabase
         .from('supplement')
         .select('*')
-        .gte('created_at', threeDaysAgo.toISOString())
-        .order('created_at', { ascending: false });
+        .gte('created_at', new Date(fromDate).toISOString())
+        .lte('created_at', toDateObj.toISOString());
+
+    if (searchTerm) {
+        query = query.ilike('rpro', `%${searchTerm}%`);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
         console.error('Error fetching list:', error);
-        listBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-red-500">Lỗi tải dữ liệu</td></tr>`;
+        listBody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
+        return;
+    }
+
+    if (data.length === 0) {
+        listBody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-gray-500 font-bold italic">Không tìm thấy dữ liệu trong khoảng thời gian này.</td></tr>`;
         return;
     }
 
@@ -28,17 +61,12 @@ async function loadSupplementList() {
 
     const sentSet = new Set((sentRecords || []).map(r => r.rpro));
 
-    if (data.length === 0) {
-        listBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-gray-500">Trống (3 ngày qua)</td></tr>`;
-        return;
-    }
-
     listBody.innerHTML = data.map(row => {
         const isSent = sentSet.has(row.rpro);
         return `
-      <tr>
+      <tr class="hover:bg-gray-50 transition border-b">
         <td class="px-4 py-2 border text-sm">${new Date(row.created_at).toLocaleString('vi-VN')}</td>
-        <td class="px-4 py-2 border font-mono text-sm sticky left-0 z-10 bg-white drop-shadow-sm">${row.rpro}</td>
+        <td class="px-4 py-2 border font-mono text-sm sticky left-0 z-10 bg-white drop-shadow-sm font-bold text-blue-600">${row.rpro}</td>
         <td class="px-4 py-2 border text-sm">${row.so || ''}</td>
         <td class="px-4 py-2 border text-sm">${row.customers || ''}</td>
         <td class="px-4 py-2 border text-sm text-center">${row.gender || ''}</td>
@@ -48,11 +76,11 @@ async function loadSupplementList() {
         <td class="px-4 py-2 border text-right font-bold">${row.total}</td>
         <td class="px-4 py-2 border text-sm italic">${row.remark || ''}</td>
         <td class="px-4 py-2 border text-center space-x-2">
-          <button onclick="handleSend('${row.rpro}')" class="px-2 py-1 bg-green-500 text-white rounded text-xs ${isSent ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-600'}">
-            ${isSent ? 'Đã gửi' : 'Gửi'}
+          <button onclick="handleSend('${row.rpro}')" class="px-3 py-1 bg-green-500 text-white rounded-lg text-xs font-bold shadow-sm ${isSent ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-600 active:scale-95 transition'}">
+            ${isSent ? 'Đã gửi' : '🚀 Gửi'}
           </button>
-          <button onclick="handleRecall('${row.rpro}')" class="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 ${!isSent ? 'hidden' : ''}">
-            Thu hồi
+          <button onclick="handleRecall('${row.rpro}')" class="px-3 py-1 bg-red-500 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-red-600 active:scale-95 transition ${!isSent ? 'hidden' : ''}">
+            ↩️ Thu hồi
           </button>
         </td>
       </tr>
@@ -65,7 +93,8 @@ window.handleSend = async (rpro) => {
         .from('supplement')
         .select('*')
         .eq('rpro', rpro)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
     if (fetchError || !row) {
         alert('Lỗi lấy dữ liệu gốc');
@@ -75,22 +104,16 @@ window.handleSend = async (rpro) => {
     // Copy everything except auto-generated/managed columns
     const { created_at, id, updated_at, ...dataToCopy } = row;
 
-    console.log("📤 Sending data to supplement_confirm:", dataToCopy);
-
     const { error: insertError } = await supabase
         .from('supplement_confirm')
-        .upsert([dataToCopy]);
+        .upsert([{
+            ...dataToCopy,
+            created_at: new Date().toISOString()
+        }]);
 
     if (insertError) {
-        console.error('❌ Detailed Error sending:', {
-            message: insertError.message,
-            hint: insertError.hint,
-            details: insertError.details,
-            code: insertError.code
-        });
         alert('Lỗi khi gửi dữ liệu: ' + insertError.message);
     } else {
-        console.log("✅ Send successful for RPRO:", rpro);
         loadSupplementList();
     }
 };
@@ -104,11 +127,23 @@ window.handleRecall = async (rpro) => {
         .eq('rpro', rpro);
 
     if (deleteError) {
-        console.error('Error recalling:', deleteError);
         alert('Lỗi khi thu hồi dữ liệu');
     } else {
         loadSupplementList();
     }
 };
 
-document.addEventListener('DOMContentLoaded', loadSupplementList);
+if (btnRefresh) {
+    btnRefresh.addEventListener('click', loadSupplementList);
+}
+
+if (searchInput) {
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') loadSupplementList();
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initDates();
+    loadSupplementList();
+});
