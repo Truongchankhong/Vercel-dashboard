@@ -408,6 +408,12 @@ function renderStageCell(stageData, rpro, section) {
     const outQty = stageData.out ? stageData.out.qty : 0;
     const gap = inQty - outQty;
 
+    const noteMarkup = hasNote
+        ? `<div class="mt-1 p-1 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-yellow-800 font-medium italic break-words w-full">
+            <span class="not-italic">📒</span> ${hasNote}
+           </div>`
+        : '';
+
     if (stageData.in && !stageData.out) {
         // IN Only
         const elapsedHours = (new Date() - new Date(stageData.in.time)) / (1000 * 60 * 60);
@@ -419,6 +425,7 @@ function renderStageCell(stageData, rpro, section) {
                 <div class="font-semibold text-gray-700">📥 Scan In:</div>
                 <div class="text-blue-600 font-mono mb-1 whitespace-nowrap">${inTime}</div>
                 <div class="text-gray-800 font-bold">SL: ${inQty}</div>
+                ${noteMarkup}
                 <span class="w-full text-center px-2 py-0.5 rounded text-[10px] font-black uppercase mt-1 ${isWarning ? 'bg-red-500 text-white' : 'bg-yellow-400 text-yellow-900'}">
                     ${isWarning ? '⚠️ QUÁ HẠN >12H' : '⏳ ĐANG XỬ LÝ'}
                 </span>
@@ -439,6 +446,7 @@ function renderStageCell(stageData, rpro, section) {
                 <div class="font-semibold text-gray-700">📤 Scan Out:</div>
                 <div class="text-green-600 font-mono whitespace-nowrap">${outTime}</div>
                 <div class="text-gray-600 font-bold">SL: ${outQty}</div>
+                ${noteMarkup}
                 <div class="w-full text-center mt-1">${gapHtml}</div>
             </div>`;
     } else if (!stageData.in && stageData.out) {
@@ -449,11 +457,13 @@ function renderStageCell(stageData, rpro, section) {
                 <div class="font-semibold text-gray-700">📤 Scan Out Only:</div>
                 <div class="text-red-500 font-mono whitespace-nowrap">${outTime}</div>
                 <div class="text-gray-800 font-bold">SL: ${outQty}</div>
+                ${noteMarkup}
             </div>`;
     }
     return `<td class="p-1 border-r align-top ${bgClass} relative group/cell">
         ${noteIcon}
         ${statusHtml}
+        ${!stageData.in && !stageData.out && hasNote ? noteMarkup : ''}
     </td>`;
 }
 
