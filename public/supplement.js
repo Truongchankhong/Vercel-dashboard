@@ -431,6 +431,55 @@ async function askNextAction() {
   });
 }
 
+// ==================== QUẢN LÝ QUÉT QR ==================== //
+let html5QrCode = null;
+
+function stopScanner() {
+  if (html5QrCode && html5QrCode.isScanning) {
+    html5QrCode.stop().then(() => {
+      document.getElementById("qr-reader").style.display = "none";
+    }).catch(err => console.error("Lỗi khi dừng camera:", err));
+  } else {
+    document.getElementById("qr-reader").style.display = "none";
+  }
+}
+
+async function startScanner() {
+  const container = document.getElementById("qr-reader");
+  if (!container) return;
+  container.style.display = "block";
+
+  if (!html5QrCode) {
+    html5QrCode = new Html5Qrcode("qr-reader");
+  }
+
+  try {
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 200, height: 200 }, aspectRatio: 1.3333 },
+      qrText => {
+        // TẮT CAM NGAY KHI QUÉT ĐƯỢC
+        stopScanner();
+
+        // HIỆN THÔNG BÁO XÁC NHẬN
+        const cleanText = (qrText || "").trim();
+        let rpro = cleanText;
+        if (cleanText.includes("|")) {
+          const parts = cleanText.split("|");
+          const rproPart = parts.find(p => p.startsWith("RPRO"));
+          rpro = rproPart || cleanText;
+        }
+
+        alert("✅ Scan RPRO ok: " + rpro);
+
+        handleScanned(qrText);
+      }
+    );
+  } catch (err) {
+    console.error("Could not start scanner:", err);
+  }
+}
+
 // ==================== DOM EVENT ==================== //
 window.addEventListener("DOMContentLoaded", () => {
   logVisit("Supplement");
@@ -446,17 +495,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
       // === DEBUG CHECK (Bật console lên xem nếu không lưu) ===
       console.log("🔍 START SAVING...");
-      console.log("- Gender:", genderVal);
-      console.log("- showSizeFixValues:", showSizeFixValues);
-      console.log("- removedSizeFix:", removedSizeFix);
 
       // === Tạo remark đúng theo thực tế ===
       let remarkValue = "";
-      if (
-        genderVal === "Women's" &&
-        showSizeFixValues &&
-        !removedSizeFix // ✅ nếu đã bấm "Bỏ giảm size" thì không ghi chú nữa
-      ) {
+      if (genderVal === "Women's" && showSizeFixValues && !removedSizeFix) {
         const originalSizes = headersArr
           .filter(h => !isNaN(parseFloat(h)))
           .map(s => s.trim())
@@ -471,16 +513,9 @@ window.addEventListener("DOMContentLoaded", () => {
           .sort((a, b) => a - b)
           .map(n => n.toString());
 
-        console.log("- So sánh size:", { originalSizes, femaleSizes });
-
         if (checkHasRealSizeFix(originalSizes, femaleSizes)) {
           remarkValue = "Size fixed";
-          console.log("=> QUYẾT ĐỊNH: CÓ GHI SIZE FIXED");
-        } else {
-          console.log("=> QUYẾT ĐỊNH: KHÔNG GHI (Size giống nhau)");
         }
-      } else {
-        console.log("=> QUYẾT ĐỊNH: KHÔNG GHI (Không thỏa đk Gender hoặc đã bỏ chọn)");
       }
 
       const payload = {
@@ -493,21 +528,17 @@ window.addEventListener("DOMContentLoaded", () => {
         fabric: document.getElementById("info-fabric").textContent,
         bom: document.getElementById("info-bom").textContent,
         total: Number(document.getElementById("supp-total").textContent) || 0,
-        remark: remarkValue, // ✅ chỉ ghi "Size fixed" khi có giảm thật
+        remark: remarkValue,
         remark2: remarkNote
       };
 
       const inputs = document.querySelectorAll(".input-supp");
-      const sizeArray = [];
       inputs.forEach(inp => {
         const size = inp.dataset.size;
         const key = normalizeSizeKey(size);
         const numValue = Number(inp.value) || 0;
         payload[key] = numValue;
-        sizeArray.push({ size: key, value: numValue });
       });
-
-      console.log("📦 Payload gửi lên Supabase:", payload);
 
       try {
         const { error } = await supabase
@@ -523,14 +554,17 @@ window.addEventListener("DOMContentLoaded", () => {
           document.getElementById("manualRpro").value = "";
           document.getElementById("size-table-container").innerHTML = "";
           document.getElementById("order-info").classList.add("hidden");
+          document.getElementById("note-textarea").value = "";
 
           // Reset nút lưu về trạng thái chờ
           const btnSave = document.getElementById("btn-confirm-supplement");
           btnSave.disabled = true;
           btnSave.textContent = "Lưu";
 
+          // BẬT LẠI CAMERA ĐỂ QUÉT ĐƠN MỚI
+          startScanner();
+
         } else {
-          // ⏸ Ở lại đơn hiện tại
           console.log("🟢 Người dùng chọn ở lại đơn hiện tại.");
         }
 
@@ -544,16 +578,5 @@ window.addEventListener("DOMContentLoaded", () => {
 
 // ==================== KHỞI TẠO QR ==================== //
 window.addEventListener("load", () => {
-  const container = document.getElementById("qr-reader");
-  if (!container) return;
-
-  const html5QrCode = new Html5Qrcode("qr-reader");
-  html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 200, height: 200 }, aspectRatio: 1.3333 },
-    qrText => {
-      html5QrCode.stop().catch(console.error);
-      handleScanned(qrText);
-    }
-  ).catch(err => console.error("Could not start scanner:", err));
+  startScanner();
 });
