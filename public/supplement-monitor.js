@@ -1023,13 +1023,19 @@ if (finishDateFilterInput) {
 const thFinishDate = document.getElementById('th-finish-date');
 if (thFinishDate && finishDateFilterInput) {
     thFinishDate.addEventListener('click', (e) => {
-        // If clicking the clear button area, don't trigger picker
         if (e.target.closest('#btn-clear-date-filter')) return;
-
         if (typeof finishDateFilterInput.showPicker === 'function') {
-            try {
-                finishDateFilterInput.showPicker();
-            } catch (err) { }
+            try { finishDateFilterInput.showPicker(); } catch (err) { }
+        }
+    });
+}
+
+if (finishDateBadgeContainer && finishDateFilterInput) {
+    finishDateBadgeContainer.addEventListener('click', (e) => {
+        if (!e.target.closest('#btn-clear-date-filter')) {
+            if (typeof finishDateFilterInput.showPicker === 'function') {
+                try { finishDateFilterInput.showPicker(); } catch (err) { }
+            }
         }
     });
 }
