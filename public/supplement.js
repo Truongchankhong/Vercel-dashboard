@@ -389,7 +389,7 @@ function handleScanned(text) {
     rpro = cleanText.toUpperCase();
   }
 
-  // Logic thông minh: Nếu chỉ nhập số hoặc số có gạch (từ 6 ký tự trở lên) thì tự thêm RPRO-
+  // Logic thông minh: Tự động thêm RPRO- và xử lý dư dấu gạch (-)
   if (/^[\d-]{6,}$/.test(rpro)) {
     rpro = "RPRO-" + rpro;
   }
@@ -397,6 +397,9 @@ function handleScanned(text) {
   else if (/^RPRO[\d-]{6,}$/.test(rpro)) {
     rpro = "RPRO-" + rpro.substring(4);
   }
+
+  // Loại bỏ các dấu gạch dính nhau (VD: RPRO-- -> RPRO-)
+  rpro = rpro.replace(/-+/g, '-');
 
   loadOrderInfo(rpro);
 }

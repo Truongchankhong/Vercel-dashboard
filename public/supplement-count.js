@@ -408,6 +408,9 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
         cleanText = "RPRO-" + cleanText.substring(4);
     }
 
+    // Loại bỏ các dấu gạch dính nhau (VD: RPRO-- -> RPRO-)
+    cleanText = cleanText.replace(/-+/g, '-');
+
     const rpro = cleanText;
 
     // Validation (Strict check: ensure it's a single clean RPRO)

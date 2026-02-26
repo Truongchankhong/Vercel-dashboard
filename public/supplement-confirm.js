@@ -433,6 +433,9 @@ async function handleNewRproScan(rawText) {
     rpro = "RPRO-" + rpro.substring(4);
   }
 
+  // Loại bỏ các dấu gạch dính nhau (VD: RPRO-- -> RPRO-)
+  rpro = rpro.replace(/-+/g, '-');
+
   // Kiểm tra cuối cùng trước khi load
   if (!rpro.startsWith('RPRO')) {
     alert('⚠️ Mã không hợp lệ. Vui lòng nhập đúng mã RPRO hoặc dãy số đơn hàng.');
