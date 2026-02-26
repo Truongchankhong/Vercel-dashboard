@@ -383,14 +383,15 @@ function handleScanned(text) {
 
   if (cleanText.includes("|")) {
     const parts = cleanText.split("|");
-    const rproPart = parts.find(p => p.startsWith("RPRO"));
-    rpro = rproPart || cleanText;
-  } else if (cleanText.startsWith("RPRO")) {
+    // Tìm phần tử nào bắt đầu bằng RPRO (không quan trọng vị trí đầu, giữa hay cuối)
+    const found = parts.find(p => p.trim().toUpperCase().startsWith("RPRO"));
+    rpro = found ? found.trim() : cleanText;
+  } else if (cleanText.toUpperCase().startsWith("RPRO")) {
     rpro = cleanText;
   } else {
-    alert("❌ Mã QR không hợp lệ: " + cleanText);
-    return;
+    rpro = cleanText; // Fallback nếu không có RPRO nhưng vẫn muốn thử load
   }
+
   loadOrderInfo(rpro);
 }
 
@@ -458,19 +459,21 @@ async function startScanner() {
       { facingMode: "environment" },
       { fps: 10, qrbox: { width: 200, height: 200 }, aspectRatio: 1.3333 },
       qrText => {
-        // TẮT CAM NGAY KHI QUÉT ĐƯỢC
-        stopScanner();
-
-        // HIỆN THÔNG BÁO XÁC NHẬN
+        // HIỆN THÔNG BÁO XÁC NHẬN NGAY DƯỚI CAM
         const cleanText = (qrText || "").trim();
         let rpro = cleanText;
         if (cleanText.includes("|")) {
           const parts = cleanText.split("|");
-          const rproPart = parts.find(p => p.startsWith("RPRO"));
-          rpro = rproPart || cleanText;
+          const found = parts.find(p => p.trim().toUpperCase().startsWith("RPRO"));
+          rpro = found ? found.trim() : cleanText;
         }
 
-        alert("✅ Scan RPRO ok: " + rpro);
+        const alertEl = document.getElementById("scan-success-alert");
+        const msgEl = document.getElementById("scan-success-msg");
+        if (alertEl && msgEl) {
+          msgEl.textContent = rpro;
+          alertEl.classList.remove("hidden");
+        }
 
         handleScanned(qrText);
       }
@@ -555,6 +558,7 @@ window.addEventListener("DOMContentLoaded", () => {
           document.getElementById("size-table-container").innerHTML = "";
           document.getElementById("order-info").classList.add("hidden");
           document.getElementById("note-textarea").value = "";
+          document.getElementById("scan-success-alert").classList.add("hidden");
 
           // Reset nút lưu về trạng thái chờ
           const btnSave = document.getElementById("btn-confirm-supplement");
