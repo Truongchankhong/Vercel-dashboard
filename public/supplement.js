@@ -389,12 +389,12 @@ function handleScanned(text) {
     rpro = cleanText.toUpperCase();
   }
 
-  // Logic thông minh: Nếu chỉ nhập số (từ 6 số trở lên) thì tự thêm RPRO-
-  if (/^\d{6,}$/.test(rpro)) {
+  // Logic thông minh: Nếu chỉ nhập số hoặc số có gạch (từ 6 ký tự trở lên) thì tự thêm RPRO-
+  if (/^[\d-]{6,}$/.test(rpro)) {
     rpro = "RPRO-" + rpro;
   }
   // Nếu nhập dạng RPRO123456 (thiếu dấu gạch) thì tự thêm RPRO-
-  else if (/^RPRO\d{6,}$/.test(rpro)) {
+  else if (/^RPRO[\d-]{6,}$/.test(rpro)) {
     rpro = "RPRO-" + rpro.substring(4);
   }
 

@@ -413,15 +413,29 @@ async function exportToExcel() {
 // ================= RPRO SCAN LOGIC ================= //
 
 async function handleNewRproScan(rawText) {
-  let rpro = rawText.trim();
-  if (rpro.includes('|')) {
-    const parts = rpro.split('|');
-    const rproPart = parts.find(p => p.startsWith('RPRO'));
-    if (rproPart) rpro = rproPart;
+  let cleanText = (rawText || "").trim().toUpperCase();
+  let rpro = "";
+
+  if (cleanText.includes('|')) {
+    const parts = cleanText.split('|');
+    const found = parts.find(p => p.trim().toUpperCase().startsWith('RPRO'));
+    rpro = found ? found.trim().toUpperCase() : cleanText;
+  } else {
+    rpro = cleanText;
   }
 
+  // Logic thông minh: Nếu chỉ nhập số hoặc số có gạch (từ 6 ký tự trở lên) thì tự thêm RPRO-
+  if (/^[\d-]{6,}$/.test(rpro)) {
+    rpro = "RPRO-" + rpro;
+  }
+  // Nếu nhập dạng RPRO123456 (thiếu dấu gạch) thì tự thêm RPRO-
+  else if (/^RPRO[\d-]{6,}$/.test(rpro)) {
+    rpro = "RPRO-" + rpro.substring(4);
+  }
+
+  // Kiểm tra cuối cùng trước khi load
   if (!rpro.startsWith('RPRO')) {
-    alert('⚠️ QR không hợp lệ. Vui lòng quét mã RPRO.');
+    alert('⚠️ Mã không hợp lệ. Vui lòng nhập đúng mã RPRO hoặc dãy số đơn hàng.');
     return;
   }
 

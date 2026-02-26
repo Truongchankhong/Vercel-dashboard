@@ -399,12 +399,12 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
         if (found) cleanText = found.trim().toUpperCase();
     }
 
-    // Logic thông minh: Nếu chỉ nhập số (từ 6 số trở lên) thì tự thêm RPRO-
-    if (/^\d{6,}$/.test(cleanText)) {
+    // Logic thông minh: Nếu chỉ nhập số hoặc số có gạch (từ 6 ký tự trở lên) thì tự thêm RPRO-
+    if (/^[\d-]{6,}$/.test(cleanText)) {
         cleanText = "RPRO-" + cleanText;
     }
     // Nếu nhập dạng RPRO1234 (thiếu dấu gạch) thì tự thêm RPRO-
-    else if (/^RPRO\d{6,}$/.test(cleanText)) {
+    else if (/^RPRO[\d-]{6,}$/.test(cleanText)) {
         cleanText = "RPRO-" + cleanText.substring(4);
     }
 
