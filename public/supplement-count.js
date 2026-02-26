@@ -215,14 +215,18 @@ async function fetchDetails(rpro) {
             // "Số đôi có thể bù trong trang Bù hàng- Xác nhận" -> available_supplement in supplement_confirm
             const { data: confirmData, error: confirmError } = await supabase
                 .from('supplement_confirm')
-                .select('available_supplement, total')
+                .select('available_supplement, total, so_tam')
                 .eq('rpro', rpro)
+                .order('created_at', { ascending: false })
                 .limit(1);
+
+            let confirmSoTam = null;
 
             if (!confirmError && confirmData && confirmData.length > 0) {
                 const rec = confirmData[0];
                 defaultQty = (rec.available_supplement !== null) ? rec.available_supplement : rec.total;
-                console.log(`📦 Dán: Default quantity from supplement_confirm: ${defaultQty}`);
+                confirmSoTam = rec.so_tam;
+                console.log(`📦 Dán: Default quantity from supplement_confirm: ${defaultQty}, So Tam: ${confirmSoTam}`);
             } else {
                 // Fallback to supplement table total
                 const { data: suppData, error: suppError } = await supabase
@@ -284,25 +288,31 @@ async function fetchDetails(rpro) {
                     : 'text-center text-sm font-semibold text-gray-400 italic';
             }
 
-            // === PU SHEETS: always editable for Dán (only OUT now) ===
+            // === PU SHEETS ===
             if (puSheetsEdit) puSheetsEdit.classList.remove('hidden');
             if (puSheetsDisplay) puSheetsDisplay.classList.add('hidden');
 
-            // Try to load last saved pu_sheets for this RPRO as default
-            const { data: sheetsData, error: sheetsErr } = await supabase
-                .from('supplement_tracking')
-                .select('pu_sheets')
-                .eq('rpro', rpro)
-                .eq('section', 'Dán')
-                .not('pu_sheets', 'is', null)
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-            if (!sheetsErr && sheetsData && sheetsData.length > 0 && sheetsData[0].pu_sheets != null) {
-                if (inputPuSheets) inputPuSheets.value = sheetsData[0].pu_sheets;
-                console.log(`📐 PU sheets loaded: ${sheetsData[0].pu_sheets}`);
+            if (confirmSoTam !== null && confirmSoTam !== undefined) {
+                // Priority 1: From supplement_confirm
+                if (inputPuSheets) inputPuSheets.value = confirmSoTam;
+                console.log(`📐 PU sheets from supplement_confirm: ${confirmSoTam}`);
             } else {
-                if (inputPuSheets) inputPuSheets.value = 1;
+                // Priority 2: Fallback to last saved in supplement_tracking
+                const { data: sheetsData, error: sheetsErr } = await supabase
+                    .from('supplement_tracking')
+                    .select('pu_sheets')
+                    .eq('rpro', rpro)
+                    .eq('section', 'Dán')
+                    .not('pu_sheets', 'is', null)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (!sheetsErr && sheetsData && sheetsData.length > 0 && sheetsData[0].pu_sheets != null) {
+                    if (inputPuSheets) inputPuSheets.value = sheetsData[0].pu_sheets;
+                    console.log(`📐 PU sheets fallback (last scan): ${sheetsData[0].pu_sheets}`);
+                } else {
+                    if (inputPuSheets) inputPuSheets.value = 1;
+                }
             }
         } else if (['Cắt', 'Molding', 'DC', 'Molded'].includes(activeSection)) {
             // Hide PU info for non-Dán sections
@@ -705,9 +715,9 @@ if (btnSaveManual) {
 }
 
 if (manualRproInput) {
-    manualRproInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleManualSave();
-    });
+    // Note: REMOVED Enter listener to prevent handheld scanner from auto-saving when focus is here.
+    // User MUST click Save manually for review.
+
 
     // Add event listener to fetch details when user types or paste code
     manualRproInput.addEventListener('input', (e) => {

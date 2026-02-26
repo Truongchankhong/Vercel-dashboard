@@ -39,27 +39,38 @@ function initDates() {
     const lastWeek = new Date();
     lastWeek.setDate(today.getDate() - 7);
 
-    dateEndInput.value = today.toISOString().split('T')[0];
-    dateStartInput.value = lastWeek.toISOString().split('T')[0];
+    // Set start to beginning of day (00:00) 7 days ago
+    lastWeek.setHours(0, 0, 0, 0);
+
+    // Set end to end of today (23:59)
+    today.setHours(23, 59, 59, 999);
+
+    const formatForInput = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
+    dateStartInput.value = formatForInput(lastWeek);
+    dateEndInput.value = formatForInput(today);
 }
 
 // ==================== FETCH DATA ====================
 async function fetchProgressData() {
-    const fromDate = dateStartInput.value;
-    const toDate = dateEndInput.value;
+    const fromDateTime = dateStartInput.value;
+    const toDateTime = dateEndInput.value;
 
-    if (!fromDate || !toDate) return;
-
-    // Adjust toDate to end of day
-    const toDateObj = new Date(toDate);
-    toDateObj.setHours(23, 59, 59, 999);
+    if (!fromDateTime || !toDateTime) return;
 
     try {
         const { data, error } = await supabase
             .from('supplement_tracking')
             .select('*')
-            .gte('created_at', new Date(fromDate).toISOString())
-            .lte('created_at', toDateObj.toISOString())
+            .gte('created_at', new Date(fromDateTime).toISOString())
+            .lte('created_at', new Date(toDateTime).toISOString())
             .order('created_at', { ascending: true });
 
         if (error) throw error;
