@@ -250,8 +250,24 @@
                             <th
                                 class="p-3 text-center font-bold text-pink-700 border-b-2 min-w-[180px] bg-pink-50 border-r">
                                 🎯 Leanline Molded</th>
-                            <th class="p-3 text-center font-bold text-gray-700 border-b-2 min-w-[120px] bg-gray-100">🏁
-                                Finish Date</th>
+                            <th class="p-3 text-center font-bold text-gray-700 border-b-2 min-w-[140px] bg-gray-100 cursor-pointer hover:bg-gray-200 transition relative group/header"
+                                id="th-finish-date">
+                                <div class="flex flex-col items-center justify-center">
+                                    <span class="flex items-center gap-1">🏁 Finish Date <span
+                                            class="text-[10px] opacity-50 group-hover/header:opacity-100 transition">🔍</span></span>
+                                    <!-- Hidden date input that triggers on click -->
+                                    <input type="date" id="finish-date-filter"
+                                        class="absolute inset-0 opacity-0 cursor-pointer z-20">
+                                    <!-- Active filter badge -->
+                                    <div id="finish-date-badge-container" class="hidden mt-1 flex items-center gap-1">
+                                        <span id="finish-date-badge"
+                                            class="text-[9px] bg-blue-600 text-white px-1.5 py-0.5 rounded font-bold shadow-sm"></span>
+                                        <button id="btn-clear-date-filter"
+                                            class="text-gray-400 hover:text-red-500 z-30 transition relative"
+                                            title="Xóa lọc">✕</button>
+                                    </div>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="progress-table-body" class="divide-y divide-gray-100">

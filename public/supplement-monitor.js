@@ -47,7 +47,28 @@ const showingRangeText = document.getElementById('showing-range');
 const totalCountText = document.getElementById('total-count');
 const currentRangeLabel = document.getElementById('current-range-label');
 
+// Finish Date Filter Elements
+const finishDateFilterInput = document.getElementById('finish-date-filter');
+const finishDateBadgeContainer = document.getElementById('finish-date-badge-container');
+const finishDateBadge = document.getElementById('finish-date-badge');
+const btnClearDateFilter = document.getElementById('btn-clear-date-filter');
+
 let lastFetchedRange = "";
+
+// ==================== HELPERS ====================
+// Helper to get YYYY-MM-DD from any date value for comparison
+const getComparableDateStr = (serial) => {
+    if (!serial) return null;
+    let d;
+    const num = Number(serial);
+    if (!isNaN(num) && num > 20000) {
+        d = new Date((num - 25569) * 86400 * 1000);
+    } else {
+        d = new Date(serial);
+    }
+    if (isNaN(d.getTime())) return null;
+    return d.toISOString().split('T')[0];
+};
 
 // ==================== LOADING LOGIC ====================
 function updateLoading(percent, text) {
@@ -292,7 +313,6 @@ function refreshTableData() {
 // ==================== RENDER TABLE ====================
 function renderTable() {
     const searchTerm = searchInput.value.trim().toUpperCase();
-    const filtered = progressData.filter(item => item.rpro.includes(searchTerm));
 
     // Helper to format Excel Serial Date or String Date
     const formatExcelDate = (serial) => {
@@ -302,14 +322,33 @@ function renderTable() {
         if (!isNaN(num) && num > 20000) {
             // 25569 is offset for 1970-01-01
             const date = new Date((num - 25569) * 86400 * 1000);
-            // Handle timezone offset if needed, but UTC usually safer for pure dates. 
-            // Simple approach:
             return date.toLocaleDateString('vi-VN'); // DD/MM/YYYY
         }
         // Fallback
         const d = new Date(serial);
         return isNaN(d.getTime()) ? serial : d.toLocaleDateString('vi-VN');
     };
+
+    const finishDateFilterVal = finishDateFilterInput ? finishDateFilterInput.value : '';
+
+    // Update UI Badge
+    if (finishDateFilterVal) {
+        if (finishDateBadge) {
+            const [y, m, d] = finishDateFilterVal.split('-');
+            finishDateBadge.textContent = `${d}/${m}/${y}`;
+        }
+        if (finishDateBadgeContainer) finishDateBadgeContainer.classList.remove('hidden');
+    } else {
+        if (finishDateBadgeContainer) finishDateBadgeContainer.classList.add('hidden');
+    }
+
+    const filtered = progressData.filter(item => {
+        const codeMatch = item.rpro.includes(searchTerm);
+        if (!finishDateFilterVal) return codeMatch;
+
+        const itemDateStr = getComparableDateStr(item.finish_date);
+        return codeMatch && itemDateStr === finishDateFilterVal;
+    });
 
     if (filtered.length === 0) {
         tableBody.innerHTML = '';
@@ -553,7 +592,14 @@ btnSaveNote.addEventListener('click', async () => {
 // ==================== EXPORT LOGIC ====================
 window.exportToExcel = () => {
     const searchTerm = searchInput.value.trim().toUpperCase();
-    const filtered = progressData.filter(item => item.rpro.includes(searchTerm));
+    const finishDateFilterVal = finishDateFilterInput ? finishDateFilterInput.value : '';
+
+    const filtered = progressData.filter(item => {
+        const codeMatch = item.rpro.includes(searchTerm);
+        if (!finishDateFilterVal) return codeMatch;
+        const itemDateStr = getComparableDateStr(item.finish_date);
+        return codeMatch && itemDateStr === finishDateFilterVal;
+    });
 
     if (filtered.length === 0) {
         alert('Không có dữ liệu để xuất!');
@@ -955,6 +1001,20 @@ if (btnExport) btnExport.addEventListener('click', window.exportToExcel);
 
 if (btnShowStats) btnShowStats.addEventListener('click', showStats);
 if (btnCloseStats) btnCloseStats.addEventListener('click', () => statsModal.classList.add('hidden'));
+
+// Finish Date Filter Events
+if (finishDateFilterInput) {
+    finishDateFilterInput.addEventListener('change', () => {
+        renderTable();
+    });
+}
+if (btnClearDateFilter) {
+    btnClearDateFilter.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent re-triggering the input
+        finishDateFilterInput.value = '';
+        renderTable();
+    });
+}
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
