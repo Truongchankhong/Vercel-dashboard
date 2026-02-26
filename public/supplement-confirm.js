@@ -298,101 +298,80 @@ async function exportToZalo() {
   const other = selectedData.filter(r => !r.confirm);
 
   const todayStr = new Date().toLocaleDateString('vi-VN');
-  let message = `🛒 *XÁC NHẬN BÙ HÀNG - [Ngày ${todayStr}]*\n\n`;
 
-  if (hasLiệu.length > 0) {
-    message += `🟢 *NHÓM CÓ LIỆU:*\n`;
-    hasLiệu.forEach(r => {
+  // Use an array for line-by-line construction to ensure string integrity
+  let reportLines = [];
+  reportLines.push(`🛒 *BÁO CÁO XÁC NHẬN BÙ HÀNG*`);
+  reportLines.push(`📅 Ngày: ${todayStr}`);
+  reportLines.push(``);
+
+  const renderGroup = (title, items, emoji) => {
+    if (items.length === 0) return;
+    reportLines.push(`${emoji} *${title}*`);
+    items.forEach(r => {
       const avail = r.available_supplement !== null ? r.available_supplement : r.total;
       const sizeText = formatSizeBreakdown(r);
-      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Số lượng OK: *${avail}/${r.total}*\n`;
-    });
-    message += `\n`;
-  }
+      const rproLabel = r.rpro || "---";
 
-  if (hasPUOnly.length > 0) {
-    message += `🟠 *CÓ PU - KHÔNG CÓ VẢI:*\n`;
-    hasPUOnly.forEach(r => {
-      const avail = r.available_supplement !== null ? r.available_supplement : r.total;
-      const sizeText = formatSizeBreakdown(r);
-      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Số lượng OK: *${avail}/${r.total}*\n`;
-    });
-    message += `\n`;
-  }
+      reportLines.push(`🔹 *${rproLabel}*`);
+      if (sizeText) reportLines.push(`  + Size: ${sizeText}`);
 
-  if (hasFabricOnly.length > 0) {
-    message += `🔵 *CÓ VẢI - KHÔNG CÓ PU:*\n`;
-    hasFabricOnly.forEach(r => {
-      const avail = r.available_supplement !== null ? r.available_supplement : r.total;
-      const sizeText = formatSizeBreakdown(r);
-      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Số lượng OK: *${avail}/${r.total}*\n`;
+      if (title === "NHÓM KHÔNG CÓ LIỆU") {
+        reportLines.push(`  + Tổng cần bù: *${r.total}*`);
+      } else {
+        reportLines.push(`  + Số lượng OK: *${avail}/${r.total}*`);
+      }
     });
-    message += `\n`;
-  }
+    reportLines.push(``); // Blank line between groups
+  };
 
-  if (noLiệu.length > 0) {
-    message += `🔴 *NHÓM KHÔNG CÓ LIỆU:*\n`;
-    noLiệu.forEach(r => {
-      const sizeText = formatSizeBreakdown(r);
-      message += `- *${r.rpro}*\n  + Size: ${sizeText}\n  + Tổng cần bù: ${r.total}\n`;
-    });
-    message += `\n`;
-  }
+  renderGroup("NHÓM CÓ LIỆU", hasLiệu, "🟢");
+  renderGroup("CÓ PU - KHÔNG CÓ VẢI", hasPUOnly, "🟠");
+  renderGroup("CÓ VẢI - KHÔNG CÓ PU", hasFabricOnly, "🔵");
+  renderGroup("NHÓM KHÔNG CÓ LIỆU", noLiệu, "🔴");
 
   if (other.length > 0) {
-    message += `⏳ *CHƯA XÁC NHẬN:*\n`;
-    other.forEach(r => {
-      message += `- ${r.rpro}\n`;
-    });
-    message += `\n`;
+    reportLines.push(`⏳ *CHƯA XÁC NHẬN:*`);
+    other.forEach(r => reportLines.push(`- ${r.rpro}`));
+    reportLines.push(``);
   }
 
-  // Calculate detailed quantities
-  const totalDemand = selectedData.reduce((sum, r) => sum + Number(r.total), 0);
+  // Statistics
+  const qtyCoLieu = hasLiệu.reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+  const qtyPuOnly = hasPUOnly.reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+  const qtyFabricOnly = hasFabricOnly.reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
+  const qtyNoLieu = noLiệu.reduce((sum, r) => sum + Number(r.total), 0);
 
-  const qtyCoLieu = selectedData
-    .filter(r => r.confirm === 'Có liệu')
-    .reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
-
-  const qtyPuOnly = selectedData
-    .filter(r => r.confirm === 'Có PU - ko Vải')
-    .reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
-
-  const qtyFabricOnly = selectedData
-    .filter(r => r.confirm === 'Có Vải - ko PU')
-    .reduce((sum, r) => sum + Number(r.available_supplement !== null ? r.available_supplement : r.total), 0);
-
-  const qtyNoLieu = selectedData
-    .filter(r => r.confirm === 'Không có liệu')
-    .reduce((sum, r) => sum + Number(r.total), 0);
-
-  // Calculate detailed quantities based on CONFIRMED records only for ratio calculation
   const sumConfirmed = qtyCoLieu + qtyPuOnly + qtyFabricOnly + qtyNoLieu;
-
   const pctCoLieu = sumConfirmed > 0 ? (qtyCoLieu * 100 / sumConfirmed).toFixed(1) : 0;
   const pctPuOnly = sumConfirmed > 0 ? (qtyPuOnly * 100 / sumConfirmed).toFixed(1) : 0;
   const pctFabricOnly = sumConfirmed > 0 ? (qtyFabricOnly * 100 / sumConfirmed).toFixed(1) : 0;
   const pctNoLieu = sumConfirmed > 0 ? (qtyNoLieu * 100 / sumConfirmed).toFixed(1) : 0;
 
-  message += `📊 *TỔNG HỢP TỶ LỆ:*\n`;
-  message += `- 🟢 Có liệu: ${pctCoLieu}%\n`;
-  message += `- 🟠 Có PU - ko Vải: ${pctPuOnly}%\n`;
-  message += `- 🔵 Có Vải - ko PU: ${pctFabricOnly}%\n`;
-  message += `- 🔴 Không liệu: ${pctNoLieu}%\n`;
+  reportLines.push(`📊 *TỔNG HỢP TỶ LỆ (Số đôi):*`);
+  reportLines.push(`- 🟢 Có liệu: ${pctCoLieu}%`);
+  reportLines.push(`- 🟠 Có PU - ko Vải: ${pctPuOnly}%`);
+  reportLines.push(`- 🔵 Có Vải - ko PU: ${pctFabricOnly}%`);
+  reportLines.push(`- 🔴 Không liệu: ${pctNoLieu}%`);
+  reportLines.push(``);
 
-  // Construct direct link to stats
   const currentUrl = window.location.href.split('?')[0];
   const statsLink = `${currentUrl}?stats=true`;
 
-  message += `📊 *Xem biểu đồ thống kê:*\n${statsLink}\n`;
-  message += `🔗 *Link Google Sheet (Báo cáo Online):*\nhttps://docs.google.com/spreadsheets/d/15VO02nvCbJYBx2ITs5FBUhCeB9jt_tIBLQMz0RAGbuo/edit?usp=sharing`;
+  reportLines.push(`📈 *Biểu đồ thống kê:*`);
+  reportLines.push(statsLink);
+  reportLines.push(``);
+  reportLines.push(`🔗 *Link Board Google Sheet:*`);
+  reportLines.push(`https://docs.google.com/spreadsheets/d/15VO02nvCbJYBx2ITs5FBUhCeB9jt_tIBLQMz0RAGbuo/edit?usp=sharing`);
+
+  const finalMessage = reportLines.join('\n');
 
   try {
-    await navigator.clipboard.writeText(message);
-    alert("🚀 Đã copy thông tin vào bộ nhớ đệm!\nBây giờ bạn chỉ cần vào Zalo dán (Ctrl+V) và gửi.");
+    await navigator.clipboard.writeText(finalMessage);
+    alert("🚀 Đã copy thông tin báo cáo!\nBây giờ bạn chỉ cần dán (Ctrl+V) vào Zalo.");
   } catch (err) {
     console.error("Clipboard error:", err);
-    alert("Lỗi khi copy vào clipboard. Vui lòng copy thủ công.");
+    alert("Lỗi copy. Vui lòng thử lại.");
   }
 }
 
