@@ -1004,10 +1004,36 @@ if (btnCloseStats) btnCloseStats.addEventListener('click', () => statsModal.clas
 
 // Finish Date Filter Events
 if (finishDateFilterInput) {
+    // Force open picker on desktop click
+    finishDateFilterInput.addEventListener('click', () => {
+        if (typeof finishDateFilterInput.showPicker === 'function') {
+            try {
+                finishDateFilterInput.showPicker();
+            } catch (e) {
+                console.error("showPicker error:", e);
+            }
+        }
+    });
+
     finishDateFilterInput.addEventListener('change', () => {
         renderTable();
     });
 }
+
+const thFinishDate = document.getElementById('th-finish-date');
+if (thFinishDate && finishDateFilterInput) {
+    thFinishDate.addEventListener('click', (e) => {
+        // If clicking the clear button area, don't trigger picker
+        if (e.target.closest('#btn-clear-date-filter')) return;
+
+        if (typeof finishDateFilterInput.showPicker === 'function') {
+            try {
+                finishDateFilterInput.showPicker();
+            } catch (err) { }
+        }
+    });
+}
+
 if (btnClearDateFilter) {
     btnClearDateFilter.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent re-triggering the input
