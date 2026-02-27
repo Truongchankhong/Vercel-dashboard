@@ -42,6 +42,8 @@ let html5QrScanner = null;
 let cameraActive = false;
 let isProcessing = false;
 let lastRecordId = null;
+let scanQueue = []; // New: Queue for rapid scanning
+let isQueueProcessing = false;
 
 // Handheld scanner buffer
 let scanBuffer = '';
@@ -173,23 +175,12 @@ document.addEventListener('keydown', (e) => {
                 showMultiRproConfirmation(rproMatches, "HANDHELD", note);
             } else {
                 const code = (rproMatches && rproMatches.length === 1) ? rproMatches[0] : scannedText;
-                if (!isProcessing) {
-                    if (manualRproInput) manualRproInput.value = code;
-                    fetchDetails(code).then((status) => {
-                        if (status === 'found') {
-                            showFeedback(`✅ Máy quét: ${code} (Có dữ liệu).`, "text-green-600 font-bold bg-green-50 p-2 rounded-lg border-2 border-green-200");
-                        } else {
-                            showFeedback(`⚠️ Đơn ${code}: Không có thông tin trên server.`, "text-orange-600 bg-orange-50 p-2 rounded-lg border-2 border-orange-200");
-                        }
 
-                        playAudioFeedback(status === 'found');
-
-                        // 🚀 TỰ ĐỘNG LƯU
-                        if (autoSaveCheckbox?.checked) {
-                            console.log(`🚀 Tự động lưu đang bật (MÁY QUÉT - ${status === 'found' ? 'Có' : 'Không'} data)...`);
-                            setTimeout(() => handleManualSave(), 800);
-                        }
-                    });
+                // NEW: Push to queue instead of processing directly
+                if (code) {
+                    console.log(`📥 Added to queue: ${code}`);
+                    scanQueue.push({ code, mode: "HANDHELD" });
+                    processQueue();
                 }
             }
         }
@@ -525,9 +516,47 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
         playAudioFeedback(false);
     } finally {
         if (!isInBatch) {
-            finishProcessingBatch();
+            isProcessing = false;
+            // Removed 2-second artificial lock here to speed up
         }
     }
+}
+
+// NEW: Queue Worker
+async function processQueue() {
+    if (isQueueProcessing) return;
+    isQueueProcessing = true;
+
+    while (scanQueue.length > 0) {
+        const item = scanQueue.shift();
+        const { code, mode } = item;
+
+        console.log(`⚙️ Processing from queue (${scanQueue.length} left): ${code}`);
+
+        // Load to UI for visual feedback
+        if (manualRproInput) manualRproInput.value = code;
+
+        const status = await fetchDetails(code);
+
+        if (status === 'found') {
+            showFeedback(`✅ Quét nhanh: ${code}`, "text-green-600 font-bold");
+        } else {
+            showFeedback(`⚠️ Đơn ${code}: Không có data`, "text-orange-600");
+        }
+
+        playAudioFeedback(status === 'found');
+
+        // Auto Save if enabled
+        if (autoSaveCheckbox?.checked) {
+            await processRPRO(code, mode, "", false);
+        }
+
+        // Small delay between rows to allow DB to breathe
+        await new Promise(r => setTimeout(r, 100));
+    }
+
+    isQueueProcessing = false;
+    finishProcessingBatch(); // Clean up UI after queue is empty
 }
 
 function finishProcessingBatch() {
