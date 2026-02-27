@@ -8,11 +8,12 @@ const btnFilter = document.getElementById('btn-filter');
 const btnExportExcel = document.getElementById('btn-export-excel');
 const btnShowStats = document.getElementById('btn-show-stats');
 const btnCloseStats = document.getElementById('btn-close-stats');
-const statsModal = document.getElementById('stats-modal');
 const scanInput = document.getElementById('scan-input');
 const btnAddScan = document.getElementById('btn-add-scan');
+const searchRproInput = document.getElementById('search-rpro');
 
 let currentData = [];
+let filteredData = [];
 let charts = {};
 
 // ==================== CONFIG & INIT ====================
@@ -50,8 +51,33 @@ async function loadSystemList() {
     }
 
     currentData = data;
+    filteredData = data;
     updateCounters();
+    applySearchAndRender();
+}
+
+function applySearchAndRender() {
+    const searchTerm = (searchRproInput?.value || "").trim().toUpperCase();
+    const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, ""); // Remove non-alphanumeric
+
+    if (cleanSearch) {
+        filteredData = currentData.filter(row => {
+            const cleanRpro = (row.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+            const cleanSo = (row.so || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+            const cleanBrand = (row.brand || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+
+            return cleanRpro.includes(cleanSearch) ||
+                cleanSo.includes(cleanSearch) ||
+                cleanBrand.includes(cleanSearch);
+        });
+    } else {
+        filteredData = currentData;
+    }
     renderTable();
+}
+
+if (searchRproInput) {
+    searchRproInput.addEventListener('input', applySearchAndRender);
 }
 
 function updateCounters() {
@@ -65,12 +91,12 @@ function updateCounters() {
 function renderTable() {
     if (!systemBody) return;
 
-    if (currentData.length === 0) {
-        systemBody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-400 italic">Chưa có đơn hàng nào trong khoảng ngày này</td></tr>`;
+    if (filteredData.length === 0) {
+        systemBody.innerHTML = `<tr><td colspan="10" class="p-8 text-center text-gray-400 italic">Không tìm thấy đơn hàng nào khớp với tìm kiếm</td></tr>`;
         return;
     }
 
-    systemBody.innerHTML = currentData.map(row => {
+    systemBody.innerHTML = filteredData.map(row => {
         const isNoMaterial = row.status === 'NO_MATERIAL';
         const statusColor = isNoMaterial ? 'bg-red-50' : 'bg-emerald-50';
 

@@ -8,11 +8,11 @@ const btnFilter = document.getElementById('btn-filter');
 const btnExportZalo = document.getElementById('btn-export-zalo');
 const btnExportExcel = document.getElementById('btn-export-excel');
 const checkAll = document.getElementById('check-all');
-const btnShowStats = document.getElementById('btn-show-stats');
-const btnCloseStats = document.getElementById('btn-close-stats');
 const statsModal = document.getElementById('stats-modal');
+const searchRproInput = document.getElementById('search-rpro');
 
 let currentData = [];
+let filteredData = []; // Data after search filter
 let selectedRpros = new Set();
 let charts = {}; // Store Chart instances
 
@@ -45,18 +45,40 @@ async function loadConfirmList() {
   }
 
   currentData = data;
+  filteredData = data; // Initially same
 
   // Calculate Pending Count (Not confirmed yet)
   const pendingRows = data.filter(r => !r.confirm);
   const pendingEl = document.getElementById('pending-count');
   if (pendingEl) pendingEl.innerText = pendingRows.length;
 
+  applySearchAndRender();
+}
+
+function applySearchAndRender() {
+  const searchTerm = (searchRproInput?.value || "").trim().toUpperCase();
+  const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, ""); // Remove non-alphanumeric
+
+  if (cleanSearch) {
+    filteredData = currentData.filter(row => {
+      const cleanRpro = (row.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+      const cleanSo = (row.so || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+
+      return cleanRpro.includes(cleanSearch) || cleanSo.includes(cleanSearch);
+    });
+  } else {
+    filteredData = currentData;
+  }
   renderTable();
+}
+
+if (searchRproInput) {
+  searchRproInput.addEventListener('input', applySearchAndRender);
 }
 
 function renderTable() {
   if (!confirmBody) return;
-  confirmBody.innerHTML = currentData.map(row => {
+  confirmBody.innerHTML = filteredData.map(row => {
     const isSelected = selectedRpros.has(row.rpro);
     return `
     <tr class="${isSelected ? 'bg-blue-50' : ''}">
