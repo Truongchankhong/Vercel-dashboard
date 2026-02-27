@@ -105,8 +105,8 @@ function renderTable() {
             </td>
             <td class="px-4 py-3 border-r text-center">
                 <input type="number" min="0" 
-                    value="${row.total_qty || 0}" 
-                    onchange="handleTotalQtyUpdate('${row.id}', this.value)"
+                    value="${row.total || 0}" 
+                    onchange="handleQtyUpdate('${row.id}', this.value)"
                     class="w-20 border rounded px-2 py-1 text-center font-bold text-indigo-600 bg-indigo-50 focus:bg-white transition-all">
             </td>
             <td class="px-4 py-3 border-r text-center">
@@ -162,20 +162,20 @@ window.updateNote = async (id, val) => {
     if (error) console.error('Note update error:', error);
 };
 
-window.handleTotalQtyUpdate = async (id, value) => {
+window.handleQtyUpdate = async (id, value) => {
     if (!id || id === 'undefined' || id === 'null') return;
     const numValue = Number(value) || 0;
     const { error } = await supabase
         .from('supplement_makesystem')
         .update({
-            total_qty: numValue,
+            total: numValue,
             updated_at: new Date().toISOString()
         })
         .eq('id', id);
 
     if (error) {
-        console.error('Error updating total_qty:', error);
-        alert('Lỗi khi lưu số lượng Total Qty');
+        console.error('Error updating total:', error);
+        alert('Lỗi khi lưu số lượng Qty');
     }
 };
 
@@ -217,7 +217,7 @@ async function handleScan() {
                 brand: pRec['Brand Code'],
                 customer: pRec['CUSTOMERS'],
                 mold: pRec['#MOLD'],
-                total_qty: pRec['Total Qty'],
+                total: pRec['Total Qty'] || pRec['Qty'] || 0,
                 pu: pRec['PU'],
                 fabric: pRec['FB DESCRIPTION'] || pRec['Tên vải']
             };
@@ -230,7 +230,7 @@ async function handleScan() {
                     brand: mRec['Brand Code'],
                     customer: mRec['CUSTOMERS'],
                     mold: mRec['#MOLD'],
-                    total_qty: mRec['Total Qty'],
+                    total: mRec['Total Qty'] || mRec['Qty'] || 0,
                     pu: mRec['PU'],
                     fabric: mRec['Tên vải']
                 };
@@ -283,7 +283,7 @@ function exportExcel() {
         'Mã PU': r.pu || '',
         'Mã Vải': r.fabric || '',
         'Khách hàng': r.customer || '',
-        'Tổng Qty': r.total_qty || 0,
+        'Qty': r.total || 0,
         'Trạng thái Liệu': r.status === 'HAS_MATERIAL' ? 'Có liệu' : 'Chưa có liệu',
         'Ghi chú WH': r.note || ''
     }));
