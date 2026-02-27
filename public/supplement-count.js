@@ -119,6 +119,7 @@ async function onCameraScanSuccess(decodedText) {
         if (!code) return;
 
         // Chỉ load lên giao diện, không lưu tự động
+        if (manualRproInput) manualRproInput.value = code;
         const status = await fetchDetails(code);
 
         // TỰ ĐỘNG TẮT CAMERA SAU KHI QUÉT THÀNH CÔNG
@@ -173,7 +174,6 @@ document.addEventListener('keydown', (e) => {
             } else {
                 const code = (rproMatches && rproMatches.length === 1) ? rproMatches[0] : scannedText;
                 if (!isProcessing) {
-                    if (manualRproInput) manualRproInput.value = code;
                     if (manualRproInput) manualRproInput.value = code;
                     fetchDetails(code).then((status) => {
                         if (status === 'found') {
