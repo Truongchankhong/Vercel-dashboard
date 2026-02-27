@@ -131,7 +131,8 @@ async function fetchProgressData() {
             .select('*')
             .gte('created_at', new Date(fromDateTime).toISOString())
             .lte('created_at', new Date(toDateTime).toISOString())
-            .order('created_at', { ascending: true });
+            .order('created_at', { ascending: false })
+            .limit(5000);
 
         if (error) throw error;
 
@@ -255,11 +256,11 @@ function updateLocalState(record) {
             last_updated: record.created_at,
             finish_date: null, // Init
             stages: {
-                'Dán': { in: null, out: null, note: null },
-                'Cắt': { in: null, out: null, note: null },
-                'Molding': { in: null, out: null, note: null },
-                'DC': { in: null, out: null, note: null },
-                'Molded': { in: null, out: null, note: null }
+                'Dán': { in: null, out: null, note: null, note_time: null },
+                'Cắt': { in: null, out: null, note: null, note_time: null },
+                'Molding': { in: null, out: null, note: null, note_time: null },
+                'DC': { in: null, out: null, note: null, note_time: null },
+                'Molded': { in: null, out: null, note: null, note_time: null }
             }
         };
     }
@@ -279,12 +280,18 @@ function updateLocalState(record) {
 
         // Shared logic: Update note if present in record (latest record wins due to fetch order)
         if (record.action === 'NOTE') {
-            stage.note = record.note; // Allows clearing note with empty string
+            if (!stage.note_time || new Date(record.created_at) > new Date(stage.note_time)) {
+                stage.note = record.note;
+                stage.note_time = record.created_at;
+            }
             return;
         }
 
         if (record.note && record.note.trim() !== '') {
-            stage.note = record.note;
+            if (!stage.note_time || new Date(record.created_at) > new Date(stage.note_time)) {
+                stage.note = record.note;
+                stage.note_time = record.created_at;
+            }
         }
 
         const dataPoint = {
@@ -292,13 +299,15 @@ function updateLocalState(record) {
             qty: record.quantity || 0
         };
 
-        // Logic pivot: Last IN/OUT win based on time inside fetch loop
-        // If realtime update comes, it appends/overwrites correctly
         if (record.action === 'IN') {
-            stage.in = dataPoint;
+            if (!stage.in || new Date(record.created_at) > new Date(stage.in.time)) {
+                stage.in = dataPoint;
+            }
             if (new Date(record.created_at) > new Date(item.last_updated)) item.last_updated = record.created_at;
         } else if (record.action === 'OUT') {
-            stage.out = dataPoint;
+            if (!stage.out || new Date(record.created_at) > new Date(stage.out.time)) {
+                stage.out = dataPoint;
+            }
             if (new Date(record.created_at) > new Date(item.last_updated)) item.last_updated = record.created_at;
         }
     }
