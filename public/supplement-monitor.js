@@ -35,6 +35,7 @@ let progressData = [];
 let currentPage = 1;
 const itemsPerPage = 100;
 let currentSort = { column: 'last_updated', direction: 'desc' }; // Default sort
+let moldFilter = ""; // State for Mold search
 
 // Loading State Elements
 const loadingOverlay = document.getElementById('loading-overlay');
@@ -55,6 +56,16 @@ const finishDateBadge = document.getElementById('finish-date-badge');
 const btnClearDateFilter = document.getElementById('btn-clear-date-filter');
 
 let lastFetchedRange = "";
+
+// Expose to window for HTML onclick
+window.openMoldFilter = () => {
+    const val = prompt("🔍 Nhập mã khuôn (#MOLD) để tìm kiếm (tương đối):", moldFilter);
+    if (val !== null) {
+        moldFilter = val.trim();
+        currentPage = 1; // Reset to page 1
+        renderTable(); // Re-render
+    }
+};
 
 // ==================== HELPERS ====================
 // Helper to get YYYY-MM-DD from any date value for comparison
@@ -415,11 +426,20 @@ function renderTable() {
     }
 
     const filtered = progressData.filter(item => {
-        const codeMatch = item.rpro.includes(searchTerm);
-        if (!finishDateFilterVal) return codeMatch;
+        const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, "");
+        const cleanRpro = (item.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+
+        const codeMatch = cleanSearch ? cleanRpro.includes(cleanSearch) : true;
+
+        // Mold Filter (Relative search)
+        const cleanMoldSearch = moldFilter.replace(/[^A-Z0-9]/g, "").toUpperCase();
+        const cleanItemMold = (item.mold || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+        const moldMatch = cleanMoldSearch ? cleanItemMold.includes(cleanMoldSearch) : true;
+
+        if (!finishDateFilterVal) return codeMatch && moldMatch;
 
         const itemDateStr = getComparableDateStr(item.finish_date);
-        return codeMatch && itemDateStr === finishDateFilterVal;
+        return codeMatch && moldMatch && itemDateStr === finishDateFilterVal;
     });
 
     if (filtered.length === 0) {
