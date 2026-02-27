@@ -33,6 +33,7 @@ const multiRproCount = document.getElementById('multi-rpro-count');
 const btnMultiContinue = document.getElementById('btn-multi-continue');
 const btnMultiGroup = document.getElementById('btn-multi-group');
 const btnMultiRescan = document.getElementById('btn-multi-rescan');
+const autoSaveCheckbox = document.getElementById('auto-save-checkbox');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -128,6 +129,12 @@ async function onCameraScanSuccess(decodedText) {
 
         showFeedback(`✅ Đã load mã ${code}. Kiểm tra Qty và bấm [LƯU]`, "text-green-600 font-bold bg-green-50 p-2 rounded-lg border-2 border-green-200");
         playAudioFeedback(true);
+
+        // 🚀 TỰ ĐỘNG LƯU NẾU ĐƯỢC CHỌN
+        if (autoSaveCheckbox?.checked) {
+            console.log("🚀 Chế độ tự động lưu đang bật (CAMERA)...");
+            setTimeout(() => handleManualSave(), 500);
+        }
     }
 }
 
@@ -170,6 +177,12 @@ document.addEventListener('keydown', (e) => {
                     fetchDetails(code).then(() => {
                         showFeedback(`✅ Đã load mã ${code}. Kiểm tra Qty và bấm [LƯU]`, "text-green-600 font-bold bg-green-50 p-2 rounded-lg border-2 border-green-200");
                         playAudioFeedback(true);
+
+                        // 🚀 TỰ ĐỘNG LƯU NẾU ĐƯỢC CHỌN
+                        if (autoSaveCheckbox?.checked) {
+                            console.log("🚀 Chế độ tự động lưu đang bật (HANDHELD)...");
+                            setTimeout(() => handleManualSave(), 500);
+                        }
                     });
                 }
             }
@@ -585,7 +598,18 @@ async function handleManualSave() {
 
     await processRPRO(val, "MANUAL", note);
     manualRproInput.value = ""; // Clear after success
-    manualRproInput.focus();
+    // Không cần focus lại ở đây vì setInterval sẽ tự động focus
+}
+
+// Khôi phục trạng thái checkbox tự động lưu
+function initAutoSave() {
+    if (autoSaveCheckbox) {
+        const savedState = localStorage.getItem("supplement-count-auto-save");
+        autoSaveCheckbox.checked = (savedState === "true");
+        autoSaveCheckbox.addEventListener("change", (e) => {
+            localStorage.setItem("supplement-count-auto-save", e.target.checked);
+        });
+    }
 }
 
 // Merged fetchExistingNote into fetchDetails above
@@ -735,6 +759,16 @@ if (manualRproInput) {
             if (val.length >= 8) fetchDetails(val);
         }
     });
+
+    // Thêm sự kiện Enter cho input thủ công nếu bật tự động lưu
+    manualRproInput.addEventListener('keydown', (e) => {
+        if (e.key === "Enter") {
+            if (autoSaveCheckbox?.checked) {
+                e.preventDefault();
+                handleManualSave();
+            }
+        }
+    });
 }
 
 if (inputQty) {
@@ -775,4 +809,5 @@ setInterval(() => {
     }
 }, 500);
 
+initAutoSave();
 console.log("✅ Supplement Count Tracking Loaded");
