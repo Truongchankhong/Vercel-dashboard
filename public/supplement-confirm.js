@@ -8,6 +8,8 @@ const btnFilter = document.getElementById('btn-filter');
 const btnExportZalo = document.getElementById('btn-export-zalo');
 const btnExportExcel = document.getElementById('btn-export-excel');
 const checkAll = document.getElementById('check-all');
+const btnShowStats = document.getElementById('btn-show-stats');
+const btnCloseStats = document.getElementById('btn-close-stats');
 const statsModal = document.getElementById('stats-modal');
 const searchRproInput = document.getElementById('search-rpro');
 
@@ -18,10 +20,10 @@ let charts = {}; // Store Chart instances
 
 function setInitialDates() {
   const today = new Date();
-  const twoDaysAgo = new Date();
-  twoDaysAgo.setDate(today.getDate() - 2);
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(today.getDate() - 2); // Result: Today, Yesterday, Day before (3 days total)
 
-  dateFromInput.value = twoDaysAgo.toISOString().split('T')[0];
+  dateFromInput.value = threeDaysAgo.toISOString().split('T')[0];
   dateToInput.value = today.toISOString().split('T')[0];
 }
 

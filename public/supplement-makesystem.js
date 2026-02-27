@@ -20,10 +20,10 @@ let charts = {};
 
 function setInitialDates() {
     const today = new Date();
-    const lastWeek = new Date();
-    lastWeek.setDate(today.getDate() - 7);
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(today.getDate() - 2); // Result: Today, Yesterday, Day before (3 days total)
 
-    dateFromInput.value = lastWeek.toISOString().split('T')[0];
+    dateFromInput.value = threeDaysAgo.toISOString().split('T')[0];
     dateToInput.value = today.toISOString().split('T')[0];
 }
 
