@@ -229,29 +229,32 @@
                 <table class="w-full border-collapse text-sm">
                     <thead class="bg-gray-100 sticky top-0 z-10 shadow-sm">
                         <tr>
-                            <th
-                                class="p-4 text-left font-extrabold text-gray-700 border-b-2 border-r w-40 min-w-[150px]">
-                                MÃ ĐƠN (RPRO)</th>
+                            <th onclick="toggleSort('rpro')"
+                                class="p-4 text-left font-extrabold text-gray-700 border-b-2 border-r w-40 min-w-[150px] cursor-pointer hover:bg-gray-200 transition-colors">
+                                MÃ ĐƠN <span id="sort-icon-rpro"></span></th>
                             <th
                                 class="p-3 text-center font-bold text-gray-700 border-b-2 border-r min-w-[100px] bg-gray-50">
                                 #MOLD</th>
-                            <th
-                                class="p-3 text-center font-bold text-indigo-700 border-b-2 border-r min-w-[180px] bg-indigo-50">
-                                🏷️ Dán (Lamination)</th>
-                            <th
-                                class="p-3 text-center font-bold text-green-700 border-b-2 border-r min-w-[180px] bg-green-50">
-                                ✂️ Cắt (Prefitting)</th>
-                            <th
-                                class="p-3 text-center font-bold text-blue-700 border-b-2 border-r min-w-[180px] bg-blue-50">
-                                🔨 Molding</th>
-                            <th
-                                class="p-3 text-center font-bold text-purple-700 border-b-2 border-r min-w-[180px] bg-purple-50">
-                                🏭 Leanline DC</th>
-                            <th
-                                class="p-3 text-center font-bold text-pink-700 border-b-2 min-w-[180px] bg-pink-50 border-r">
-                                🎯 Leanline Molded</th>
+                            <th onclick="toggleSort('Dán')"
+                                class="p-3 text-center font-bold text-indigo-700 border-b-2 border-r min-w-[180px] bg-indigo-50 cursor-pointer hover:bg-indigo-100 transition-colors">
+                                🏷️ Dán <span id="sort-icon-Dán"></span></th>
+                            <th onclick="toggleSort('Cắt')"
+                                class="p-3 text-center font-bold text-green-700 border-b-2 border-r min-w-[180px] bg-green-50 cursor-pointer hover:bg-green-100 transition-colors">
+                                ✂️ Cắt <span id="sort-icon-Cắt"></span></th>
+                            <th onclick="toggleSort('Molding')"
+                                class="p-3 text-center font-bold text-blue-700 border-b-2 border-r min-w-[180px] bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors">
+                                🔨 Molding <span id="sort-icon-Molding"></span></th>
+                            <th onclick="toggleSort('DC')"
+                                class="p-3 text-center font-bold text-purple-700 border-b-2 border-r min-w-[180px] bg-purple-50 cursor-pointer hover:bg-purple-100 transition-colors">
+                                🏭 DC <span id="sort-icon-DC"></span></th>
+                            <th onclick="toggleSort('Molded')"
+                                class="p-3 text-center font-bold text-pink-700 border-b-2 min-w-[180px] bg-pink-50 border-r cursor-pointer hover:bg-pink-100 transition-colors">
+                                🎯 Molded <span id="sort-icon-Molded"></span></th>
                             <th class="p-3 text-center border-b-2 min-w-[140px] bg-gray-100 relative group/header overflow-hidden"
                                 id="th-finish-date">
+                                <div onclick="toggleSort('finish_date')"
+                                    class="absolute top-0 right-0 p-1 cursor-pointer hover:text-blue-600 z-50 text-[10px] font-bold">
+                                    SORT <span id="sort-icon-finish_date"></span></div>
                                 <!-- Hidden date input that covers the ENTIRE TH area -->
                                 <input type="date" id="finish-date-filter"
                                     class="absolute inset-0 opacity-0 cursor-pointer z-20 w-full h-full">

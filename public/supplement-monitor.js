@@ -34,6 +34,7 @@ let progressMap = {};
 let progressData = [];
 let currentPage = 1;
 const itemsPerPage = 100;
+let currentSort = { column: 'last_updated', direction: 'desc' }; // Default sort
 
 // Loading State Elements
 const loadingOverlay = document.getElementById('loading-overlay');
@@ -314,8 +315,70 @@ function updateLocalState(record) {
 }
 
 function refreshTableData() {
-    progressData = Object.values(progressMap).sort((a, b) => new Date(b.last_updated) - new Date(a.last_updated));
+    progressData = Object.values(progressMap).sort((a, b) => {
+        let valA, valB;
+
+        if (currentSort.column === 'rpro') {
+            valA = a.rpro;
+            valB = b.rpro;
+        } else if (currentSort.column === 'finish_date') {
+            valA = a.finish_date ? Number(a.finish_date) : 0;
+            valB = b.finish_date ? Number(b.finish_date) : 0;
+        } else if (['Dán', 'Cắt', 'Molding', 'DC', 'Molded'].includes(currentSort.column)) {
+            // Sort by latest activity in this section
+            const stageA = a.stages[currentSort.column];
+            const stageB = b.stages[currentSort.column];
+
+            const getStageTime = (s) => {
+                const times = [];
+                if (s.in) times.push(new Date(s.in.time).getTime());
+                if (s.out) times.push(new Date(s.out.time).getTime());
+                return times.length > 0 ? Math.max(...times) : 0;
+            };
+
+            valA = getStageTime(stageA);
+            valB = getStageTime(stageB);
+        } else {
+            // Default: last_updated
+            valA = new Date(a.last_updated).getTime();
+            valB = new Date(b.last_updated).getTime();
+        }
+
+        if (currentSort.direction === 'asc') {
+            return valA > valB ? 1 : -1;
+        } else {
+            return valA < valB ? 1 : -1;
+        }
+    });
+
+    updateSortIcons();
     renderTable();
+}
+
+window.toggleSort = (column) => {
+    if (currentSort.column === column) {
+        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.column = column;
+        currentSort.direction = 'desc';
+    }
+    refreshTableData();
+};
+
+function updateSortIcons() {
+    const columns = ['rpro', 'Dán', 'Cắt', 'Molding', 'DC', 'Molded', 'finish_date'];
+    columns.forEach(col => {
+        const icon = document.getElementById(`sort-icon-${col}`);
+        if (icon) {
+            if (currentSort.column === col) {
+                icon.innerHTML = currentSort.direction === 'asc' ? '🔼' : '🔽';
+                icon.className = "inline-block ml-1 text-[10px]";
+            } else {
+                icon.innerHTML = '↕️';
+                icon.className = "inline-block ml-1 text-[10px] opacity-20";
+            }
+        }
+    });
 }
 
 // ==================== RENDER TABLE ====================
