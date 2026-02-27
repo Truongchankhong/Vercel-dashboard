@@ -207,33 +207,54 @@ async function handleScan() {
             return;
         }
 
-        // Fetch info from PowerApp or Masterdata
         let info = null;
-        const { data: pRec } = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle();
-        if (pRec) {
+
+        // 1. TẦNG 1: Tìm trong bảng 'supplement' (Giống trang Xác nhận)
+        const { data: sRec, error: sError } = await supabase
+            .from('supplement')
+            .select('*')
+            .eq('rpro', rpro)
+            .maybeSingle();
+
+        if (sRec) {
             info = {
-                rpro: pRec['PRO ODER'],
-                so: pRec['SO'],
-                brand: pRec['Brand Code'],
-                customer: pRec['CUSTOMERS'],
-                mold: pRec['#MOLD'],
-                total: pRec['Total Qty'] || pRec['Qty'] || 0,
-                pu: pRec['PU'],
-                fabric: pRec['FB DESCRIPTION'] || pRec['Tên vải']
+                rpro: sRec.rpro,
+                so: sRec.so || '',
+                brand: sRec.customers || '', // customers maps to brand in logic
+                customer: sRec.customers || '',
+                mold: sRec.mold || '',
+                total: sRec.total || 0,
+                pu: sRec.pu || '',
+                fabric: sRec.fabric || ''
             };
         } else {
-            const { data: mRec } = await supabase.from('Masterdata').select('*').eq('PRO ODER', rpro).maybeSingle();
-            if (mRec) {
+            // 2. TẦNG 2 & 3: Powerapp / Masterdata
+            const { data: pRec } = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle();
+            if (pRec) {
                 info = {
-                    rpro: mRec['PRO ODER'],
-                    so: mRec['SO'],
-                    brand: mRec['Brand Code'],
-                    customer: mRec['CUSTOMERS'],
-                    mold: mRec['#MOLD'],
-                    total: mRec['Total Qty'] || mRec['Qty'] || 0,
-                    pu: mRec['PU'],
-                    fabric: mRec['Tên vải']
+                    rpro: pRec['PRO ODER'],
+                    so: pRec['SO'],
+                    brand: pRec['Brand Code'],
+                    customer: pRec['CUSTOMERS'],
+                    mold: pRec['#MOLD'],
+                    total: 0, // Default to 0 if not scanned yet (giống trang xác nhận)
+                    pu: pRec['PU'],
+                    fabric: pRec['FB DESCRIPTION'] || pRec['Tên vải']
                 };
+            } else {
+                const { data: mRec } = await supabase.from('Masterdata').select('*').eq('PRO ODER', rpro).maybeSingle();
+                if (mRec) {
+                    info = {
+                        rpro: mRec['PRO ODER'],
+                        so: mRec['SO'],
+                        brand: mRec['Brand Code'],
+                        customer: mRec['CUSTOMERS'],
+                        mold: mRec['#MOLD'],
+                        total: 0,
+                        pu: mRec['PU'],
+                        fabric: mRec['Tên vải']
+                    };
+                }
             }
         }
 
@@ -242,10 +263,10 @@ async function handleScan() {
             return;
         }
 
-        // Insert into supplement_system
+        // Insert into supplement_makesystem
         const { error: insError } = await supabase.from('supplement_makesystem').insert([{
             ...info,
-            status: 'NO_MATERIAL', // Default when added to tracking
+            status: 'NO_MATERIAL',
             created_at: new Date().toISOString()
         }]);
 
