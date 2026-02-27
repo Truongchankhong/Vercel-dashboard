@@ -119,21 +119,23 @@ async function onCameraScanSuccess(decodedText) {
         if (!code) return;
 
         // Chỉ load lên giao diện, không lưu tự động
-        if (manualRproInput) manualRproInput.value = code;
-        showFeedback(`🔍 Đã nhận mã ${code}. Đang lấy thông tin...`, "text-blue-600");
-
-        await fetchDetails(code);
+        const status = await fetchDetails(code);
 
         // TỰ ĐỘNG TẮT CAMERA SAU KHI QUÉT THÀNH CÔNG
         stopCamera();
 
-        showFeedback(`✅ Đã load mã ${code}. Kiểm tra Qty và bấm [LƯU]`, "text-green-600 font-bold bg-green-50 p-2 rounded-lg border-2 border-green-200");
-        playAudioFeedback(true);
+        if (status === 'found') {
+            showFeedback(`✅ Đã nhận mã ${code} (Có dữ liệu).`, "text-green-600 font-bold bg-green-50 p-2 rounded-lg border-2 border-green-200");
+        } else {
+            showFeedback(`⚠️ Đơn ${code}: Không có thông tin trên server.`, "text-orange-600 bg-orange-50 p-2 rounded-lg border-2 border-orange-200");
+        }
 
-        // 🚀 TỰ ĐỘNG LƯU NẾU ĐƯỢC CHỌN
+        playAudioFeedback(status === 'found');
+
+        // 🚀 TỰ ĐỘNG LƯU (Cả trường hợp có hay không có dữ liệu đều lưu)
         if (autoSaveCheckbox?.checked) {
-            console.log("🚀 Chế độ tự động lưu đang bật (CAMERA)...");
-            setTimeout(() => handleManualSave(), 500);
+            console.log(`🚀 Tự động lưu đang bật (${status === 'found' ? 'Có data' : 'Không data'})...`);
+            setTimeout(() => handleManualSave(), 800);
         }
     }
 }
@@ -172,16 +174,20 @@ document.addEventListener('keydown', (e) => {
                 const code = (rproMatches && rproMatches.length === 1) ? rproMatches[0] : scannedText;
                 if (!isProcessing) {
                     if (manualRproInput) manualRproInput.value = code;
-                    showFeedback(`🔍 Máy quét: ${code}. Đang lấy thông tin...`, "text-blue-600");
+                    if (manualRproInput) manualRproInput.value = code;
+                    fetchDetails(code).then((status) => {
+                        if (status === 'found') {
+                            showFeedback(`✅ Máy quét: ${code} (Có dữ liệu).`, "text-green-600 font-bold bg-green-50 p-2 rounded-lg border-2 border-green-200");
+                        } else {
+                            showFeedback(`⚠️ Đơn ${code}: Không có thông tin trên server.`, "text-orange-600 bg-orange-50 p-2 rounded-lg border-2 border-orange-200");
+                        }
 
-                    fetchDetails(code).then(() => {
-                        showFeedback(`✅ Đã load mã ${code}. Kiểm tra Qty và bấm [LƯU]`, "text-green-600 font-bold bg-green-50 p-2 rounded-lg border-2 border-green-200");
-                        playAudioFeedback(true);
+                        playAudioFeedback(status === 'found');
 
-                        // 🚀 TỰ ĐỘNG LƯU NẾU ĐƯỢC CHỌN
+                        // 🚀 TỰ ĐỘNG LƯU
                         if (autoSaveCheckbox?.checked) {
-                            console.log("🚀 Chế độ tự động lưu đang bật (HANDHELD)...");
-                            setTimeout(() => handleManualSave(), 500);
+                            console.log(`🚀 Tự động lưu đang bật (MÁY QUÉT - ${status === 'found' ? 'Có' : 'Không'} data)...`);
+                            setTimeout(() => handleManualSave(), 800);
                         }
                     });
                 }
@@ -200,11 +206,12 @@ document.addEventListener('keydown', (e) => {
 
 // ==================== AUTO-FETCH NOTE & QUANTITY ====================
 async function fetchDetails(rpro) {
-    if (!rpro || !activeSection) return;
+    if (!rpro || !activeSection) return false;
 
     // Simple RPRO pattern check
-    if (rpro.length < 5) return;
+    if (rpro.length < 5) return false;
 
+    let foundAnyData = false;
     try {
         console.log(`ℹ️ Fetching details for ${rpro} in ${activeSection}...`);
 
@@ -222,6 +229,7 @@ async function fetchDetails(rpro) {
         if (!noteError && noteData && noteData.length > 0) {
             console.log("📝 Found existing note:", noteData[0].note);
             if (manualNoteInput) manualNoteInput.value = noteData[0].note;
+            foundAnyData = true;
         }
 
         // 2. Fetch Default Quantity
@@ -268,6 +276,7 @@ async function fetchDetails(rpro) {
                     }
                 }
             }
+            if (defaultQty > 1 || (confirmData && confirmData.length > 0)) foundAnyData = true;
 
             // === FETCH PU CODE ===
             let puCode = null;
@@ -294,6 +303,7 @@ async function fetchDetails(rpro) {
                     console.log(`🧪 PU from Masterdata: ${puCode}`);
                 }
             }
+            if (puCode) foundAnyData = true;
 
             // Display PU code
             if (puInfoContainer && puCodeDisplay) {
@@ -345,6 +355,7 @@ async function fetchDetails(rpro) {
             if (!trackingError && trackingData && trackingData.length > 0) {
                 defaultQty = trackingData.reduce((sum, item) => sum + (item.quantity || 0), 0);
                 console.log(`📦 ${activeSection}: Default quantity from Dán Scan Out: ${defaultQty}`);
+                foundAnyData = true;
             }
         } else {
             // Hide PU info for any other sections
@@ -358,6 +369,7 @@ async function fetchDetails(rpro) {
     } catch (err) {
         console.error("Error fetching details:", err);
     }
+    return foundAnyData ? 'found' : 'not_found';
 }
 
 // ==================== BATCH PROCESSING MODAL ====================
