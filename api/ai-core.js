@@ -152,13 +152,15 @@ export async function generateAIResponse(prompt, extraContext = "") {
     }
 
     const candidateModels = [
+        "gemini-2.0-flash",
         "gemini-1.5-flash",
-        "gemini-2.0-flash-exp",
-        "gemini-1.5-pro",
-        "gemini-2.0-flash"
+        "gemini-2.0-flash-exp"
     ];
 
     console.log(`🤖 Đang xử lý câu hỏi: "${prompt.substring(0, 50)}..."`);
+
+    // Add a fast-path for non-AI queries if needed in future
+    // For now, optimize Gemini calls
 
     for (const modelName of candidateModels) {
         try {
@@ -166,9 +168,18 @@ export async function generateAIResponse(prompt, extraContext = "") {
             const model = genAI.getGenerativeModel({ model: modelName });
             const finalPrompt = `${SYSTEM_INSTRUCTION}\n\n[DỮ LIỆU HỆ THỐNG]:\n${dataContext}\n\n[CÂU HỎI]: ${prompt}`;
 
-            const result = await model.generateContent(finalPrompt);
-            const response = await result.response;
-            const text = response.text();
+            // Create a promise that rejects in 15 seconds
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("GENERATION_TIMEOUT")), 15000)
+            );
+
+            const generatePromise = (async () => {
+                const result = await model.generateContent(finalPrompt);
+                const response = await result.response;
+                return response.text();
+            })();
+
+            const text = await Promise.race([generatePromise, timeoutPromise]);
 
             if (text) {
                 console.log(`   ✅ Success with ${modelName}`);
@@ -176,6 +187,12 @@ export async function generateAIResponse(prompt, extraContext = "") {
             }
         } catch (err) {
             console.warn(`   ❌ Model ${modelName} failed: ${err.message}`);
+
+            // If it's a timeout or quota issue, move to next model quickly
+            if (err.message === "GENERATION_TIMEOUT") {
+                console.warn(`   ⏱️ Model ${modelName} timed out.`);
+                continue;
+            }
             // Check for quota or key issues
             if (err.message.includes("API_KEY_INVALID") || err.message.includes("API key not found")) {
                 return "🤖 [Hệ thống]: Lỗi xác thực API Key. Vui lòng kiểm tra lại GEMINI_API_KEY trong file ai-core.js.";
