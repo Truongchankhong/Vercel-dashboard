@@ -94,11 +94,20 @@ function renderTable() {
                 ${row.so || '-'}
             </td>
             <td class="px-4 py-3 border-r text-xs">
-                <span class="block font-bold">${row.brand || '-'}</span>
-                <span class="text-[10px] text-gray-500 italic">${row.mold || '-'}</span>
+                <span class="block font-bold text-center">${row.brand || '-'}</span>
+                <span class="text-[10px] text-gray-500 italic block text-center">${row.mold || '-'}</span>
             </td>
-            <td class="px-4 py-3 border-r text-center font-bold text-indigo-600">
-                ${row.total_qty || 0}
+            <td class="px-3 py-3 border-r text-[10px] font-mono text-center break-words max-w-[100px] bg-blue-50/30">
+                ${row.pu || '-'}
+            </td>
+            <td class="px-3 py-3 border-r text-[10px] text-gray-600 text-center break-words max-w-[120px] bg-blue-50/30">
+                ${row.fabric || '-'}
+            </td>
+            <td class="px-4 py-3 border-r text-center">
+                <input type="number" min="0" 
+                    value="${row.total_qty || 0}" 
+                    onchange="handleTotalQtyUpdate('${row.id}', this.value)"
+                    class="w-20 border rounded px-2 py-1 text-center font-bold text-indigo-600 bg-indigo-50 focus:bg-white transition-all">
             </td>
             <td class="px-4 py-3 border-r text-center">
                 <div class="flex flex-col sm:flex-row gap-2 justify-center">
@@ -151,6 +160,23 @@ window.updateNote = async (id, val) => {
         .eq('id', id);
 
     if (error) console.error('Note update error:', error);
+};
+
+window.handleTotalQtyUpdate = async (id, value) => {
+    if (!id || id === 'undefined' || id === 'null') return;
+    const numValue = Number(value) || 0;
+    const { error } = await supabase
+        .from('supplement_makesystem')
+        .update({
+            total_qty: numValue,
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+    if (error) {
+        console.error('Error updating total_qty:', error);
+        alert('Lỗi khi lưu số lượng Total Qty');
+    }
 };
 
 // ==================== SCAN LOGIC ====================
@@ -253,8 +279,10 @@ function exportExcel() {
         'Mã đơn (RPRO)': r.rpro,
         'SO': r.so || '',
         'Brand': r.brand || '',
-        'Khách hàng': r.customer || '',
         'Mã khuôn': r.mold || '',
+        'Mã PU': r.pu || '',
+        'Mã Vải': r.fabric || '',
+        'Khách hàng': r.customer || '',
         'Tổng Qty': r.total_qty || 0,
         'Trạng thái Liệu': r.status === 'HAS_MATERIAL' ? 'Có liệu' : 'Chưa có liệu',
         'Ghi chú WH': r.note || ''
