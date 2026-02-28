@@ -507,7 +507,7 @@ async function loadHistory() {
     let query = supabase.from('surplusgoods').select('*').order('created_at', { ascending: false }).limit(20);
 
     if (q) {
-        query = query.or(`rpro.ilike.%${q}%,bom.ilike.%${q}%`);
+        query = query.or(`rpro.ilike.%${q}%,bom.ilike.%${q}%,fabric.ilike.%${q}%`);
     }
 
     const { data, error } = await query;

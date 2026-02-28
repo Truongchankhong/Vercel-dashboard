@@ -72,18 +72,20 @@
                         <div class="flex-1 relative">
                             <label class="block text-xs font-black text-slate-400 uppercase mb-2 ml-1">Nhập hoặc Quét mã
                                 RPRO:</label>
-                            <div class="flex gap-2">
+                            <div class="flex flex-col gap-3">
                                 <input type="text" id="rpro-input" autofocus
-                                    class="w-full bg-slate-50 border-2 border-slate-200 p-4 rounded-2xl text-xl font-mono font-bold focus:border-teal-500 focus:ring-4 focus:ring-teal-100 outline-none transition-all"
+                                    class="w-full bg-slate-50 border-2 border-slate-200 p-4 rounded-2xl text-lg font-mono font-bold focus:border-teal-500 focus:ring-4 focus:ring-teal-100 outline-none transition-all placeholder:text-sm"
                                     placeholder="RPRO-XXX-XXX...">
-                                <button id="btn-search-manual"
-                                    class="px-6 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-700 shadow-lg transition active:scale-95">
-                                    🔍 Tìm
-                                </button>
-                                <button id="btn-scan-camera"
-                                    class="px-4 bg-teal-100 text-teal-700 rounded-2xl border-2 border-teal-200 hover:bg-teal-200 transition">
-                                    📷
-                                </button>
+                                <div class="flex gap-2">
+                                    <button id="btn-search-manual"
+                                        class="flex-1 py-3 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-700 shadow-lg transition active:scale-95">
+                                        🔍 Tìm
+                                    </button>
+                                    <button id="btn-scan-camera"
+                                        class="px-6 py-3 bg-teal-100 text-teal-700 rounded-2xl border-2 border-teal-200 hover:bg-teal-200 transition">
+                                        📷 Quét Mã
+                                    </button>
+                                </div>
                             </div>
                             <div id="qr-reader"
                                 class="hidden mt-4 overflow-hidden rounded-2xl border-2 border-teal-500"></div>
@@ -166,7 +168,7 @@
                     </h3>
 
                     <div class="relative mb-6">
-                        <input type="text" id="history-search" placeholder="Tìm RPRO hoặc BOM..."
+                        <input type="text" id="history-search" placeholder="Tìm RPRO, BOM hoặc Tên Vải..."
                             class="w-full bg-slate-50 border-2 border-slate-200 p-3 pr-10 rounded-2xl focus:border-teal-500 outline-none transition-all font-bold text-sm">
                         <span class="absolute right-3 top-3.5 text-slate-400">🔍</span>
                     </div>
