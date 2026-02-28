@@ -322,6 +322,7 @@ function detectExtraSizes(order) {
 }
 
 function enableInput() {
+    orderInfoContainer.classList.remove('opacity-50', 'pointer-events-none');
     sizeInputPanel.classList.remove('opacity-50', 'pointer-events-none');
     if (sectionSelector) sectionSelector.classList.remove('opacity-50', 'pointer-events-none');
 }
