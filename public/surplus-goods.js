@@ -371,17 +371,15 @@ async function handleScan(text) {
     showToast("🔍 Đang tìm thông tin đơn hàng...", "info");
 
     try {
-        // Tầng 0: Kiểm tra surplusgoods
-        let existingSurplusQuery = supabase.from('surplusgoods').select('*');
-        if (currentRproType === 'pu') {
-            existingSurplusQuery = existingSurplusQuery.ilike('pu', `%${rpro}%`);
-        } else if (currentRproType === 'fabric') {
-            existingSurplusQuery = existingSurplusQuery.ilike('fabric', `%${rpro}%`);
-        } else {
-            existingSurplusQuery = existingSurplusQuery.or(`rpro.eq."${rpro}",pu.eq."${rpro}",fabric.eq."${rpro}"`);
+        // Tầng 0: Kiểm tra surplusgoods (Chỉ tìm RPRO, không ép lấy đơn cũ khi đang dò PU/Vải)
+        let existingSurplus = null;
+        if (currentRproType === 'rpro') {
+            const { data } = await supabase.from('surplusgoods')
+                .select('*')
+                .or(`rpro.eq."${rpro}",pu.eq."${rpro}",fabric.eq."${rpro}"`)
+                .maybeSingle();
+            existingSurplus = data;
         }
-
-        const { data: existingSurplus } = await existingSurplusQuery.maybeSingle();
 
         if (existingSurplus) {
             editingId = existingSurplus.id;
