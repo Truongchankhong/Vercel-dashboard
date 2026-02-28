@@ -247,22 +247,25 @@ async function checkExistingManualEntry() {
     const pu = infoPu.value.trim();
     const fb = infoFabric.value.trim();
 
-    // Search for a record where rpro is equivalent to PU/Fabric or rpro is empty and pu/fabric matches
+    // Search for a record where pu/fabric matches
     let query = supabase.from('surplusgoods')
         .select('*')
         .eq('pu', pu)
-        .eq('fabric', fb);
+        .eq('fabric', fb)
+        .order('created_at', { ascending: false })
+        .limit(1);
 
     if (activeSection) {
         query = query.eq('section', activeSection);
     }
 
-    const { data, error } = await query.maybeSingle();
+    const { data, error } = await query;
+    const existingData = data && data.length > 0 ? data[0] : null;
 
-    if (data) {
-        editingId = data.id;
-        activeOrderData = data;
-        loadSurplusDataToUI(data);
+    if (existingData) {
+        editingId = existingData.id;
+        activeOrderData = existingData;
+        loadSurplusDataToUI(existingData);
         showToast("⚠️ Đơn với cặp vật tư này đã tồn tại! Bạn đang thao tác trên đơn cũ. Nhấn '✂️ Tách Đơn' nếu muốn tạo dòng nhập kho riêng.", "orange");
         if (btnSplitSurplus) btnSplitSurplus.classList.remove('hidden');
     }
@@ -413,14 +416,16 @@ async function handleScan(text) {
         if (currentRproType === 'rpro') {
             let query = supabase.from('surplusgoods')
                 .select('*')
-                .or(`rpro.eq."${rpro}",pu.eq."${rpro}",fabric.eq."${rpro}"`);
+                .or(`rpro.eq."${rpro}",pu.eq."${rpro}",fabric.eq."${rpro}"`)
+                .order('created_at', { ascending: false })
+                .limit(1);
 
             if (activeSection) {
                 query = query.eq('section', activeSection);
             }
 
-            const { data } = await query.maybeSingle();
-            existingSurplus = data;
+            const { data } = await query;
+            existingSurplus = data && data.length > 0 ? data[0] : null;
         }
 
         if (existingSurplus) {
@@ -754,8 +759,12 @@ async function saveSurplus() {
             // UPDATE existing
             result = await supabase.from('surplusgoods').update(payload).eq('id', editingId);
         } else {
-            // Check if this exact rpro already exists in surplusgoods to prevent duplicates
-            const { data: existData } = await supabase.from('surplusgoods').select('id').eq('rpro', payload.rpro).maybeSingle();
+            // Check if this exact rpro already exists in surplusgoods IN THE SAME SECTION to prevent duplicates
+            const { data: existData } = await supabase.from('surplusgoods')
+                .select('id')
+                .eq('rpro', payload.rpro)
+                .eq('section', activeSection)
+                .maybeSingle();
 
             if (existData) {
                 // UPDATE existing fallback
@@ -840,7 +849,8 @@ function loadSurplusDataToUI(data) {
             `;
         }).join('');
     }
-    if (data.section) {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('section') && data.section) {
         updateActiveSection(data.section);
     }
 
