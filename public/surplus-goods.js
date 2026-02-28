@@ -668,8 +668,7 @@ window.previewEntry = async (id) => {
     infoFabric.onclick = () => alert("Mã Vải đầy đủ:\n" + fbFull);
 
     // Highlight UI
-    orderInfoContainer.classList.remove('opacity-50', 'pointer-events-none');
-    sizeInputPanel.classList.remove('opacity-50', 'pointer-events-none');
+    enableInput();
 
     // Fill standard sizes
     Object.keys(data).forEach(k => {
@@ -678,6 +677,11 @@ window.previewEntry = async (id) => {
             if (input) input.value = data[k];
         }
     });
+
+    // Load section if exists
+    if (data.section) {
+        updateActiveSection(data.section);
+    }
 
     // Check for dynamic sizes from this record
     const dyn = data.dynamic_sizes || {};
