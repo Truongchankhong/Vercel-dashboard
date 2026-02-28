@@ -169,25 +169,51 @@ async function updateSuggestions(column, value, datalistId) {
 
     suggestionTimeout = setTimeout(async () => {
         try {
-            // First try surplusgoods for existing manual entries
-            const { data: surplusData } = await supabase.from('surplusgoods')
-                .select(column)
-                .ilike(column === 'PU DESCRIPTION' ? 'pu' : 'fabric', `%${value}%`)
-                .limit(5);
+            const promises = [];
+            const isPu = column === 'PU DESCRIPTION';
+            const val = value.trim();
 
-            // Then try Masterdata for suggestions
-            const { data: masterData } = await supabase.from('Masterdata')
-                .select(column)
-                .ilike(column, `%${value}%`)
-                .limit(5);
+            // surplusgoods table uses 'pu' and 'fabric'
+            promises.push(supabase.from('surplusgoods')
+                .select(isPu ? 'pu' : 'fabric')
+                .ilike(isPu ? 'pu' : 'fabric', `%${val}%`)
+                .limit(5));
 
+            if (isPu) {
+                promises.push(supabase.from('powerapp').select('PU DESCRIPTION, Mã dao').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('powerapp').select('PU DESCRIPTION, Mã dao').ilike('Mã dao', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('PU DESCRIPTION, Mã dao').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('PU DESCRIPTION, Mã dao').ilike('Mã dao', `%${val}%`).limit(5));
+            } else {
+                promises.push(supabase.from('powerapp').select('FB DESCRIPTION, Tên vải, FABRIC DESCRIPTION').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('powerapp').select('FB DESCRIPTION, Tên vải, FABRIC DESCRIPTION').ilike('Tên vải', `%${val}%`).limit(5));
+                promises.push(supabase.from('powerapp').select('FB DESCRIPTION, Tên vải, FABRIC DESCRIPTION').ilike('FABRIC DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('FB DESCRIPTION, Tên vải, FABRIC DESCRIPTION').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('FB DESCRIPTION, Tên vải, FABRIC DESCRIPTION').ilike('Tên vải', `%${val}%`).limit(5));
+            }
+
+            const results = await Promise.all(promises);
             const allVals = new Set();
-            if (surplusData) surplusData.forEach(d => allVals.add(d[column === 'PU DESCRIPTION' ? 'pu' : 'fabric']));
-            if (masterData) masterData.forEach(d => allVals.add(d[column]));
+
+            results.forEach(r => {
+                if (r.data) {
+                    r.data.forEach(d => {
+                        if (isPu) {
+                            const pu = d['PU DESCRIPTION'] || d['Mã dao'] || d['pu'];
+                            if (pu && pu.toLowerCase().includes(val.toLowerCase())) allVals.add(pu);
+                        } else {
+                            const fb = d['FB DESCRIPTION'] || d['Tên vải'] || d['FABRIC DESCRIPTION'] || d['fabric'];
+                            if (fb && fb.toLowerCase().includes(val.toLowerCase())) allVals.add(fb);
+                        }
+                    });
+                }
+            });
 
             const datalist = document.getElementById(datalistId);
-            datalist.innerHTML = Array.from(allVals).map(v => `<option value="${v}">`).join('');
-        } catch (err) { console.error(err); }
+            if (datalist) {
+                datalist.innerHTML = Array.from(allVals).map(v => `<option value="${v}">`).join('');
+            }
+        } catch (err) { console.error("Error fetching suggestions:", err); }
     }, 300);
 }
 
