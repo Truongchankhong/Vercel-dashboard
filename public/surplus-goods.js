@@ -11,6 +11,7 @@ let extraSizes = []; // Any sizes found outside the standard range
 let html5QrScanner = null;
 let isScanning = false;
 let activeSection = null; // LPS, MOLDING, LEANLINE
+let currentSearchType = 'rpro'; // Default search type
 
 // ==================== DOM ELEMENTS ====================
 const rproInput = document.getElementById('rpro-input');
@@ -30,6 +31,7 @@ const btnNewEntry = document.getElementById('btn-new-entry');
 const entryNote = document.getElementById('entry-note');
 const historySearch = document.getElementById('history-search');
 const historyList = document.getElementById('history-list');
+const searchTypeBtns = document.querySelectorAll('.search-type-btn');
 
 // Export Elements
 const btnExportExcel = document.getElementById('btn-export-excel');
@@ -120,6 +122,36 @@ function setupEventListeners() {
             updateActiveSection(section);
         };
     });
+
+    // History Search Type Filters
+    searchTypeBtns.forEach(btn => {
+        btn.onclick = () => {
+            currentSearchType = btn.dataset.type;
+            updateSearchTypeUI();
+            loadHistory();
+        };
+    });
+}
+
+function updateSearchTypeUI() {
+    searchTypeBtns.forEach(btn => {
+        if (btn.dataset.type === currentSearchType) {
+            btn.classList.add('bg-slate-800', 'text-white', 'border-slate-800', 'shadow-sm');
+            btn.classList.remove('border-slate-100', 'text-slate-500', 'hover:bg-slate-50');
+        } else {
+            btn.classList.remove('bg-slate-800', 'text-white', 'border-slate-800', 'shadow-sm');
+            btn.classList.add('border-slate-100', 'text-slate-500', 'hover:bg-slate-50');
+        }
+    });
+
+    // Update placeholder based on type
+    const placeholders = {
+        rpro: "Tìm theo mã RPRO...",
+        bom: "Tìm theo mã BOM...",
+        pu: "Tìm theo mã PU / PU Description...",
+        fabric: "Tìm theo tên Vải / Fabric..."
+    };
+    if (historySearch) historySearch.placeholder = placeholders[currentSearchType] || "Tìm kiếm...";
 }
 
 function updateActiveSection(section) {
@@ -552,7 +584,13 @@ async function loadHistory() {
     let query = supabase.from('surplusgoods').select('*').order('created_at', { ascending: false }).limit(20);
 
     if (q) {
-        query = query.or(`rpro.ilike.%${q}%,bom.ilike.%${q}%,fabric.ilike.%${q}%`);
+        // Targeted search based on selected type
+        let rqlColumn = "rpro";
+        if (currentSearchType === "bom") rqlColumn = "bom";
+        if (currentSearchType === "pu") rqlColumn = "pu";
+        if (currentSearchType === "fabric") rqlColumn = "fabric";
+
+        query = query.ilike(rqlColumn, `%${q}%`);
     }
 
     const { data, error } = await query;
