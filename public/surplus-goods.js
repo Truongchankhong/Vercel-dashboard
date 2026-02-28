@@ -45,12 +45,15 @@ const infoFabric = document.getElementById('info-fabric');
 function init() {
     renderSizeGrid();
     setupEventListeners();
-    loadHistory();
+    // Set default dates for export (last 7 days)
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 7);
 
-    // Set default dates for export
-    const today = new Date().toISOString().split('T')[0];
-    if (exportStartDate) exportStartDate.value = today;
-    if (exportEndDate) exportEndDate.value = today;
+    if (exportStartDate) exportStartDate.value = start.toISOString().split('T')[0];
+    if (exportEndDate) exportEndDate.value = end.toISOString().split('T')[0];
+
+    loadHistory();
 }
 
 function renderSizeGrid() {
