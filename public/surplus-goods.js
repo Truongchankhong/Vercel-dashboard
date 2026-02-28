@@ -6,12 +6,14 @@ const STANDARD_SIZES = [
 ];
 
 let activeOrderData = null; // Currently scanned RPRO data
+let editingId = null; // Track if we are editing an existing surplus record
 let extraSizes = []; // Any sizes found outside the standard range
 let html5QrScanner = null;
 let isScanning = false;
 
 // ==================== DOM ELEMENTS ====================
 const rproInput = document.getElementById('rpro-input');
+const btnSearchManual = document.getElementById('btn-search-manual');
 const btnScanCamera = document.getElementById('btn-scan-camera');
 const qrReaderDiv = document.getElementById('qr-reader');
 const orderInfoContainer = document.getElementById('order-info-container');
@@ -59,6 +61,11 @@ function setupEventListeners() {
         if (e.key === 'Enter') handleScan(rproInput.value.trim());
     });
 
+    // Manual Search Button
+    if (btnSearchManual) {
+        btnSearchManual.onclick = () => handleScan(rproInput.value.trim());
+    }
+
     // Camera Scan
     btnScanCamera.onclick = toggleCamera;
 
@@ -78,16 +85,52 @@ async function handleScan(text) {
     if (!text) return;
     let rpro = text.toUpperCase();
 
-    // Normalize RPRO logic
+    // Smart Normalize RPRO logic
+    // 1. Remove obvious delimiters like | from QR
     if (rpro.includes('|')) rpro = rpro.split('|').find(p => p.startsWith('RPRO')) || rpro;
-    if (!rpro.startsWith('RPRO-')) rpro = 'RPRO-' + rpro.replace(/^RPRO-?/i, '');
 
-    rpro = rpro.replace(/-+/g, '-');
+    // 2. Clean input: Remove 'RPRO' prefix if exists to work with pure numbers
+    let pureNumbers = rpro.replace(/^RPRO-?/i, '').replace(/[^A-Z0-9]/g, '');
+
+    // 3. Re-construct standard format: RPRO-XXXXXX-XXXX
+    if (pureNumbers.length === 10) {
+        // Format YYMMDDXXXX -> RPRO-YYMMDD-XXXX
+        rpro = `RPRO-${pureNumbers.substring(0, 6)}-${pureNumbers.substring(6)}`;
+    } else {
+        // Fallback for other lengths (e.g. already has dash or partial)
+        rpro = 'RPRO-' + rpro.replace(/^RPRO-?/i, '').replace(/-+/g, '-');
+    }
+
     rproInput.value = rpro;
 
     showToast("🔍 Đang tìm thông tin đơn hàng...", "info");
 
     try {
+        // Tầng 0: Kiểm tra xem đơn này đã được nhập hàng dư chưa (để sửa)
+        const { data: existingSurplus } = await supabase.from('surplusgoods').select('*').eq('rpro', rpro).maybeSingle();
+
+        if (existingSurplus) {
+            editingId = existingSurplus.id;
+            activeOrderData = existingSurplus; // Use legacy fields if needed
+            // Map legacy fields to match powerapp structure for displayOrderInfo
+            const mappedData = {
+                'PRO ODER': existingSurplus.rpro,
+                'Brand Code': existingSurplus.brand_code,
+                '#MOLD': existingSurplus.mold,
+                'BOM': existingSurplus.bom,
+                'PU DESCRIPTION': existingSurplus.pu,
+                'FB DESCRIPTION': existingSurplus.fabric,
+                'note': existingSurplus.note,
+                ...existingSurplus // Include size columns
+            };
+
+            displayOrderInfo(mappedData);
+            loadSurplusDataToUI(existingSurplus);
+            enableInput();
+            showToast("📝 Đã tìm thấy đơn hàng cũ. Bạn có thể cập nhật!", "orange");
+            return;
+        }
+
         // Tầng 1: Powerapp
         let { data: order, error } = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle();
 
@@ -259,23 +302,67 @@ async function saveSurplus() {
     }
 
     try {
-        const { error } = await supabase.from('surplusgoods').insert([payload]);
-        if (error) throw error;
+        let result;
+        if (editingId) {
+            // UPDATE existing
+            result = await supabase.from('surplusgoods').update(payload).eq('id', editingId);
+        } else {
+            // INSERT new
+            result = await supabase.from('surplusgoods').insert([payload]);
+        }
 
-        showToast("🎉 Đã lưu thông tin hàng dư thành công!", "success");
+        if (result.error) throw result.error;
+
+        showToast("🎉 Lưu thông tin thành công!", "success");
         loadHistory();
         resetEntry();
     } catch (err) {
         console.error(err);
-        showToast("❌ Lỗi khi lưu dữ liệu: " + err.message, "error");
+        showToast("❌ Lỗi khi lưu: " + err.message, "error");
     } finally {
         btnSaveSurplus.disabled = false;
         btnSaveSurplus.textContent = "💾 LƯU DỮ LIỆU";
     }
 }
 
+// Function to load surplus record data back into the form
+function loadSurplusDataToUI(data) {
+    entryNote.value = data.note || '';
+
+    // Fill standard sizes
+    STANDARD_SIZES.forEach(size => {
+        const id = `size_${size.toString().replace('.', '_')}`;
+        const input = document.getElementById(id);
+        if (input) input.value = data[id] || 0;
+    });
+
+    // Handle extra sizes
+    extraSizes = [];
+    extraSizeGrid.innerHTML = '';
+    extraSizesContainer.classList.add('hidden');
+
+    const dyn = data.dynamic_sizes || {};
+    const dynKeys = Object.keys(dyn).map(k => parseFloat(k));
+
+    if (dynKeys.length > 0) {
+        extraSizes = dynKeys;
+        extraSizesContainer.classList.remove('hidden');
+        extraSizeGrid.innerHTML = dynKeys.sort((a, b) => a - b).map(size => {
+            const id = `size_${size.toString().replace('.', '_')}`;
+            return `
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-black text-orange-600 text-center uppercase">Size ${size}</label>
+                    <input type="number" id="${id}" data-size="${size}" min="0" value="${dyn[size]}"
+                        class="size-input w-full bg-orange-50 border border-orange-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-orange-100 outline-none transition-all">
+                </div>
+            `;
+        }).join('');
+    }
+}
+
 function resetEntry() {
     activeOrderData = null;
+    editingId = null;
     extraSizes = [];
     rproInput.value = '';
     entryNote.value = '';
@@ -366,6 +453,7 @@ window.previewEntry = async (id) => {
     if (error || !data) return;
 
     resetEntry();
+    editingId = data.id;
 
     // Fill basic info
     rproInput.value = data.rpro;
