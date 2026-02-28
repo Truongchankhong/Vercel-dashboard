@@ -56,6 +56,14 @@ function renderSizeGrid() {
 }
 
 function setupEventListeners() {
+    // Size Highlights & Event Delegation
+    sizeGrid.addEventListener('input', (e) => {
+        if (e.target.classList.contains('size-input')) updateSizeHighlights();
+    });
+    extraSizeGrid.addEventListener('input', (e) => {
+        if (e.target.classList.contains('size-input')) updateSizeHighlights();
+    });
+
     // Handheld scan & Enter key
     rproInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleScan(rproInput.value.trim());
@@ -127,6 +135,7 @@ async function handleScan(text) {
             displayOrderInfo(mappedData);
             loadSurplusDataToUI(existingSurplus);
             enableInput();
+            updateSizeHighlights();
             showToast("📝 Đã tìm thấy đơn hàng cũ. Bạn có thể cập nhật!", "orange");
             return;
         }
@@ -383,7 +392,31 @@ function resetEntry() {
     // Reset info text
     [infoBrand, infoMold, infoBom, infoPu, infoFabric].forEach(el => el.textContent = '-');
 
+    updateSizeHighlights();
     rproInput.focus();
+}
+
+function updateSizeHighlights() {
+    document.querySelectorAll('.size-input').forEach(input => {
+        const val = parseFloat(input.value) || 0;
+        const isExtra = input.closest('#extra-size-grid');
+
+        if (val > 0) {
+            // Highlighted state
+            if (isExtra) {
+                input.className = "size-input w-full bg-orange-500 border-2 border-orange-600 p-2 rounded-xl text-center font-black text-white shadow-lg ring-4 ring-orange-100 outline-none transition-all scale-105 z-10";
+            } else {
+                input.className = "size-input w-full bg-teal-500 border-2 border-teal-600 p-2 rounded-xl text-center font-black text-white shadow-lg ring-4 ring-teal-100 outline-none transition-all scale-105 z-10";
+            }
+        } else {
+            // Normal state
+            if (isExtra) {
+                input.className = "size-input w-full bg-orange-50 border border-orange-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-orange-100 outline-none transition-all";
+            } else {
+                input.className = "size-input w-full bg-slate-50 border border-slate-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-teal-100 outline-none transition-all";
+            }
+        }
+    });
 }
 
 // ==================== HISTORY & SEARCH ====================
