@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS Surplusgoods (
     bom TEXT,
     pu TEXT,
     fabric TEXT,
+    section TEXT,
     note TEXT,
     
     -- Size columns #3 to #15 (0.5 increments)

@@ -10,6 +10,7 @@ let editingId = null; // Track if we are editing an existing surplus record
 let extraSizes = []; // Any sizes found outside the standard range
 let html5QrScanner = null;
 let isScanning = false;
+let activeSection = null; // LPS, MOLDING, LEANLINE
 
 // ==================== DOM ELEMENTS ====================
 const rproInput = document.getElementById('rpro-input');
@@ -21,6 +22,8 @@ const sizeInputPanel = document.getElementById('size-input-panel');
 const sizeGrid = document.getElementById('size-grid');
 const extraSizesContainer = document.getElementById('extra-sizes-container');
 const extraSizeGrid = document.getElementById('extra-size-grid');
+const sectionSelector = document.getElementById('section-selector');
+const sectionBtns = document.querySelectorAll('.section-btn');
 const btnSaveSurplus = document.getElementById('btn-save-surplus');
 const btnDeleteSurplus = document.getElementById('btn-delete-surplus');
 const btnNewEntry = document.getElementById('btn-new-entry');
@@ -109,6 +112,27 @@ function setupEventListeners() {
     if (btnExportExcel) {
         btnExportExcel.onclick = exportSurplusExcel;
     }
+
+    // Section Selector
+    sectionBtns.forEach(btn => {
+        btn.onclick = () => {
+            const section = btn.dataset.section;
+            updateActiveSection(section);
+        };
+    });
+}
+
+function updateActiveSection(section) {
+    activeSection = section;
+    sectionBtns.forEach(b => {
+        if (b.dataset.section === section) {
+            b.classList.add('bg-teal-600', 'text-white', 'border-teal-700', 'shadow-md');
+            b.classList.remove('border-slate-100', 'text-slate-600', 'hover:bg-slate-50');
+        } else {
+            b.classList.remove('bg-teal-600', 'text-white', 'border-teal-700', 'shadow-md');
+            b.classList.add('border-slate-100', 'text-slate-600', 'hover:bg-slate-50');
+        }
+    });
 }
 
 // ==================== SCAN LOGIC ====================
@@ -267,6 +291,7 @@ function detectExtraSizes(order) {
 
 function enableInput() {
     sizeInputPanel.classList.remove('opacity-50', 'pointer-events-none');
+    if (sectionSelector) sectionSelector.classList.remove('opacity-50', 'pointer-events-none');
 }
 
 // ==================== CAMERA SCANNER ====================
@@ -319,6 +344,13 @@ async function saveSurplus() {
     btnSaveSurplus.textContent = "⏳ Đang lưu...";
 
     const rpro = activeOrderData['PRO ODER'] || activeOrderData['rpro'];
+    if (!activeSection) {
+        showToast("⚠️ Vui lòng chọn Section!", "error");
+        btnSaveSurplus.disabled = false;
+        btnSaveSurplus.textContent = "💾 LƯU DỮ LIỆU";
+        return;
+    }
+
     const payload = {
         rpro: rpro,
         so: activeOrderData['SO'] || activeOrderData['so'] || activeOrderData['Sales Order'] || '',
@@ -327,6 +359,7 @@ async function saveSurplus() {
         bom: activeOrderData['bom'] || activeOrderData['BOM'] || '',
         pu: activeOrderData['pu'] || activeOrderData['PU DESCRIPTION'] || activeOrderData['Mã dao'] || activeOrderData['PU'] || '',
         fabric: activeOrderData['fabric'] || activeOrderData['FB DESCRIPTION'] || activeOrderData['Tên vải'] || '',
+        section: activeSection,
         note: entryNote.value.trim(),
         dynamic_sizes: {}
     };
@@ -440,6 +473,10 @@ function loadSurplusDataToUI(data) {
             `;
         }).join('');
     }
+    if (data.section) {
+        updateActiveSection(data.section);
+    }
+
     updateSizeHighlights();
 }
 
@@ -469,6 +506,14 @@ function clearFormFields() {
     // Reset UI states
     orderInfoContainer.classList.add('opacity-50', 'pointer-events-none');
     sizeInputPanel.classList.add('opacity-50', 'pointer-events-none');
+    if (sectionSelector) sectionSelector.classList.add('opacity-50', 'pointer-events-none');
+
+    // Reset section buttons
+    activeSection = null;
+    sectionBtns.forEach(b => {
+        b.classList.remove('bg-teal-600', 'text-white', 'border-teal-700', 'shadow-md');
+        b.classList.add('border-slate-100', 'text-slate-600', 'hover:bg-slate-50');
+    });
 
     // Reset info text
     [infoBrand, infoMold, infoBom, infoPu, infoFabric].forEach(el => el.textContent = '-');
@@ -682,6 +727,7 @@ async function exportSurplusExcel() {
                 'BOM': item.bom || '',
                 'PU': item.pu || '',
                 'Fabric': item.fabric || '',
+                'Section': item.section || '',
                 'Ghi chú': item.note || ''
             };
 
