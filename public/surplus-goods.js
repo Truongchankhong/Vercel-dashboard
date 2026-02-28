@@ -28,6 +28,11 @@ const entryNote = document.getElementById('entry-note');
 const historySearch = document.getElementById('history-search');
 const historyList = document.getElementById('history-list');
 
+// Export Elements
+const btnExportExcel = document.getElementById('btn-export-excel');
+const exportStartDate = document.getElementById('export-start-date');
+const exportEndDate = document.getElementById('export-end-date');
+
 // Info Display
 const infoBrand = document.getElementById('info-brand');
 const infoMold = document.getElementById('info-mold');
@@ -41,6 +46,11 @@ function init() {
     renderSizeGrid();
     setupEventListeners();
     loadHistory();
+
+    // Set default dates for export
+    const today = new Date().toISOString().split('T')[0];
+    if (exportStartDate) exportStartDate.value = today;
+    if (exportEndDate) exportEndDate.value = today;
 }
 
 function renderSizeGrid() {
@@ -91,6 +101,11 @@ function setupEventListeners() {
 
     // Search History
     historySearch.addEventListener('input', debounce(loadHistory, 300));
+
+    // Export Excel
+    if (btnExportExcel) {
+        btnExportExcel.onclick = exportSurplusExcel;
+    }
 }
 
 // ==================== SCAN LOGIC ====================
@@ -618,6 +633,85 @@ function showToast(msg, type = "success") {
         toast.style.opacity = "0";
         toast.style.transform = "translate(-50%, 20px)";
     }, 3000);
+}
+
+// ==================== EXCEL EXPORT ====================
+
+async function exportSurplusExcel() {
+    const start = exportStartDate.value;
+    const end = exportEndDate.value;
+
+    if (!start || !end) {
+        showToast("⚠️ Vui lòng chọn khoảng ngày!", "error");
+        return;
+    }
+
+    showToast("⏳ Đang chuẩn bị dữ liệu Excel...", "info");
+    btnExportExcel.disabled = true;
+
+    try {
+        const startTimestamp = `${start}T00:00:00`;
+        const endTimestamp = `${end}T23:59:59`;
+
+        const { data, error } = await supabase
+            .from('surplusgoods')
+            .select('*')
+            .gte('created_at', startTimestamp)
+            .lte('created_at', endTimestamp)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            showToast("❌ Không có dữ liệu trong khoảng ngày này!", "error");
+            btnExportExcel.disabled = false;
+            return;
+        }
+
+        // Prepare data for XLSX
+        const exportData = data.map(item => {
+            const row = {
+                'Ngày nhập': new Date(item.created_at).toLocaleString('vi-VN'),
+                'Mã RPRO': item.rpro,
+                'Sales Order': item.so || '',
+                'Brand': item.brand_code || '',
+                'Mold': item.mold || '',
+                'BOM': item.bom || '',
+                'PU': item.pu || '',
+                'Fabric': item.fabric || '',
+                'Ghi chú': item.note || ''
+            };
+
+            // Add standard sizes
+            STANDARD_SIZES.forEach(size => {
+                const colName = `Size ${size}`;
+                const key = `size_${size.toString().replace('.', '_')}`;
+                row[colName] = item[key] || 0;
+            });
+
+            // Add dynamic/extra sizes
+            const dyn = item.dynamic_sizes || {};
+            Object.keys(dyn).forEach(sz => {
+                row[`Size ${sz} (Lạ)`] = dyn[sz];
+            });
+
+            return row;
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Surplus_Goods");
+
+        const fileName = `Surplus_Goods_${start}_den_${end}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        showToast("✅ Đã tải file Excel thành công!", "success");
+    } catch (err) {
+        console.error(err);
+        showToast("❌ Lỗi xuất Excel: " + err.message, "error");
+    } finally {
+        btnExportExcel.disabled = false;
+    }
 }
 
 function debounce(func, wait) {

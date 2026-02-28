@@ -168,6 +168,29 @@
                     </div>
                     <p class="text-[10px] text-slate-400 italic mb-4 ml-1"># Danh sách 20 đơn mới nhất</p>
 
+                    <!-- Export Section -->
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6">
+                        <h4 class="text-[10px] font-black text-slate-400 uppercase mb-3 flex items-center gap-1">
+                            📊 Xuất báo cáo Excel
+                        </h4>
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-500 uppercase ml-1">Từ ngày:</label>
+                                <input type="date" id="export-start-date"
+                                    class="w-full bg-white border border-slate-200 p-2 rounded-xl text-xs font-bold outline-none focus:border-teal-500 transition-all">
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-500 uppercase ml-1">Đến ngày:</label>
+                                <input type="date" id="export-end-date"
+                                    class="w-full bg-white border border-slate-200 p-2 rounded-xl text-xs font-bold outline-none focus:border-teal-500 transition-all">
+                            </div>
+                        </div>
+                        <button id="btn-export-excel"
+                            class="w-full py-3 bg-white text-teal-600 border-2 border-teal-100 rounded-xl font-black text-xs hover:bg-teal-600 hover:text-white hover:border-teal-600 shadow-sm transition-all active:scale-95 uppercase tracking-wider flex items-center justify-center gap-2">
+                            📥 Tải File Excel
+                        </button>
+                    </div>
+
                     <div id="history-list" class="flex-1 space-y-3 overflow-y-auto pr-1 no-scrollbar max-h-[600px]">
                         <!-- History items -->
                         <div class="p-8 text-center text-slate-300 italic text-sm">Nhập thông tin tìm kiếm hoặc load dữ
@@ -183,6 +206,7 @@
         class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 rounded-2xl shadow-2xl text-white font-bold opacity-0 transition-all pointer-events-none">
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="./surplus-goods.js"></script>
 </body>
