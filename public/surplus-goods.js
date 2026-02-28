@@ -141,6 +141,9 @@ function setupEventListeners() {
     infoPu.addEventListener('input', (e) => updateSuggestions('PU DESCRIPTION', e.target.value, 'pu-suggestions'));
     infoFabric.addEventListener('input', (e) => updateSuggestions('FB DESCRIPTION', e.target.value, 'fb-suggestions'));
 
+    infoPu.addEventListener('click', () => { if (infoPu.readOnly && infoPu.value) alert("Mã PU đầy đủ:\n" + infoPu.value); });
+    infoFabric.addEventListener('click', () => { if (infoFabric.readOnly && infoFabric.value) alert("Mã Vải đầy đủ:\n" + infoFabric.value); });
+
     // RPRO Search Type Selection
     rproTypeBtns.forEach(btn => {
         btn.onclick = () => {
@@ -456,6 +459,8 @@ function displayOrderInfo(order) {
 
     infoPu.value = puFull;
     infoFabric.value = fbFull;
+    infoPu.title = puFull;
+    infoFabric.title = fbFull;
 
     orderInfoContainer.classList.remove('opacity-50', 'pointer-events-none');
 }
@@ -507,9 +512,13 @@ function enableInput() {
     if (isManual) {
         infoPu.classList.add('bg-white', 'ring-2', 'ring-teal-100', 'p-1', 'rounded-lg');
         infoFabric.classList.add('bg-white', 'ring-2', 'ring-indigo-100', 'p-1', 'rounded-lg');
+        infoPu.classList.remove('cursor-pointer');
+        infoFabric.classList.remove('cursor-pointer');
     } else {
         infoPu.classList.remove('bg-white', 'ring-2', 'ring-teal-100', 'p-1', 'rounded-lg');
         infoFabric.classList.remove('bg-white', 'ring-2', 'ring-indigo-100', 'p-1', 'rounded-lg');
+        infoPu.classList.add('cursor-pointer');
+        infoFabric.classList.add('cursor-pointer');
     }
 }
 
@@ -856,18 +865,13 @@ window.previewEntry = async (id) => {
     infoMold.textContent = data.mold || '-';
     infoBom.textContent = data.bom || '-';
 
-    const puFull = data.pu || '-';
-    const fbFull = data.fabric || '-';
+    const puFull = data.pu || '';
+    const fbFull = data.fabric || '';
 
-    infoPu.textContent = puFull;
-    infoFabric.textContent = fbFull;
-
-    // Interactive elements for history preview as well
-    infoPu.className = "text-[11px] font-bold text-teal-600 truncate block cursor-pointer hover:underline";
-    infoPu.onclick = () => alert("Mã PU đầy đủ:\n" + puFull);
-
-    infoFabric.className = "text-[11px] font-bold text-indigo-600 truncate block cursor-pointer hover:underline";
-    infoFabric.onclick = () => alert("Mã Vải đầy đủ:\n" + fbFull);
+    infoPu.value = puFull;
+    infoFabric.value = fbFull;
+    infoPu.title = puFull;
+    infoFabric.title = fbFull;
 
     // Highlight UI
     enableInput();
