@@ -22,6 +22,7 @@ const sizeGrid = document.getElementById('size-grid');
 const extraSizesContainer = document.getElementById('extra-sizes-container');
 const extraSizeGrid = document.getElementById('extra-size-grid');
 const btnSaveSurplus = document.getElementById('btn-save-surplus');
+const btnDeleteSurplus = document.getElementById('btn-delete-surplus');
 const btnNewEntry = document.getElementById('btn-new-entry');
 const entryNote = document.getElementById('entry-note');
 const historySearch = document.getElementById('history-search');
@@ -80,6 +81,11 @@ function setupEventListeners() {
     // Save
     btnSaveSurplus.onclick = saveSurplus;
 
+    // Delete
+    if (btnDeleteSurplus) {
+        btnDeleteSurplus.onclick = deleteSurplus;
+    }
+
     // New Entry
     btnNewEntry.onclick = resetEntry;
 
@@ -136,6 +142,7 @@ async function handleScan(text) {
             loadSurplusDataToUI(existingSurplus);
             enableInput();
             updateSizeHighlights();
+            if (btnDeleteSurplus) btnDeleteSurplus.classList.remove('hidden');
             showToast("📝 Đã tìm thấy đơn hàng cũ. Bạn có thể cập nhật!", "orange");
             return;
         }
@@ -323,6 +330,7 @@ async function saveSurplus() {
         if (result.error) throw result.error;
 
         showToast("🎉 Lưu thông tin thành công!", "success");
+        if (btnDeleteSurplus) btnDeleteSurplus.classList.add('hidden');
         loadHistory();
         resetEntry();
     } catch (err) {
@@ -331,6 +339,32 @@ async function saveSurplus() {
     } finally {
         btnSaveSurplus.disabled = false;
         btnSaveSurplus.textContent = "💾 LƯU DỮ LIỆU";
+    }
+}
+
+async function deleteSurplus() {
+    if (!editingId) return;
+
+    if (!confirm("⚠️ BẠN CÓ CHẮC CHẮN MUỐN XÓA ĐƠN NÀY KHÔNG?\nHành động này không thể hoàn tác!")) {
+        return;
+    }
+
+    btnDeleteSurplus.disabled = true;
+    btnDeleteSurplus.textContent = "⌛ Đang xóa...";
+
+    try {
+        const { error } = await supabase.from('surplusgoods').delete().eq('id', editingId);
+        if (error) throw error;
+
+        showToast("🗑️ Đã xóa đơn hàng dôi thành công!", "success");
+        resetEntry();
+        loadHistory();
+    } catch (err) {
+        console.error(err);
+        showToast("❌ Lỗi khi xóa: " + err.message, "error");
+    } finally {
+        btnDeleteSurplus.disabled = false;
+        btnDeleteSurplus.textContent = "🗑️ Xóa đơn";
     }
 }
 
@@ -373,6 +407,7 @@ function loadSurplusDataToUI(data) {
 function resetEntry() {
     activeOrderData = null;
     editingId = null;
+    if (btnDeleteSurplus) btnDeleteSurplus.classList.add('hidden');
     extraSizes = [];
     rproInput.value = '';
     entryNote.value = '';
@@ -488,6 +523,7 @@ window.previewEntry = async (id) => {
 
     resetEntry();
     editingId = data.id;
+    if (btnDeleteSurplus) btnDeleteSurplus.classList.remove('hidden');
     activeOrderData = data; // Ensure saving from preview also works
     rproInput.value = data.rpro;
     entryNote.value = data.note || '';
