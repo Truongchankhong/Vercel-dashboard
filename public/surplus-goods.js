@@ -103,16 +103,32 @@ async function handleScan(text) {
     // 1. Remove obvious delimiters like | from QR
     if (rpro.includes('|')) rpro = rpro.split('|').find(p => p.startsWith('RPRO')) || rpro;
 
-    // 2. Clean input: Remove 'RPRO' prefix if exists to work with pure numbers
-    let pureNumbers = rpro.replace(/^RPRO-?/i, '').replace(/[^A-Z0-9]/g, '');
+    // 1. Extract RPRO from complex strings (using Regex)
+    // Supports: 'RPRO-250101-1234', 'Order: RPRO-250101-1234, Qty: 50', '2501011234'
+    const rproRegex = /RPRO-?\d{6}-?\d{1,4}/i;
+    const match = rpro.match(rproRegex);
+
+    let pureId = "";
+    if (match) {
+        // Use the matched part and clean it
+        pureId = match[0].toUpperCase().replace(/RPRO-?/i, '').replace(/-+/g, '');
+    } else {
+        // Fallback: just take digits if no RPRO prefix found
+        pureId = rpro.replace(/[^0-9]/g, '');
+    }
 
     // 3. Re-construct standard format: RPRO-XXXXXX-XXXX
-    if (pureNumbers.length === 10) {
+    if (pureId.length >= 7) {
         // Format YYMMDDXXXX -> RPRO-YYMMDD-XXXX
-        rpro = `RPRO-${pureNumbers.substring(0, 6)}-${pureNumbers.substring(6)}`;
-    } else {
-        // Fallback for other lengths (e.g. already has dash or partial)
-        rpro = 'RPRO-' + rpro.replace(/^RPRO-?/i, '').replace(/-+/g, '-');
+        rpro = `RPRO-${pureId.substring(0, 6)}-${pureId.substring(6)}`;
+    } else if (pureId.length > 0) {
+        rpro = 'RPRO-' + pureId;
+    }
+
+    // Final check for valid length if formatted partially
+    if (rpro === 'RPRO-') {
+        showToast("⚠️ Mã không hợp lệ hoặc không có dữ liệu RPRO!", "error");
+        return;
     }
 
     rproInput.value = rpro;
@@ -125,7 +141,10 @@ async function handleScan(text) {
 
         if (existingSurplus) {
             editingId = existingSurplus.id;
-            activeOrderData = existingSurplus; // Use legacy fields if needed
+            activeOrderData = existingSurplus;
+
+            clearFormFields();
+
             // Map legacy fields to match powerapp structure for displayOrderInfo
             const mappedData = {
                 'PRO ODER': existingSurplus.rpro,
@@ -160,6 +179,8 @@ async function handleScan(text) {
             showToast("❌ Không thấy đơn này trên hệ thống!", "error");
             return;
         }
+
+        clearFormFields();
 
         activeOrderData = order;
         displayOrderInfo(order);
@@ -410,6 +431,12 @@ function resetEntry() {
     if (btnDeleteSurplus) btnDeleteSurplus.classList.add('hidden');
     extraSizes = [];
     rproInput.value = '';
+    clearFormFields();
+    rproInput.focus();
+}
+
+// Logic to clear all fields except RPRO input
+function clearFormFields() {
     entryNote.value = '';
     extraSizesContainer.classList.add('hidden');
     extraSizeGrid.innerHTML = '';
@@ -429,7 +456,6 @@ function resetEntry() {
     [infoBrand, infoMold, infoBom, infoPu, infoFabric].forEach(el => el.textContent = '-');
 
     updateSizeHighlights();
-    rproInput.focus();
 }
 
 function updateSizeHighlights() {
@@ -458,13 +484,12 @@ function updateSizeHighlights() {
 // ==================== HISTORY & SEARCH ====================
 
 async function loadHistory() {
-    const q = historySearch.value.trim().toUpperCase();
+    const q = historySearch.value.trim();
 
     let query = supabase.from('surplusgoods').select('*').order('created_at', { ascending: false }).limit(20);
 
-    // Simple search (relative)
     if (q) {
-        // Query filter if provided
+        query = query.or(`rpro.ilike.%${q}%,bom.ilike.%${q}%`);
     }
 
     const { data, error } = await query;
@@ -474,10 +499,7 @@ async function loadHistory() {
         return;
     }
 
-    // Client-side relative search for flexibility (mimicking DB iLike but better for multiple fields)
-    const filtered = q ? data.filter(r =>
-        r.rpro.includes(q) || (r.bom && r.bom.toUpperCase().includes(q))
-    ) : data;
+    const filtered = data; // Already filtered by database if q exists
 
     if (filtered.length === 0) {
         historyList.innerHTML = `<div class="p-8 text-center text-slate-300 italic text-sm">Không tìm thấy dữ liệu phù hợp.</div>`;
