@@ -84,10 +84,14 @@
                                     data-type="fabric">FABRIC</button>
                             </div>
                             <div class="flex flex-col gap-3">
-                                <input type="text" id="rpro-input" autofocus list="rpro-suggestions"
-                                    class="w-full bg-slate-50 border-2 border-slate-200 p-4 rounded-2xl text-base sm:text-lg font-mono font-bold focus:border-teal-500 focus:ring-4 focus:ring-teal-100 outline-none transition-all placeholder:text-sm"
-                                    placeholder="RPRO hoặc Tên PU, Fabric...">
-                                <datalist id="rpro-suggestions"></datalist>
+                                <div class="relative w-full">
+                                    <input type="text" id="rpro-input" autofocus autocomplete="off"
+                                        class="w-full bg-slate-50 border-2 border-slate-200 p-4 rounded-2xl text-base sm:text-lg font-mono font-bold focus:border-teal-500 focus:ring-4 focus:ring-teal-100 outline-none transition-all placeholder:text-sm"
+                                        placeholder="RPRO hoặc Tên PU, Fabric...">
+                                    <div id="rpro-suggestions"
+                                        class="absolute z-50 left-0 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden">
+                                    </div>
+                                </div>
                                 <div class="flex gap-2">
                                     <button id="btn-search-manual"
                                         class="flex-1 py-3 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-700 shadow-lg transition active:scale-95">
@@ -120,22 +124,26 @@
                             <span id="info-bom" class="text-sm font-black text-slate-700">-</span>
                         </div>
                         <div
-                            class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300 col-span-1 min-h-[65px]">
+                            class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300 col-span-1 min-h-[65px] relative">
                             <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">PU
                                 Description</span>
-                            <input list="pu-suggestions" id="info-pu" readonly
+                            <input autocomplete="off" id="info-pu" readonly
                                 class="w-full bg-transparent text-[11px] font-black text-teal-700 outline-none border-none p-0 focus:ring-0 placeholder:text-slate-300"
                                 placeholder="...">
-                            <datalist id="pu-suggestions"></datalist>
+                            <div id="pu-suggestions"
+                                class="absolute z-50 left-0 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden">
+                            </div>
                         </div>
                         <div
-                            class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300 col-span-1 min-h-[65px]">
+                            class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300 col-span-1 min-h-[65px] relative">
                             <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Fabric
                                 Description</span>
-                            <input list="fb-suggestions" id="info-fabric" readonly
+                            <input autocomplete="off" id="info-fabric" readonly
                                 class="w-full bg-transparent text-[11px] font-black text-indigo-700 outline-none border-none p-0 focus:ring-0 placeholder:text-slate-300"
                                 placeholder="...">
-                            <datalist id="fb-suggestions"></datalist>
+                            <div id="fb-suggestions"
+                                class="absolute z-50 left-0 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden">
+                            </div>
                         </div>
                     </div>
                 </div>

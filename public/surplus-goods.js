@@ -159,8 +159,12 @@ function setupEventListeners() {
     });
 
     // Autocomplete for PU and Fabric
-    infoPu.addEventListener('input', (e) => updateSuggestions('PU DESCRIPTION', e.target.value, 'pu-suggestions'));
-    infoFabric.addEventListener('input', (e) => updateSuggestions('FB DESCRIPTION', e.target.value, 'fb-suggestions'));
+    infoPu.addEventListener('input', (e) => {
+        if (!infoPu.readOnly) updateSuggestions('PU DESCRIPTION', e.target.value, 'info-pu', 'pu-suggestions');
+    });
+    infoFabric.addEventListener('input', (e) => {
+        if (!infoFabric.readOnly) updateSuggestions('FB DESCRIPTION', e.target.value, 'info-fabric', 'fb-suggestions');
+    });
 
     // Manual Split Event
     if (btnSplitSurplus) {
@@ -200,9 +204,57 @@ function setupEventListeners() {
     });
 }
 
+function renderCustomDropdown(inputId, dropdownId, valuesArray) {
+    const dropdown = document.getElementById(dropdownId);
+    if (!dropdown) return;
+
+    if (!valuesArray || valuesArray.length === 0) {
+        dropdown.innerHTML = '';
+        dropdown.classList.add('hidden');
+        return;
+    }
+
+    dropdown.innerHTML = valuesArray.map(val => `
+        <div class="px-4 py-3 border-b border-slate-100 text-sm cursor-pointer hover:bg-teal-50 text-slate-700 transition"
+             onclick="selectDropdownItem('${inputId}', '${dropdownId}', \`${val.replace(/`/g, '\\`').replace(/'/g, "\\'")}\`)">
+             ${val}
+        </div>
+    `).join('');
+    dropdown.classList.remove('hidden');
+}
+
+window.selectDropdownItem = function (inputId, dropdownId, value) {
+    const input = document.getElementById(inputId);
+    const dropdown = document.getElementById(dropdownId);
+    if (input) {
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true })); // Trigger listeners
+    }
+    if (dropdown) dropdown.classList.add('hidden');
+};
+
+// Hide dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+    ['rpro-suggestions', 'pu-suggestions', 'fb-suggestions'].forEach(id => {
+        const dd = document.getElementById(id);
+        const input = document.getElementById(id.replace('-suggestions', '-input').replace('pu-', 'info-pu').replace('fb-', 'info-fabric')); // Simplified mapping
+        let relatedInput = null;
+        if (id === 'rpro-suggestions') relatedInput = document.getElementById('rpro-input');
+        if (id === 'pu-suggestions') relatedInput = document.getElementById('info-pu');
+        if (id === 'fb-suggestions') relatedInput = document.getElementById('info-fabric');
+
+        if (dd && !dd.contains(e.target) && relatedInput && !relatedInput.contains(e.target)) {
+            dd.classList.add('hidden');
+        }
+    });
+});
+
 let suggestionTimeout = null;
-async function updateSuggestions(column, value, datalistId) {
-    if (value.length < 2) return;
+async function updateSuggestions(column, value, inputId, datalistId) {
+    if (value.length < 2) {
+        renderCustomDropdown(inputId, datalistId, []);
+        return;
+    }
     clearTimeout(suggestionTimeout);
 
     suggestionTimeout = setTimeout(async () => {
@@ -242,10 +294,7 @@ async function updateSuggestions(column, value, datalistId) {
                 }
             });
 
-            const datalist = document.getElementById(datalistId);
-            if (datalist) {
-                datalist.innerHTML = Array.from(allVals).map(v => `<option value="${v}">`).join('');
-            }
+            renderCustomDropdown(inputId, datalistId, Array.from(allVals));
         } catch (err) { console.error("Error fetching suggestions:", err); }
     }, 300);
 }
@@ -287,8 +336,7 @@ async function checkExistingManualEntry() {
 }
 async function updateRPROSuggestions(value) {
     if (value.length < 3) {
-        const datalist = document.getElementById('rpro-suggestions');
-        if (datalist) datalist.innerHTML = '';
+        renderCustomDropdown('rpro-input', 'rpro-suggestions', []);
         return;
     }
 
@@ -329,8 +377,7 @@ async function updateRPROSuggestions(value) {
             }
         });
 
-        const dl = document.getElementById('rpro-suggestions');
-        if (dl) dl.innerHTML = Array.from(set).map(s => `<option value="${s}">`).join('');
+        renderCustomDropdown('rpro-input', 'rpro-suggestions', Array.from(set));
     } catch (e) { console.error("Error fetching suggestions:", e); }
 }
 
