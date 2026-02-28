@@ -645,7 +645,7 @@ async function saveSurplus() {
             btnSaveSurplus.textContent = "💾 LƯU DỮ LIỆU";
             return;
         }
-        rpro = `MANUAL-${(pu.split(' ')[0] || pu).substring(0, 8)}-${(fabric.split(' ')[0] || fabric).substring(0, 8)}`.replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
+        rpro = `MANUAL-${(pu.split(' ')[0] || pu).substring(0, 15)}-${(fabric.split(' ')[0] || fabric).substring(0, 15)}`.replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
     }
 
     if (!activeSection) {
