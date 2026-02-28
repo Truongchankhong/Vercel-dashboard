@@ -214,21 +214,29 @@ function renderCustomDropdown(inputId, dropdownId, valuesArray) {
         return;
     }
 
-    dropdown.innerHTML = valuesArray.map(val => `
+    dropdown.innerHTML = valuesArray.map(val => {
+        // Securely escape HTML characters to prevent breaking attributes (like double quotes in Fabric names)
+        const safeVal = (val || '').toString().replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `
         <div class="px-4 py-3 border-b border-slate-100 text-sm cursor-pointer hover:bg-teal-50 text-slate-700 transition"
-             onclick="selectDropdownItem('${inputId}', '${dropdownId}', \`${val.replace(/`/g, '\\`').replace(/'/g, "\\'")}\`)">
-             ${val}
+             onclick="selectDropdownItem('${inputId}', '${dropdownId}', this.getAttribute('data-value'))" 
+             data-value="${safeVal}">
+             ${safeVal}
         </div>
-    `).join('');
+        `;
+    }).join('');
     dropdown.classList.remove('hidden');
 }
 
+window._isSubmittingDropdown = false;
 window.selectDropdownItem = function (inputId, dropdownId, value) {
     const input = document.getElementById(inputId);
     const dropdown = document.getElementById(dropdownId);
     if (input) {
+        window._isSubmittingDropdown = true; // Prevent reopening
         input.value = value;
-        input.dispatchEvent(new Event('input', { bubbles: true })); // Trigger listeners
+        input.dispatchEvent(new Event('input', { bubbles: true })); // Trigger background tasks
+        setTimeout(() => { window._isSubmittingDropdown = false; }, 200); // Release lock
     }
     if (dropdown) dropdown.classList.add('hidden');
 };
@@ -251,6 +259,7 @@ document.addEventListener('click', (e) => {
 
 let suggestionTimeout = null;
 async function updateSuggestions(column, value, inputId, datalistId) {
+    if (window._isSubmittingDropdown) return; // Do not fetch if recently selected an item
     if (value.length < 2) {
         renderCustomDropdown(inputId, datalistId, []);
         return;
@@ -335,6 +344,7 @@ async function checkExistingManualEntry() {
     }
 }
 async function updateRPROSuggestions(value) {
+    if (window._isSubmittingDropdown) return; // Do not fetch if recently selected an item
     if (value.length < 3) {
         renderCustomDropdown('rpro-input', 'rpro-suggestions', []);
         return;
