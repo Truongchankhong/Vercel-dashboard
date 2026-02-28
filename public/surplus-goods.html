@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Hàng Dư - Ortholite Vietnam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode" defer></script>
+    <style>
+        .size-input:focus {
+            background-color: #f0fdfa;
+            border-color: #0d9488;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen p-2 sm:p-6 font-sans">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+        <!-- Header Section -->
+        <div
+            class="bg-white p-6 rounded-3xl shadow-xl border-t-8 border-teal-600 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="p-3 bg-teal-100 rounded-2xl text-teal-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black text-slate-800 uppercase tracking-tight">Quản Lý Hàng Dư</h1>
+                    <p class="text-slate-500 text-sm font-medium italic">Hệ thống theo dõi và nhập liệu surplus goods
+                    </p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-new-entry"
+                    class="px-6 py-3 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-700 transition shadow-lg active:scale-95 flex items-center gap-2">
+                    <span>✨ Nhập mới</span>
+                </button>
+                <button onclick="window.location.href='index.html'"
+                    class="px-6 py-3 bg-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-300 transition shadow-md active:scale-95">
+                    ← Quay lại
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Input & Info Panel (Left/Top) -->
+            <div class="lg:col-span-8 space-y-6">
+
+                <!-- Scan/Search Top Bar -->
+                <div class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="flex-1 relative">
+                            <label class="block text-xs font-black text-slate-400 uppercase mb-2 ml-1">Nhập hoặc Quét mã
+                                RPRO:</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="rpro-input" autofocus
+                                    class="w-full bg-slate-50 border-2 border-slate-200 p-4 rounded-2xl text-xl font-mono font-bold focus:border-teal-500 focus:ring-4 focus:ring-teal-100 outline-none transition-all"
+                                    placeholder="RPRO-XXX-XXX...">
+                                <button id="btn-scan-camera"
+                                    class="px-4 bg-teal-100 text-teal-700 rounded-2xl border-2 border-teal-200 hover:bg-teal-200 transition">
+                                    📷
+                                </button>
+                            </div>
+                            <div id="qr-reader"
+                                class="hidden mt-4 overflow-hidden rounded-2xl border-2 border-teal-500"></div>
+                        </div>
+                    </div>
+
+                    <!-- Auto-fetched Info Grid -->
+                    <div id="order-info-container"
+                        class="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 opacity-50 pointer-events-none transition-all duration-500">
+                        <div class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Brand Code</span>
+                            <span id="info-brand" class="text-sm font-black text-slate-700">-</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">#MOLD</span>
+                            <span id="info-mold" class="text-sm font-black text-slate-700">-</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">BOM</span>
+                            <span id="info-bom" class="text-sm font-black text-slate-700">-</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300 col-span-1">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">PU</span>
+                            <span id="info-pu" class="text-xs font-bold text-teal-600 truncate block">-</span>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300 col-span-1">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Fabric</span>
+                            <span id="info-fabric" class="text-xs font-bold text-indigo-600 truncate block">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Size Matrix Input -->
+                <div id="size-input-panel"
+                    class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 opacity-50 pointer-events-none transition-all duration-500 group">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                            <span class="w-2 h-8 bg-teal-500 rounded-full"></span>
+                            NHẬP SỐ LƯỢNG THEO SIZE
+                        </h3>
+                        <div class="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full italic">
+                            Số lượng hàng dư thực tế
+                        </div>
+                    </div>
+
+                    <!-- Size Grid Container -->
+                    <div id="size-grid"
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
+                        <!-- Standard sizes #3 to #15 loaded via JS -->
+                    </div>
+
+                    <!-- Dynamic Extra Sizes -->
+                    <div id="extra-sizes-container" class="mt-6 pt-6 border-t border-dashed border-slate-200 hidden">
+                        <p class="text-[10px] font-bold text-orange-500 uppercase mb-3">⚠️ Các size đặc biệt phát hiện
+                            thêm:</p>
+                        <div id="extra-size-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3"></div>
+                    </div>
+
+                    <!-- Footer Actions -->
+                    <div class="mt-8 flex flex-col md:flex-row gap-4 border-t border-slate-100 pt-6">
+                        <textarea id="entry-note" rows="2" placeholder="Ghi chú thêm về lô hàng dư này..."
+                            class="flex-1 bg-slate-50 border-2 border-slate-200 p-3 rounded-2xl focus:border-teal-500 outline-none transition-all text-sm"></textarea>
+                        <button id="btn-save-surplus"
+                            class="px-12 py-4 bg-teal-600 text-white rounded-2xl font-black text-lg hover:bg-teal-700 shadow-xl transition transform active:scale-95 disabled:bg-slate-300 disabled:shadow-none">
+                            💾 LƯU DỮ LIỆU
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search & History Panel (Right) -->
+            <div class="lg:col-span-4 space-y-6">
+                <div class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 h-full flex flex-col">
+                    <h3 class="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
+                        <span class="w-1 h-6 bg-slate-800 rounded-full"></span>
+                        LỊCH SỬ NHẬP / TÌM KIẾM
+                    </h3>
+
+                    <div class="relative mb-6">
+                        <input type="text" id="history-search" placeholder="Tìm RPRO hoặc BOM..."
+                            class="w-full bg-slate-50 border-2 border-slate-200 p-3 pr-10 rounded-2xl focus:border-teal-500 outline-none transition-all font-bold text-sm">
+                        <span class="absolute right-3 top-3.5 text-slate-400">🔍</span>
+                    </div>
+
+                    <div id="history-list" class="flex-1 space-y-3 overflow-y-auto pr-1 no-scrollbar max-h-[600px]">
+                        <!-- History items -->
+                        <div class="p-8 text-center text-slate-300 italic text-sm">Nhập thông tin tìm kiếm hoặc load dữ
+                            liệu...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Toast -->
+    <div id="toast"
+        class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 rounded-2xl shadow-2xl text-white font-bold opacity-0 transition-all pointer-events-none">
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./surplus-goods.js"></script>
+</body>
+
+</html>

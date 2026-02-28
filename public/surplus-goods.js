@@ -1,0 +1,432 @@
+import { supabase } from './supabaseClient.js';
+
+// ==================== CONFIG & STATE ====================
+const STANDARD_SIZES = [
+    3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15
+];
+
+let activeOrderData = null; // Currently scanned RPRO data
+let extraSizes = []; // Any sizes found outside the standard range
+let html5QrScanner = null;
+let isScanning = false;
+
+// ==================== DOM ELEMENTS ====================
+const rproInput = document.getElementById('rpro-input');
+const btnScanCamera = document.getElementById('btn-scan-camera');
+const qrReaderDiv = document.getElementById('qr-reader');
+const orderInfoContainer = document.getElementById('order-info-container');
+const sizeInputPanel = document.getElementById('size-input-panel');
+const sizeGrid = document.getElementById('size-grid');
+const extraSizesContainer = document.getElementById('extra-sizes-container');
+const extraSizeGrid = document.getElementById('extra-size-grid');
+const btnSaveSurplus = document.getElementById('btn-save-surplus');
+const btnNewEntry = document.getElementById('btn-new-entry');
+const entryNote = document.getElementById('entry-note');
+const historySearch = document.getElementById('history-search');
+const historyList = document.getElementById('history-list');
+
+// Info Display
+const infoBrand = document.getElementById('info-brand');
+const infoMold = document.getElementById('info-mold');
+const infoBom = document.getElementById('info-bom');
+const infoPu = document.getElementById('info-pu');
+const infoFabric = document.getElementById('info-fabric');
+
+// ==================== INITIALIZATION ====================
+
+function init() {
+    renderSizeGrid();
+    setupEventListeners();
+    loadHistory();
+}
+
+function renderSizeGrid() {
+    sizeGrid.innerHTML = STANDARD_SIZES.map(size => {
+        const id = `size_${size.toString().replace('.', '_')}`;
+        return `
+            <div class="flex flex-col gap-1">
+                <label class="text-[10px] font-black text-slate-500 text-center uppercase">Size ${size}</label>
+                <input type="number" id="${id}" data-size="${size}" min="0" value="0"
+                    class="size-input w-full bg-slate-50 border border-slate-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-teal-100 outline-none transition-all">
+            </div>
+        `;
+    }).join('');
+}
+
+function setupEventListeners() {
+    // Handheld scan & Enter key
+    rproInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleScan(rproInput.value.trim());
+    });
+
+    // Camera Scan
+    btnScanCamera.onclick = toggleCamera;
+
+    // Save
+    btnSaveSurplus.onclick = saveSurplus;
+
+    // New Entry
+    btnNewEntry.onclick = resetEntry;
+
+    // Search History
+    historySearch.addEventListener('input', debounce(loadHistory, 300));
+}
+
+// ==================== SCAN LOGIC ====================
+
+async function handleScan(text) {
+    if (!text) return;
+    let rpro = text.toUpperCase();
+
+    // Normalize RPRO logic
+    if (rpro.includes('|')) rpro = rpro.split('|').find(p => p.startsWith('RPRO')) || rpro;
+    if (!rpro.startsWith('RPRO-')) rpro = 'RPRO-' + rpro.replace(/^RPRO-?/i, '');
+
+    rpro = rpro.replace(/-+/g, '-');
+    rproInput.value = rpro;
+
+    showToast("🔍 Đang tìm thông tin đơn hàng...", "info");
+
+    try {
+        // Tầng 1: Powerapp
+        let { data: order, error } = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle();
+
+        // Tầng 2: Masterdata
+        if (!order) {
+            const { data: masterOrder } = await supabase.from('Masterdata').select('*').eq('PRO ODER', rpro).maybeSingle();
+            order = masterOrder;
+        }
+
+        if (!order) {
+            showToast("❌ Không thấy đơn này trên hệ thống!", "error");
+            return;
+        }
+
+        activeOrderData = order;
+        displayOrderInfo(order);
+        detectExtraSizes(order);
+        enableInput();
+        showToast("✅ Tìm thấy dữ liệu. Mời nhập số lượng dôi!", "success");
+
+    } catch (err) {
+        console.error(err);
+        showToast("❌ Lỗi hệ thống khi tìm dữ liệu", "error");
+    }
+}
+
+function displayOrderInfo(order) {
+    infoBrand.textContent = order['Brand Code'] || '-';
+    infoMold.textContent = order['#MOLD'] || order['Mã Khuôn'] || '-';
+    infoBom.textContent = order['BOM'] || '-';
+    infoPu.textContent = order['PU'] || order['Mã dao'] || '-';
+    infoFabric.textContent = order['FB DESCRIPTION'] || order['Tên vải'] || '-';
+
+    orderInfoContainer.classList.remove('opacity-50', 'pointer-events-none');
+}
+
+function detectExtraSizes(order) {
+    extraSizes = [];
+    extraSizeGrid.innerHTML = '';
+    extraSizesContainer.classList.add('hidden');
+
+    // Scan all columns for size patterns like 3, 4.5, 10, etc that aren't in STANDARD_SIZES
+    Object.keys(order).forEach(key => {
+        const num = parseFloat(key);
+        if (!isNaN(num) && num > 0) {
+            if (!STANDARD_SIZES.includes(num)) {
+                extraSizes.push(num);
+            }
+        }
+    });
+
+    if (extraSizes.length > 0) {
+        extraSizesContainer.classList.remove('hidden');
+        extraSizeGrid.innerHTML = extraSizes.sort((a, b) => a - b).map(size => {
+            const id = `size_${size.toString().replace('.', '_')}`;
+            return `
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-black text-orange-600 text-center uppercase">Size ${size}</label>
+                    <input type="number" id="${id}" data-size="${size}" min="0" value="0"
+                        class="size-input w-full bg-orange-50 border border-orange-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-orange-100 outline-none transition-all">
+                </div>
+            `;
+        }).join('');
+    }
+}
+
+function enableInput() {
+    sizeInputPanel.classList.remove('opacity-50', 'pointer-events-none');
+}
+
+// ==================== CAMERA SCANNER ====================
+
+function toggleCamera() {
+    if (isScanning) {
+        stopCamera();
+    } else {
+        startCamera();
+    }
+}
+
+async function startCamera() {
+    qrReaderDiv.classList.remove('hidden');
+    html5QrScanner = new Html5Qrcode("qr-reader");
+
+    try {
+        await html5QrScanner.start(
+            { facingMode: "environment" },
+            { fps: 15, qrbox: { width: 250, height: 250 } },
+            (decodedText) => {
+                stopCamera();
+                handleScan(decodedText);
+            },
+            () => { }
+        );
+        isScanning = true;
+        btnScanCamera.innerHTML = "⏹️ Dừng";
+    } catch (err) {
+        console.error(err);
+        showToast("❌ Không mở được camera", "error");
+    }
+}
+
+async function stopCamera() {
+    if (html5QrScanner) {
+        await html5QrScanner.stop();
+        qrReaderDiv.classList.add('hidden');
+        isScanning = false;
+        btnScanCamera.innerHTML = "📷";
+    }
+}
+
+// ==================== SAVE LOGIC ====================
+
+async function saveSurplus() {
+    if (!activeOrderData) return;
+
+    btnSaveSurplus.disabled = true;
+    btnSaveSurplus.textContent = "⏳ Đang lưu...";
+
+    const rpro = activeOrderData['PRO ODER'];
+    const payload = {
+        rpro: rpro,
+        so: activeOrderData['SO'] || activeOrderData['Sales Order'] || '',
+        brand_code: activeOrderData['Brand Code'] || '',
+        mold: activeOrderData['#MOLD'] || activeOrderData['Mã Khuôn'] || '',
+        bom: activeOrderData['BOM'] || '',
+        pu: activeOrderData['PU'] || activeOrderData['Mã dao'] || '',
+        fabric: activeOrderData['FB DESCRIPTION'] || activeOrderData['Tên vải'] || '',
+        note: entryNote.value.trim(),
+        dynamic_sizes: {}
+    };
+
+    let hasAnyQty = false;
+
+    // Collect standard sizes
+    STANDARD_SIZES.forEach(size => {
+        const id = `size_${size.toString().replace('.', '_')}`;
+        const val = parseFloat(document.getElementById(id)?.value) || 0;
+        payload[`size_${size.toString().replace('.', '_')}`] = val;
+        if (val > 0) hasAnyQty = true;
+    });
+
+    // Collect extra sizes
+    extraSizes.forEach(size => {
+        const id = `size_${size.toString().replace('.', '_')}`;
+        const val = parseFloat(document.getElementById(id)?.value) || 0;
+        payload.dynamic_sizes[size] = val;
+        if (val > 0) hasAnyQty = true;
+    });
+
+    if (!hasAnyQty) {
+        showToast("⚠️ Vui lòng nhập số lượng cho ít nhất một size!", "error");
+        btnSaveSurplus.disabled = false;
+        btnSaveSurplus.textContent = "💾 LƯU DỮ LIỆU";
+        return;
+    }
+
+    try {
+        const { error } = await supabase.from('Surplusgoods').insert([payload]);
+        if (error) throw error;
+
+        showToast("🎉 Đã lưu thông tin hàng dư thành công!", "success");
+        loadHistory();
+        resetEntry();
+    } catch (err) {
+        console.error(err);
+        showToast("❌ Lỗi khi lưu dữ liệu: " + err.message, "error");
+    } finally {
+        btnSaveSurplus.disabled = false;
+        btnSaveSurplus.textContent = "💾 LƯU DỮ LIỆU";
+    }
+}
+
+function resetEntry() {
+    activeOrderData = null;
+    extraSizes = [];
+    rproInput.value = '';
+    entryNote.value = '';
+    extraSizesContainer.classList.add('hidden');
+    extraSizeGrid.innerHTML = '';
+
+    // Clear standard sizes
+    STANDARD_SIZES.forEach(size => {
+        const id = `size_${size.toString().replace('.', '_')}`;
+        const input = document.getElementById(id);
+        if (input) input.value = 0;
+    });
+
+    // Reset UI states
+    orderInfoContainer.classList.add('opacity-50', 'pointer-events-none');
+    sizeInputPanel.classList.add('opacity-50', 'pointer-events-none');
+
+    // Reset info text
+    [infoBrand, infoMold, infoBom, infoPu, infoFabric].forEach(el => el.textContent = '-');
+
+    rproInput.focus();
+}
+
+// ==================== HISTORY & SEARCH ====================
+
+async function loadHistory() {
+    const q = historySearch.value.trim().toUpperCase();
+
+    let query = supabase.from('Surplusgoods').select('*').order('created_at', { ascending: false }).limit(20);
+
+    // Simple search (relative)
+    if (q) {
+        // Query filter if provided
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+        console.error(error);
+        return;
+    }
+
+    // Client-side relative search for flexibility (mimicking DB iLike but better for multiple fields)
+    const filtered = q ? data.filter(r =>
+        r.rpro.includes(q) || (r.bom && r.bom.toUpperCase().includes(q))
+    ) : data;
+
+    if (filtered.length === 0) {
+        historyList.innerHTML = `<div class="p-8 text-center text-slate-300 italic text-sm">Không tìm thấy dữ liệu phù hợp.</div>`;
+        return;
+    }
+
+    historyList.innerHTML = filtered.map(item => {
+        // Calculate total qty
+        let total = 0;
+        Object.keys(item).forEach(k => {
+            if (k.startsWith('size_') && !isNaN(item[k])) total += item[k];
+        });
+        Object.values(item.dynamic_sizes || {}).forEach(v => {
+            if (!isNaN(v)) total += v;
+        });
+
+        return `
+            <div onclick="previewEntry('${item.id}')" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-200 transition-all cursor-pointer group">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-black text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">${item.rpro}</span>
+                    <span class="text-[10px] font-bold text-slate-400">${new Date(item.created_at).toLocaleDateString('vi-VN')}</span>
+                </div>
+                <div class="flex justify-between items-end">
+                    <div>
+                        <p class="text-xs font-bold text-slate-700">BOM: ${item.bom || '-'}</p>
+                        <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-lg font-black text-slate-800">${total}</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">đôi dôi</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Function to preview an entry from history
+window.previewEntry = async (id) => {
+    showToast("📥 Đang tải thông tin chi tiết...", "info");
+    const { data, error } = await supabase.from('Surplusgoods').select('*').eq('id', id).single();
+    if (error || !data) return;
+
+    resetEntry();
+
+    // Fill basic info
+    rproInput.value = data.rpro;
+    entryNote.value = data.note || '';
+    infoBrand.textContent = data.brand_code || '-';
+    infoMold.textContent = data.mold || '-';
+    infoBom.textContent = data.bom || '-';
+    infoPu.textContent = data.pu || '-';
+    infoFabric.textContent = data.fabric || '-';
+
+    // Highlight UI
+    orderInfoContainer.classList.remove('opacity-50', 'pointer-events-none');
+    sizeInputPanel.classList.remove('opacity-50', 'pointer-events-none');
+
+    // Fill standard sizes
+    Object.keys(data).forEach(k => {
+        if (k.startsWith('size_')) {
+            const input = document.getElementById(k);
+            if (input) input.value = data[k];
+        }
+    });
+
+    // Check for dynamic sizes from this record
+    const dyn = data.dynamic_sizes || {};
+    const dynKeys = Object.keys(dyn).map(k => parseFloat(k));
+
+    if (dynKeys.length > 0) {
+        extraSizes = dynKeys;
+        extraSizesContainer.classList.remove('hidden');
+        extraSizeGrid.innerHTML = dynKeys.sort((a, b) => a - b).map(size => {
+            const id = `size_${size.toString().replace('.', '_')}`;
+            return `
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-black text-orange-600 text-center uppercase">Size ${size}</label>
+                    <input type="number" id="${id}" data-size="${size}" min="0" value="${dyn[size]}"
+                        class="size-input w-full bg-orange-50 border border-orange-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-orange-100 outline-none transition-all">
+                </div>
+            `;
+        }).join('');
+    }
+};
+
+// ==================== UI MISC ====================
+
+function showToast(msg, type = "success") {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+
+    const colors = {
+        success: "bg-emerald-600 border-b-4 border-emerald-800",
+        error: "bg-rose-600 border-b-4 border-rose-800",
+        info: "bg-sky-600 border-b-4 border-sky-800",
+        orange: "bg-orange-500 border-b-4 border-orange-700"
+    };
+
+    toast.className = `fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 rounded-2xl shadow-2xl text-white font-bold transition-all duration-300 transform translate-y-0 opacity-100 ${colors[type] || colors.success}`;
+
+    setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translate(-50%, 20px)";
+    }, 3000);
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Start everything
+document.addEventListener('DOMContentLoaded', init);

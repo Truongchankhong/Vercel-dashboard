@@ -781,10 +781,10 @@ btnRefresh.addEventListener('click', () => {
 btnSummary.addEventListener('click', loadSummary);
 btnProgress.addEventListener('click', loadProgress);
 
-const btnSupplementCount = document.getElementById('btn-supplement-count');
-if (btnSupplementCount) {
-  btnSupplementCount.addEventListener('click', () => {
-    window.location.href = 'supplement-count.html';
+const btnSurplusGoods = document.getElementById('btn-surplus-goods');
+if (btnSurplusGoods) {
+  btnSurplusGoods.addEventListener('click', () => {
+    window.location.href = 'surplus-goods.html';
   });
 }
 
