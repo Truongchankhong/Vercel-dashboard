@@ -1,25 +1,70 @@
 import { supabase } from './supabaseClient.js';
 
+let dayChart = null;
+let brandChart = null;
+let currentSection = 'ALL';
+
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
-    const data = await fetchAllSurplusData();
+    setupFilters();
+    refreshStats();
+}
+
+function setupFilters() {
+    const btns = document.querySelectorAll('.section-filter-btn');
+    btns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            currentSection = btn.dataset.section;
+
+            // UI Update
+            btns.forEach(b => {
+                if (b.dataset.section === currentSection) {
+                    b.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-lg');
+                    b.classList.remove('border-slate-100', 'text-slate-600', 'hover:bg-slate-50');
+                } else {
+                    b.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-600', 'shadow-lg');
+                    b.classList.add('border-slate-100', 'text-slate-600', 'hover:bg-slate-50');
+                }
+            });
+
+            refreshStats();
+        });
+    });
+}
+
+async function refreshStats() {
+    const data = await fetchFilteredSurplusData();
     if (data && data.length > 0) {
         processAndRender(data);
+    } else {
+        clearStats();
     }
 }
 
-async function fetchAllSurplusData() {
-    const { data, error } = await supabase
-        .from('surplusgoods')
-        .select('*')
-        .order('created_at', { ascending: true });
+async function fetchFilteredSurplusData() {
+    let query = supabase.from('surplusgoods').select('*').order('created_at', { ascending: true });
+
+    if (currentSection !== 'ALL') {
+        query = query.eq('section', currentSection);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         console.error("Error fetching stats data:", error);
         return [];
     }
     return data;
+}
+
+function clearStats() {
+    document.getElementById('stat-total-qty').textContent = "0";
+    document.getElementById('stat-total-orders').textContent = "0";
+    document.getElementById('stat-top-brand').textContent = "-";
+    if (dayChart) dayChart.destroy();
+    if (brandChart) brandChart.destroy();
+    document.getElementById('top-orders-table').innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400 italic">Không có dữ liệu cho mục này</td></tr>`;
 }
 
 function processAndRender(data) {
@@ -79,7 +124,9 @@ function renderDayChart(stats) {
     const labels = Object.keys(stats);
     const values = Object.values(stats);
 
-    new Chart(ctx, {
+    if (dayChart) dayChart.destroy();
+
+    dayChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
@@ -118,7 +165,9 @@ function renderBrandChart(stats) {
 
     const colors = ['#10b981', '#6366f1', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
-    new Chart(ctx, {
+    if (brandChart) brandChart.destroy();
+
+    brandChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: labels,

@@ -41,6 +41,34 @@
             </button>
         </div>
 
+        <!-- Section Filter -->
+        <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-100">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <span class="w-1.5 h-4 bg-slate-300 rounded-full"></span>
+                    Bộ lọc theo Section
+                </h3>
+                <div class="flex flex-wrap gap-3">
+                    <button data-section="ALL"
+                        class="section-filter-btn px-6 py-3 rounded-2xl border-2 border-indigo-600 bg-indigo-600 text-white font-bold shadow-lg transition-all active:scale-95">
+                        TẤT CẢ
+                    </button>
+                    <button data-section="LPS"
+                        class="section-filter-btn px-6 py-3 rounded-2xl border-2 border-slate-100 text-slate-600 font-bold hover:bg-slate-50 transition-all active:scale-95">
+                        LPS
+                    </button>
+                    <button data-section="MOLDING"
+                        class="section-filter-btn px-6 py-3 rounded-2xl border-2 border-slate-100 text-slate-600 font-bold hover:bg-slate-50 transition-all active:scale-95">
+                        MOLDING
+                    </button>
+                    <button data-section="LEANLINE"
+                        class="section-filter-btn px-6 py-3 rounded-2xl border-2 border-slate-100 text-slate-600 font-bold hover:bg-slate-50 transition-all active:scale-95">
+                        LEANLINE
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Dashboard Summary Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="glass-card p-8 rounded-[2rem] border-l-8 border-emerald-500 shadow-lg">
