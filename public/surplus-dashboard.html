@@ -8,6 +8,7 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -46,12 +47,21 @@
                 </h1>
                 <p class="text-slate-500 font-bold mt-1">Theo dõi tồn kho hàng dư tại các bộ phận</p>
             </div>
-            <div class="flex gap-3">
+            <div class="flex flex-wrap gap-3 items-center mt-4 md:mt-0">
+                <input type="date" id="export-start-date"
+                    class="px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:border-indigo-500 shadow-sm">
+                <span class="text-slate-400 font-bold">-</span>
+                <input type="date" id="export-end-date"
+                    class="px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:border-indigo-500 shadow-sm">
+                <button id="btn-export-excel"
+                    class="px-5 py-2.5 bg-green-500 text-white hover:bg-green-600 font-bold rounded-xl shadow-md transition-colors flex items-center gap-2">
+                    ⬇️ Xuất Excel
+                </button>
                 <button onclick="loadDashboardData()"
                     class="px-5 py-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-xl border border-indigo-200 transition-colors flex items-center gap-2">
                     🔄 Làm mới
                 </button>
-                <button onclick="window.location.href='surplus-landing.html'"
+                <button onclick="window.location.href='https://vercel-dashboard-new.vercel.app/surplus-landing.html'"
                     class="px-5 py-2.5 bg-white text-slate-600 hover:bg-slate-50 font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-2 shadow-sm">
                     🏠 Quay lại
                 </button>
@@ -73,7 +83,9 @@
                     <thead>
                         <tr
                             class="text-xs font-black uppercase tracking-wider text-slate-500 border-b-2 border-slate-200">
-                            <th class="p-4 bg-slate-50 rounded-tl-xl w-64">Thông tin Đơn/RPRO</th>
+                            <th
+                                class="p-4 bg-slate-50 rounded-tl-xl w-64 min-w-[250px] sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                Thông tin Đơn/RPRO</th>
                             <th class="p-4 bg-teal-50 text-teal-700 text-center border-l border-white w-24">LPS</th>
                             <th class="p-4 bg-indigo-50 text-indigo-700 text-center border-l border-white w-24">MOLDING
                             </th>
@@ -99,6 +111,9 @@
         const spinner = document.getElementById('loading-spinner');
         const mainContent = document.getElementById('main-content');
 
+        const startDateInput = document.getElementById('export-start-date');
+        const endDateInput = document.getElementById('export-end-date');
+
         // Fetch and process data
         window.loadDashboardData = async function () {
             spinner.classList.remove('hidden');
@@ -106,8 +121,15 @@
             tbody.innerHTML = '';
 
             try {
-                // Get all surplus goods
-                const { data, error } = await supabase.from('surplusgoods').select('*');
+                // Get surplus goods within date range
+                let query = supabase.from('surplusgoods').select('*');
+
+                const startVal = startDateInput.value;
+                const endVal = endDateInput.value;
+                if (startVal) query = query.gte('created_at', startVal + 'T00:00:00+07:00');
+                if (endVal) query = query.lte('created_at', endVal + 'T23:59:59+07:00');
+
+                const { data, error } = await query;
                 if (error) throw error;
 
                 // Group by RPRO, PU, FABRIC (using rpro as primary key since manual rpros are unique per mat combination)
@@ -152,7 +174,8 @@
                     }
                 });
 
-                renderTable(Object.values(groupings));
+                window._dashboardData = Object.values(groupings);
+                renderTable(window._dashboardData);
 
             } catch (err) {
                 console.error(err);
@@ -184,7 +207,7 @@
 
                 return `
                     <tr class="hover:bg-slate-50 transition-colors group">
-                        <td class="p-4 border-r border-slate-100">
+                        <td class="p-4 border-r border-slate-100 sticky left-0 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-slate-50">
                             <div class="font-black text-slate-700 mb-1 flex items-center gap-2">
                                 <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">${r.rpro}</span>
                             </div>
@@ -209,8 +232,64 @@
             tbody.innerHTML = html || `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold uppercase">Kho trống</td></tr>`;
         }
 
-        // Init
-        document.addEventListener('DOMContentLoaded', loadDashboardData);
+        // Excel Export
+        window.exportSurplusDashboardExcel = function () {
+            if (!window._dashboardData || window._dashboardData.length === 0) {
+                alert("Không có dữ liệu để xuất!");
+                return;
+            }
+
+            const startVal = startDateInput.value;
+            const endVal = endDateInput.value;
+            const dateStr = startVal === endVal ? startVal : `${startVal}_den_${endVal}`;
+
+            // Sort data like the UI before exporting
+            window._dashboardData.sort((a, b) => b.lastUpdated - a.lastUpdated);
+
+            const exportData = window._dashboardData.map((r, index) => {
+                const total = r.lps + r.molding + r.leanline;
+                return {
+                    "STT": index + 1,
+                    "RPRO": r.rpro,
+                    "BOM": r.bom,
+                    "PU DESCRIPTION": r.pu,
+                    "FABRIC DESCRIPTION": r.fabric,
+                    "LPS": r.lps,
+                    "MOLDING": r.molding,
+                    "LEANLINE": r.leanline,
+                    "TOTAL": total,
+                    "Last Updated": r.lastUpdated.toLocaleString('vi-VN')
+                };
+            }).filter(item => item.TOTAL > 0);
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+
+            const colWidths = [
+                { wch: 5 }, { wch: 20 }, { wch: 15 }, { wch: 35 }, { wch: 35 },
+                { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 20 }
+            ];
+            ws['!cols'] = colWidths;
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "SURPLUS_DASHBOARD");
+            XLSX.writeFile(wb, `Surplus_Dashboard_${dateStr}.xlsx`);
+        };
+
+        if (document.getElementById('btn-export-excel')) {
+            document.getElementById('btn-export-excel').onclick = window.exportSurplusDashboardExcel;
+        }
+
+        // Init Dates
+        document.addEventListener('DOMContentLoaded', () => {
+            const today = new Date();
+            const lastMonth = new Date(today);
+            lastMonth.setMonth(today.getMonth() - 1);
+
+            startDateInput.value = lastMonth.toISOString().split('T')[0];
+            endDateInput.value = today.toISOString().split('T')[0];
+
+            loadDashboardData();
+        });
 
     </script>
 </body>

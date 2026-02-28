@@ -443,6 +443,11 @@ function updateSearchTypeUI() {
 
 function updateActiveSection(section) {
     activeSection = section;
+    const mainTitle = document.getElementById('main-title');
+    if (mainTitle) {
+        mainTitle.textContent = "Quản Lý Hàng Dư - " + (section ? section.toUpperCase() : "");
+    }
+
     sectionBtns.forEach(b => {
         if (b.dataset.section === section) {
             b.classList.add('bg-teal-600', 'text-white', 'border-teal-700', 'shadow-md');
