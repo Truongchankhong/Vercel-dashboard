@@ -34,6 +34,7 @@ const btnMultiContinue = document.getElementById('btn-multi-continue');
 const btnMultiGroup = document.getElementById('btn-multi-group');
 const btnMultiRescan = document.getElementById('btn-multi-rescan');
 const autoSaveCheckbox = document.getElementById('auto-save-checkbox');
+const btnQuickHbkd = document.getElementById('btn-quick-hbkd');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -221,6 +222,30 @@ async function fetchDetails(rpro) {
             console.log("📝 Found existing note:", noteData[0].note);
             if (manualNoteInput) manualNoteInput.value = noteData[0].note;
             foundAnyData = true;
+        }
+
+        // 1.5 Cascading HBKD logic
+        if (manualNoteInput && (!manualNoteInput.value || !manualNoteInput.value.includes("HBKD"))) {
+            const sectionsToCheck = [];
+            if (activeSection === 'Cắt') sectionsToCheck.push('Dán');
+            if (activeSection === 'Molding') sectionsToCheck.push('Dán', 'Cắt');
+            if (activeSection === 'DC' || activeSection === 'Molded') sectionsToCheck.push('Dán', 'Cắt', 'Molding');
+
+            if (sectionsToCheck.length > 0) {
+                const { data: hbData } = await supabase
+                    .from('supplement_tracking')
+                    .select('note')
+                    .eq('rpro', rpro)
+                    .in('section', sectionsToCheck)
+                    .ilike('note', '%HBKD%')
+                    .limit(1);
+
+                if (hbData && hbData.length > 0) {
+                    console.log("🆘 Cascading HBKD found in previous sections");
+                    manualNoteInput.value = "HBKD";
+                    foundAnyData = true;
+                }
+            }
         }
 
         // 2. Fetch Default Quantity
@@ -785,6 +810,16 @@ if (btnViewSummary) {
 
 if (btnSaveManual) {
     btnSaveManual.addEventListener('click', handleManualSave);
+}
+
+if (btnQuickHbkd) {
+    btnQuickHbkd.addEventListener('click', () => {
+        if (manualNoteInput) {
+            if (!manualNoteInput.value.includes("HBKD")) {
+                manualNoteInput.value = (manualNoteInput.value ? "HBKD " + manualNoteInput.value : "HBKD");
+            }
+        }
+    });
 }
 
 if (manualRproInput) {
