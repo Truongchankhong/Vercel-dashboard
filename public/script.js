@@ -983,6 +983,6 @@ document.getElementById("btn-supplement-count")?.addEventListener("click", () =>
 const btnSurplusGoods = document.getElementById('btn-surplus-goods');
 if (btnSurplusGoods) {
   btnSurplusGoods.addEventListener('click', () => {
-    window.location.href = 'surplus-goods.html';
+    window.location.href = 'surplus-landing.html';
   });
 }

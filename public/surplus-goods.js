@@ -13,6 +13,7 @@ let isScanning = false;
 let activeSection = null; // LPS, MOLDING, LEANLINE
 let currentSearchType = 'rpro'; // Default search type (History)
 let currentRproType = 'rpro'; // Default search type (Scanning/Search)
+let isSplittingOrder = false; // Flag for splitting a manual record
 
 // ==================== DOM ELEMENTS ====================
 const rproInput = document.getElementById('rpro-input');
@@ -28,6 +29,7 @@ const sectionSelector = document.getElementById('section-selector');
 const sectionBtns = document.querySelectorAll('.section-btn');
 const btnSaveSurplus = document.getElementById('btn-save-surplus');
 const btnDeleteSurplus = document.getElementById('btn-delete-surplus');
+const btnSplitSurplus = document.getElementById('btn-split-surplus');
 const btnNewEntry = document.getElementById('btn-new-entry');
 const entryNote = document.getElementById('entry-note');
 const historySearch = document.getElementById('history-search');
@@ -52,6 +54,21 @@ const infoFabric = document.getElementById('info-fabric');
 function init() {
     renderSizeGrid();
     setupEventListeners();
+
+    // Parse URL parameter for section
+    const params = new URLSearchParams(window.location.search);
+    const urlSection = params.get('section');
+    if (urlSection) {
+        updateActiveSection(urlSection);
+        if (sectionSelector) sectionSelector.classList.add('hidden');
+
+        const sectionDisplay = document.getElementById('current-section-display');
+        if (sectionDisplay) {
+            sectionDisplay.textContent = urlSection.toUpperCase();
+            sectionDisplay.classList.remove('hidden');
+        }
+    }
+
     // Set default dates for export (last 7 days)
     const end = new Date();
     const start = new Date();
@@ -111,6 +128,10 @@ function setupEventListeners() {
 
     // Search History
     historySearch.addEventListener('input', debounce(loadHistory, 300));
+    const chkSearchAllSections = document.getElementById('search-all-sections');
+    if (chkSearchAllSections) {
+        chkSearchAllSections.addEventListener('change', loadHistory);
+    }
 
     // RPRO Input suggestions (for PU/Fabric)
     rproInput.addEventListener('input', debounce((e) => updateRPROSuggestions(e.target.value), 300));
@@ -140,6 +161,16 @@ function setupEventListeners() {
     // Autocomplete for PU and Fabric
     infoPu.addEventListener('input', (e) => updateSuggestions('PU DESCRIPTION', e.target.value, 'pu-suggestions'));
     infoFabric.addEventListener('input', (e) => updateSuggestions('FB DESCRIPTION', e.target.value, 'fb-suggestions'));
+
+    // Manual Split Event
+    if (btnSplitSurplus) {
+        btnSplitSurplus.addEventListener('click', () => {
+            editingId = null; // Detach from the old record
+            isSplittingOrder = true;
+            btnSplitSurplus.classList.add('hidden');
+            showToast("✂️ Chế độ tách đơn: Phiếu nhập này sẽ được lưu thành một dòng độc lập!", "info");
+        });
+    }
 
     infoPu.addEventListener('click', () => { if (infoPu.readOnly && infoPu.value) alert("Mã PU đầy đủ:\n" + infoPu.value); });
     infoFabric.addEventListener('click', () => { if (infoFabric.readOnly && infoFabric.value) alert("Mã Vải đầy đủ:\n" + infoFabric.value); });
@@ -217,17 +248,23 @@ async function checkExistingManualEntry() {
     const fb = infoFabric.value.trim();
 
     // Search for a record where rpro is equivalent to PU/Fabric or rpro is empty and pu/fabric matches
-    const { data, error } = await supabase.from('surplusgoods')
+    let query = supabase.from('surplusgoods')
         .select('*')
         .eq('pu', pu)
-        .eq('fabric', fb)
-        .maybeSingle();
+        .eq('fabric', fb);
+
+    if (activeSection) {
+        query = query.eq('section', activeSection);
+    }
+
+    const { data, error } = await query.maybeSingle();
 
     if (data) {
         editingId = data.id;
         activeOrderData = data;
         loadSurplusDataToUI(data);
-        showToast("📝 Đã tìm thấy đơn hàng cũ. Bạn có thể cập nhật!", "orange");
+        showToast("⚠️ Đơn với cặp vật tư này đã tồn tại! Bạn đang thao tác trên đơn cũ. Nhấn '✂️ Tách Đơn' nếu muốn tạo dòng nhập kho riêng.", "orange");
+        if (btnSplitSurplus) btnSplitSurplus.classList.remove('hidden');
     }
 }
 async function updateRPROSuggestions(value) {
@@ -374,10 +411,15 @@ async function handleScan(text) {
         // Tầng 0: Kiểm tra surplusgoods (Chỉ tìm RPRO, không ép lấy đơn cũ khi đang dò PU/Vải)
         let existingSurplus = null;
         if (currentRproType === 'rpro') {
-            const { data } = await supabase.from('surplusgoods')
+            let query = supabase.from('surplusgoods')
                 .select('*')
-                .or(`rpro.eq."${rpro}",pu.eq."${rpro}",fabric.eq."${rpro}"`)
-                .maybeSingle();
+                .or(`rpro.eq."${rpro}",pu.eq."${rpro}",fabric.eq."${rpro}"`);
+
+            if (activeSection) {
+                query = query.eq('section', activeSection);
+            }
+
+            const { data } = await query.maybeSingle();
             existingSurplus = data;
         }
 
@@ -645,18 +687,20 @@ async function saveSurplus() {
     const pu = infoPu.value.trim();
     const fabric = infoFabric.value.trim();
 
-    if (!rpro) {
-        // Fallback RPRO identifier for manual entries
+    if (!rpro || rpro.startsWith('MANUAL-') || isSplittingOrder) {
+        // Fallback RPRO identifier for manual entries or splitting
         if (!pu || !fabric) {
             showToast("⚠️ Vui lòng nhập thông tin RPRO hoặc cả PU và Fabric!", "error");
             btnSaveSurplus.disabled = false;
             btnSaveSurplus.textContent = "💾 LƯU DỮ LIỆU";
             return;
         }
-        const uniqueHash = generateStringHash(pu.toUpperCase() + "|" + fabric.toUpperCase());
+        const suffix = isSplittingOrder
+            ? Math.random().toString(36).substring(2, 7).toUpperCase() // Completely random unique hash if split
+            : generateStringHash(pu.toUpperCase() + "|" + fabric.toUpperCase()); // Deterministic hash otherwise
         const puPrefix = (pu.split(' ')[0] || pu).substring(0, 15);
         const fbPrefix = (fabric.split(' ')[0] || fabric).substring(0, 15);
-        rpro = `MANUAL-${puPrefix}-${fbPrefix}-${uniqueHash}`.replace(/[^a-zA-Z0-9\-]/g, '-').toUpperCase();
+        rpro = `MANUAL-${puPrefix}-${fbPrefix}-${suffix}`.replace(/[^a-zA-Z0-9\-]/g, '-').toUpperCase();
     }
 
     if (!activeSection) {
@@ -710,8 +754,16 @@ async function saveSurplus() {
             // UPDATE existing
             result = await supabase.from('surplusgoods').update(payload).eq('id', editingId);
         } else {
-            // INSERT new
-            result = await supabase.from('surplusgoods').insert([payload]);
+            // Check if this exact rpro already exists in surplusgoods to prevent duplicates
+            const { data: existData } = await supabase.from('surplusgoods').select('id').eq('rpro', payload.rpro).maybeSingle();
+
+            if (existData) {
+                // UPDATE existing fallback
+                result = await supabase.from('surplusgoods').update(payload).eq('id', existData.id);
+            } else {
+                // INSERT new
+                result = await supabase.from('surplusgoods').insert([payload]);
+            }
         }
 
         if (result.error) throw result.error;
@@ -798,7 +850,9 @@ function loadSurplusDataToUI(data) {
 function resetEntry() {
     activeOrderData = null;
     editingId = null;
+    isSplittingOrder = false;
     if (btnDeleteSurplus) btnDeleteSurplus.classList.add('hidden');
+    if (btnSplitSurplus) btnSplitSurplus.classList.add('hidden');
     extraSizes = [];
     rproInput.value = '';
     clearFormFields();
@@ -823,12 +877,15 @@ function clearFormFields() {
     sizeInputPanel.classList.add('opacity-50', 'pointer-events-none');
     if (sectionSelector) sectionSelector.classList.add('opacity-50', 'pointer-events-none');
 
-    // Reset section buttons
-    activeSection = null;
-    sectionBtns.forEach(b => {
-        b.classList.remove('bg-teal-600', 'text-white', 'border-teal-700', 'shadow-md');
-        b.classList.add('border-slate-100', 'text-slate-600', 'hover:bg-slate-50');
-    });
+    // Reset section buttons ONLY if not locked by URL
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('section')) {
+        activeSection = null;
+        sectionBtns.forEach(b => {
+            b.classList.remove('bg-teal-600', 'text-white', 'border-teal-700', 'shadow-md');
+            b.classList.add('border-slate-100', 'text-slate-600', 'hover:bg-slate-50');
+        });
+    }
 
     // Reset info text
     [infoBrand, infoMold, infoBom].forEach(el => el.textContent = '-');
@@ -864,8 +921,14 @@ function updateSizeHighlights() {
 
 async function loadHistory() {
     const q = historySearch.value.trim();
+    const chkAll = document.getElementById('search-all-sections');
+    const isSearchAll = chkAll ? chkAll.checked : false;
 
     let query = supabase.from('surplusgoods').select('*').order('created_at', { ascending: false }).limit(20);
+
+    if (activeSection && !isSearchAll) {
+        query = query.eq('section', activeSection);
+    }
 
     if (q) {
         // Targeted search based on selected type
@@ -904,7 +967,10 @@ async function loadHistory() {
         return `
             <div onclick="previewEntry('${item.id}')" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-200 transition-all cursor-pointer group">
                 <div class="flex justify-between items-start mb-2">
-                    <span class="text-xs font-black text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">${item.rpro}</span>
+                    <div class="flex gap-2 items-center">
+                        <span class="text-xs font-black text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">${item.rpro}</span>
+                        <span class="text-[9px] font-bold text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded uppercase">${item.section || '?'}</span>
+                    </div>
                     <span class="text-[10px] font-bold text-slate-400">${new Date(item.created_at).toLocaleDateString('vi-VN')}</span>
                 </div>
                 <div class="flex justify-between items-end">

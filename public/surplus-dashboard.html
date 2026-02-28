@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Tồn Kho Hàng Dư</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tailwind.config.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .table-container {
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: #f8fafc;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen text-slate-800 p-4 md:p-8 bg-gradient-to-br from-slate-50 to-indigo-50">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <div class="glass-panel rounded-3xl p-6 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-black text-slate-800 flex items-center gap-3">
+                    <span class="p-2 bg-indigo-100 text-indigo-600 rounded-xl">📊</span>
+                    DASHBOARD HÀNG DƯ TỔNG HỢP
+                </h1>
+                <p class="text-slate-500 font-bold mt-1">Theo dõi tồn kho hàng dư tại các bộ phận</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="loadDashboardData()"
+                    class="px-5 py-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-xl border border-indigo-200 transition-colors flex items-center gap-2">
+                    🔄 Làm mới
+                </button>
+                <button onclick="window.location.href='surplus-landing.html'"
+                    class="px-5 py-2.5 bg-white text-slate-600 hover:bg-slate-50 font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-2 shadow-sm">
+                    🏠 Quay lại
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Table -->
+        <div class="glass-panel rounded-3xl p-6 shadow-lg">
+
+            <div id="loading-spinner" class="py-20 text-center">
+                <div
+                    class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600 mb-4">
+                </div>
+                <p class="font-bold text-slate-500">Đang tải dữ liệu...</p>
+            </div>
+
+            <div class="table-container rounded-2xl border border-slate-200 hidden" id="main-content">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr
+                            class="text-xs font-black uppercase tracking-wider text-slate-500 border-b-2 border-slate-200">
+                            <th class="p-4 bg-slate-50 rounded-tl-xl w-64">Thông tin Đơn/RPRO</th>
+                            <th class="p-4 bg-teal-50 text-teal-700 text-center border-l border-white w-24">LPS</th>
+                            <th class="p-4 bg-indigo-50 text-indigo-700 text-center border-l border-white w-24">MOLDING
+                            </th>
+                            <th class="p-4 bg-orange-50 text-orange-700 text-center border-l border-white w-24">LEANLINE
+                            </th>
+                            <th class="p-4 bg-slate-100 text-slate-800 text-center border-l border-white w-28">TỔNG CỘNG
+                            </th>
+                            <th class="p-4 bg-slate-50 rounded-tr-xl border-l border-slate-200">Cập nhật lần cuối</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashboard-tbody" class="divide-y divide-slate-100 text-sm">
+                        <!-- Rows rendered by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase } from './supabaseClient.js';
+
+        const tbody = document.getElementById('dashboard-tbody');
+        const spinner = document.getElementById('loading-spinner');
+        const mainContent = document.getElementById('main-content');
+
+        // Fetch and process data
+        window.loadDashboardData = async function () {
+            spinner.classList.remove('hidden');
+            mainContent.classList.add('hidden');
+            tbody.innerHTML = '';
+
+            try {
+                // Get all surplus goods
+                const { data, error } = await supabase.from('surplusgoods').select('*');
+                if (error) throw error;
+
+                // Group by RPRO, PU, FABRIC (using rpro as primary key since manual rpros are unique per mat combination)
+                const groupings = {};
+
+                data.forEach(item => {
+                    const rpro = item.rpro || 'UNKNOWN';
+                    if (!groupings[rpro]) {
+                        groupings[rpro] = {
+                            rpro: rpro,
+                            pu: item.pu || '-',
+                            fabric: item.fabric || '-',
+                            bom: item.bom || '-',
+                            lps: 0,
+                            molding: 0,
+                            leanline: 0,
+                            lastUpdated: new Date(item.created_at) // Assuming created_at is updated or represents the entry time
+                        };
+                    }
+
+                    // Calculate total qty for this specific line
+                    let totalQty = 0;
+                    Object.keys(item).forEach(k => {
+                        if (k.startsWith('size_') && !isNaN(item[k])) totalQty += item[k];
+                    });
+                    if (item.dynamic_sizes) {
+                        Object.values(item.dynamic_sizes).forEach(v => {
+                            if (!isNaN(v)) totalQty += v;
+                        });
+                    }
+
+                    // Add to section totals
+                    const section = (item.section || '').toUpperCase();
+                    if (section === 'LPS') groupings[rpro].lps += totalQty;
+                    else if (section === 'MOLDING') groupings[rpro].molding += totalQty;
+                    else if (section === 'LEANLINE') groupings[rpro].leanline += totalQty;
+
+                    // Update timestamp
+                    const itemDate = new Date(item.created_at);
+                    if (itemDate > groupings[rpro].lastUpdated) {
+                        groupings[rpro].lastUpdated = itemDate;
+                    }
+                });
+
+                renderTable(Object.values(groupings));
+
+            } catch (err) {
+                console.error(err);
+                alert("Lỗi khi tải dữ liệu: " + err.message);
+            } finally {
+                spinner.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+            }
+        };
+
+        function renderTable(rows) {
+            // Sort by last updated (newest first)
+            rows.sort((a, b) => b.lastUpdated - a.lastUpdated);
+
+            const now = new Date();
+            const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+
+            const html = rows.map(r => {
+                const total = r.lps + r.molding + r.leanline;
+                if (total === 0) return ''; // Skip empty records
+
+                const timeDiff = now - r.lastUpdated;
+                const isWarning = timeDiff > sevenDaysInMs;
+
+                const dateStr = r.lastUpdated.toLocaleString('vi-VN');
+                const timeWarningHtml = isWarning
+                    ? `<span class="inline-flex items-center gap-1 bg-rose-100 text-rose-700 px-2 py-0.5 rounded-lg font-bold text-[10px]"><span class="animate-pulse">⚠️</span> Quá 7 ngày</span>`
+                    : `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-lg font-bold text-[10px]">Đang lưu kho</span>`;
+
+                return `
+                    <tr class="hover:bg-slate-50 transition-colors group">
+                        <td class="p-4 border-r border-slate-100">
+                            <div class="font-black text-slate-700 mb-1 flex items-center gap-2">
+                                <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">${r.rpro}</span>
+                            </div>
+                            <div class="text-[10px] text-slate-500 font-medium">BOM: ${r.bom}</div>
+                            <div class="text-[10px] text-slate-500 italic truncate max-w-[200px]" title="PU: ${r.pu}">P: ${r.pu}</div>
+                            <div class="text-[10px] text-slate-500 italic truncate max-w-[200px]" title="Fb: ${r.fabric}">F: ${r.fabric}</div>
+                        </td>
+                        <td class="p-4 text-center font-bold text-teal-600 border-r border-slate-100">${r.lps > 0 ? r.lps : '-'}</td>
+                        <td class="p-4 text-center font-bold text-indigo-600 border-r border-slate-100">${r.molding > 0 ? r.molding : '-'}</td>
+                        <td class="p-4 text-center font-bold text-orange-600 border-r border-slate-100">${r.leanline > 0 ? r.leanline : '-'}</td>
+                        <td class="p-4 text-center border-r border-slate-100 bg-slate-50">
+                            <span class="text-lg font-black text-slate-800">${total}</span>
+                        </td>
+                        <td class="p-4">
+                            <div class="text-xs font-bold text-slate-600 mb-1">${dateStr}</div>
+                            ${timeWarningHtml}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = html || `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold uppercase">Kho trống</td></tr>`;
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', loadDashboardData);
+
+    </script>
+</body>
+
+</html>

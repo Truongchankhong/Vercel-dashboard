@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Hàng Dư</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="tailwind.config.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body
+    class="min-h-screen text-slate-800 flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 to-teal-50">
+
+    <div class="glass-panel w-full max-w-2xl p-8 rounded-3xl shadow-xl flex flex-col gap-8">
+        <div class="text-center space-y-3">
+            <h1
+                class="text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-indigo-600">
+                QUẢN LÝ HÀNG DƯ (SURPLUS)
+            </h1>
+            <p class="text-slate-500 font-bold">Vui lòng chọn bộ phận (Section) để nhập hàng hoặc xem báo cáo</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <button onclick="window.location.href='surplus-goods.html?section=LPS'"
+                class="group relative bg-white p-6 rounded-2xl border-2 border-teal-100 shadow-sm hover:shadow-xl hover:border-teal-500 hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col items-center gap-4">
+                <div
+                    class="absolute inset-0 bg-gradient-to-br from-teal-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                </div>
+                <div
+                    class="h-16 w-16 bg-teal-100 rounded-full flex items-center justify-center text-teal-600 text-2xl font-black group-hover:scale-110 transition-transform shadow-inner z-10">
+                    L</div>
+                <span class="font-black text-xl text-slate-700 group-hover:text-teal-700 z-10">LPS</span>
+            </button>
+
+            <button onclick="window.location.href='surplus-goods.html?section=MOLDING'"
+                class="group relative bg-white p-6 rounded-2xl border-2 border-indigo-100 shadow-sm hover:shadow-xl hover:border-indigo-500 hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col items-center gap-4">
+                <div
+                    class="absolute inset-0 bg-gradient-to-br from-indigo-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                </div>
+                <div
+                    class="h-16 w-16 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 text-2xl font-black group-hover:scale-110 transition-transform shadow-inner z-10">
+                    M</div>
+                <span class="font-black text-xl text-slate-700 group-hover:text-indigo-700 z-10">MOLDING</span>
+            </button>
+
+            <button onclick="window.location.href='surplus-goods.html?section=LEANLINE'"
+                class="group relative bg-white p-6 rounded-2xl border-2 border-orange-100 shadow-sm hover:shadow-xl hover:border-orange-500 hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col items-center gap-4">
+                <div
+                    class="absolute inset-0 bg-gradient-to-br from-orange-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                </div>
+                <div
+                    class="h-16 w-16 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 text-2xl font-black group-hover:scale-110 transition-transform shadow-inner z-10">
+                    LL</div>
+                <span class="font-black text-xl text-slate-700 group-hover:text-orange-700 z-10">LEANLINE</span>
+            </button>
+        </div>
+
+        <div class="pt-6 border-t border-slate-200">
+            <button onclick="window.location.href='surplus-dashboard.html'"
+                class="w-full relative group bg-slate-800 text-white p-5 rounded-2xl font-black text-lg overflow-hidden flex items-center justify-center gap-3 shadow-lg hover:shadow-2xl transition-all hover:bg-slate-900 active:scale-95">
+                <div
+                    class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]">
+                </div>
+                📊 XEM DASHBOARD TỔNG HỢP HÀNG DƯ
+            </button>
+        </div>
+
+        <div class="text-center">
+            <button onclick="window.location.href='index.html'"
+                class="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">
+                ← Quay lại trang chủ
+            </button>
+        </div>
+    </div>
+
+</body>
+
+</html>

@@ -195,6 +195,10 @@
                     <div class="mt-8 flex flex-col md:flex-row gap-4 border-t border-slate-100 pt-6">
                         <textarea id="entry-note" rows="2" placeholder="Ghi chú thêm về lô hàng dư này..."
                             class="flex-1 bg-slate-50 border-2 border-slate-200 p-3 rounded-2xl focus:border-teal-500 outline-none transition-all text-sm"></textarea>
+                        <button id="btn-split-surplus"
+                            class="hidden px-6 py-4 bg-amber-100 text-amber-700 rounded-2xl font-black border-2 border-amber-200 hover:bg-amber-600 hover:text-white transition shadow-lg active:scale-95 uppercase">
+                            ✂️ Tách Đơn
+                        </button>
                         <button id="btn-delete-surplus"
                             class="hidden px-6 py-4 bg-rose-100 text-rose-600 rounded-2xl font-black border-2 border-rose-200 hover:bg-rose-600 hover:text-white transition shadow-lg active:scale-95 uppercase">
                             🗑️ Xóa đơn
@@ -210,10 +214,20 @@
             <!-- Search & History Panel (Right) -->
             <div class="lg:col-span-4 space-y-6">
                 <div class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 h-full flex flex-col">
-                    <h3 class="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
-                        <span class="w-1 h-6 bg-slate-800 rounded-full"></span>
-                        LỊCH SỬ NHẬP / TÌM KIẾM
-                    </h3>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 m-0 leading-none">
+                            <span class="w-1 h-6 bg-slate-800 rounded-full"></span>
+                            LỊCH SỬ NHẬP <span id="current-section-display"
+                                class="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded-lg ml-1 hidden"></span>
+                        </h3>
+                        <label
+                            class="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-colors">
+                            <input type="checkbox" id="search-all-sections"
+                                class="w-3.5 h-3.5 text-teal-600 rounded bg-slate-100 border-slate-300 focus:ring-teal-500">
+                            <span class="text-[10px] font-bold text-slate-600 mt-0.5 tracking-wide uppercase">Tìm All
+                                Section</span>
+                        </label>
+                    </div>
 
                     <!-- Search Type Filters -->
                     <div class="flex flex-wrap gap-2 mb-4">
