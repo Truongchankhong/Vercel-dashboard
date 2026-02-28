@@ -181,15 +181,10 @@ async function updateSuggestions(column, value, datalistId) {
 
             if (isPu) {
                 promises.push(supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('powerapp').select('*').ilike('Mã dao', `%${val}%`).limit(5));
                 promises.push(supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('Masterdata').select('*').ilike('Mã dao', `%${val}%`).limit(5));
             } else {
                 promises.push(supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('powerapp').select('*').ilike('Tên vải', `%${val}%`).limit(5));
-                promises.push(supabase.from('powerapp').select('*').ilike('FABRIC DESCRIPTION', `%${val}%`).limit(5));
                 promises.push(supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('Masterdata').select('*').ilike('Tên vải', `%${val}%`).limit(5));
             }
 
             const results = await Promise.all(promises);
@@ -251,15 +246,11 @@ async function updateRPROSuggestions(value) {
         if (currentRproType === 'pu' || currentRproType === 'rpro') {
             promises.push(supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
             promises.push(supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
-            promises.push(supabase.from('powerapp').select('*').ilike('Mã dao', `%${safeValue}%`).limit(5));
         }
 
         if (currentRproType === 'fabric' || currentRproType === 'rpro') {
             promises.push(supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
             promises.push(supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
-            promises.push(supabase.from('powerapp').select('*').ilike('Tên vải', `%${safeValue}%`).limit(5));
-            promises.push(supabase.from('Masterdata').select('*').ilike('Tên vải', `%${safeValue}%`).limit(5));
-            promises.push(supabase.from('powerapp').select('*').ilike('FABRIC DESCRIPTION', `%${safeValue}%`).limit(5));
         }
 
         const results = await Promise.all(promises);
@@ -268,8 +259,8 @@ async function updateRPROSuggestions(value) {
         results.forEach(r => {
             if (r.data) {
                 r.data.forEach(d => {
-                    const pu = d['PU DESCRIPTION'] || d['Mã dao'] || d['pu'] || '';
-                    const fb = d['FB DESCRIPTION'] || d['Tên vải'] || d['FABRIC DESCRIPTION'] || d['fabric'] || '';
+                    const pu = d['PU DESCRIPTION'] || d['pu'] || '';
+                    const fb = d['FB DESCRIPTION'] || d['fabric'] || '';
 
                     if (currentRproType === 'pu') {
                         if (pu.toLowerCase().includes(safeValue.toLowerCase())) set.add(pu);
@@ -421,11 +412,8 @@ async function handleScan(text) {
         let order;
         if (currentRproType === 'pu') {
             order = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-            if (!order) order = await supabase.from('powerapp').select('*').ilike('Mã dao', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
         } else if (currentRproType === 'fabric') {
             order = await supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-            if (!order) order = await supabase.from('powerapp').select('*').ilike('Tên vải', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-            if (!order) order = await supabase.from('powerapp').select('*').ilike('FABRIC DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
         } else {
             order = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
             if (!order) order = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
@@ -436,11 +424,8 @@ async function handleScan(text) {
         if (!order) {
             if (currentRproType === 'pu') {
                 order = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-                if (!order) order = await supabase.from('Masterdata').select('*').ilike('Mã dao', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
             } else if (currentRproType === 'fabric') {
                 order = await supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-                if (!order) order = await supabase.from('Masterdata').select('*').ilike('Tên vải', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-                if (!order) order = await supabase.from('Masterdata').select('*').ilike('FABRIC DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
             } else {
                 order = await supabase.from('Masterdata').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
                 if (!order) order = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
