@@ -623,6 +623,16 @@ async function stopCamera() {
 
 // ==================== SAVE LOGIC ====================
 
+function generateStringHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash).toString(16).substring(0, 5).toUpperCase().padStart(5, '0');
+}
+
 async function saveSurplus() {
     if (!activeOrderData) return;
 
@@ -645,7 +655,10 @@ async function saveSurplus() {
             btnSaveSurplus.textContent = "💾 LƯU DỮ LIỆU";
             return;
         }
-        rpro = `MANUAL-${(pu.split(' ')[0] || pu).substring(0, 15)}-${(fabric.split(' ')[0] || fabric).substring(0, 15)}`.replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
+        const uniqueHash = generateStringHash(pu.toUpperCase() + "|" + fabric.toUpperCase());
+        const puPrefix = (pu.split(' ')[0] || pu).substring(0, 15);
+        const fbPrefix = (fabric.split(' ')[0] || fabric).substring(0, 15);
+        rpro = `MANUAL-${puPrefix}-${fbPrefix}-${uniqueHash}`.replace(/[^a-zA-Z0-9\-]/g, '-').toUpperCase();
     }
 
     if (!activeSection) {
