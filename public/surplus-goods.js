@@ -437,6 +437,12 @@ async function handleScan(text) {
 
         clearFormFields();
 
+        if (currentRproType === 'pu' || currentRproType === 'fabric') {
+            // For pu/fabric search, we wipe out the PRO ODER so it gets saved as a MANUAL record
+            delete order['PRO ODER'];
+            delete order['PRO_ODER'];
+        }
+
         activeOrderData = order;
         displayOrderInfo(order);
         detectExtraSizes(order);
@@ -450,17 +456,39 @@ async function handleScan(text) {
 }
 
 function displayOrderInfo(order) {
-    infoBrand.textContent = order['Brand Code'] || order['brand_code'] || '-';
-    infoMold.textContent = order['#MOLD'] || order['Mã Khuôn'] || order['mold'] || '-';
-    infoBom.textContent = order['BOM'] || order['bom'] || '-';
+    const isExistingSurplus = order && order.id;
 
-    const puFull = order['PU DESCRIPTION'] || order['Mã dao'] || order['pu'] || '';
-    const fbFull = order['FB DESCRIPTION'] || order['Tên vải'] || order['fabric'] || '';
+    if (!isExistingSurplus && currentRproType === 'pu') {
+        infoBrand.textContent = '-';
+        infoMold.textContent = '-';
+        infoBom.textContent = '-';
+        const puFull = order['PU DESCRIPTION'] || order['Mã dao'] || order['pu'] || '';
+        infoPu.value = puFull;
+        infoFabric.value = '';
+        infoPu.title = puFull;
+        infoFabric.title = '';
+    } else if (!isExistingSurplus && currentRproType === 'fabric') {
+        infoBrand.textContent = '-';
+        infoMold.textContent = '-';
+        infoBom.textContent = '-';
+        infoPu.value = '';
+        const fbFull = order['FB DESCRIPTION'] || order['Tên vải'] || order['fabric'] || '';
+        infoFabric.value = fbFull;
+        infoPu.title = '';
+        infoFabric.title = fbFull;
+    } else {
+        infoBrand.textContent = order['Brand Code'] || order['brand_code'] || '-';
+        infoMold.textContent = order['#MOLD'] || order['Mã Khuôn'] || order['mold'] || '-';
+        infoBom.textContent = order['BOM'] || order['bom'] || '-';
 
-    infoPu.value = puFull;
-    infoFabric.value = fbFull;
-    infoPu.title = puFull;
-    infoFabric.title = fbFull;
+        const puFull = order['PU DESCRIPTION'] || order['Mã dao'] || order['pu'] || '';
+        const fbFull = order['FB DESCRIPTION'] || order['Tên vải'] || order['fabric'] || '';
+
+        infoPu.value = puFull;
+        infoFabric.value = fbFull;
+        infoPu.title = puFull;
+        infoFabric.title = fbFull;
+    }
 
     orderInfoContainer.classList.remove('opacity-50', 'pointer-events-none');
 }
@@ -502,22 +530,41 @@ function enableInput() {
     sizeInputPanel.classList.remove('opacity-50', 'pointer-events-none');
     if (sectionSelector) sectionSelector.classList.remove('opacity-50', 'pointer-events-none');
 
-    // Toggle manual edit if RPRO is missing/manual
-    const rproVal = rproInput.value.trim();
-    const isManual = !activeOrderData || (!activeOrderData['PRO ODER'] && !activeOrderData['PRO_ODER'] && !activeOrderData['rpro']);
+    let puReadOnly = true;
+    let fabricReadOnly = true;
 
-    infoPu.readOnly = !isManual;
-    infoFabric.readOnly = !isManual;
+    const isEditingSurplus = activeOrderData && activeOrderData.id;
+    const hasRproFromMaster = activeOrderData && (activeOrderData['PRO ODER'] || activeOrderData['PRO_ODER'] || activeOrderData['rpro']);
 
-    if (isManual) {
+    if (!isEditingSurplus) {
+        if (currentRproType === 'pu') {
+            puReadOnly = true;
+            fabricReadOnly = false;
+        } else if (currentRproType === 'fabric') {
+            puReadOnly = false;
+            fabricReadOnly = true;
+        } else if (!hasRproFromMaster) {
+            puReadOnly = false;
+            fabricReadOnly = false;
+        }
+    }
+
+    infoPu.readOnly = puReadOnly;
+    infoFabric.readOnly = fabricReadOnly;
+
+    if (!puReadOnly) {
         infoPu.classList.add('bg-white', 'ring-2', 'ring-teal-100', 'p-1', 'rounded-lg');
-        infoFabric.classList.add('bg-white', 'ring-2', 'ring-indigo-100', 'p-1', 'rounded-lg');
         infoPu.classList.remove('cursor-pointer');
-        infoFabric.classList.remove('cursor-pointer');
     } else {
         infoPu.classList.remove('bg-white', 'ring-2', 'ring-teal-100', 'p-1', 'rounded-lg');
-        infoFabric.classList.remove('bg-white', 'ring-2', 'ring-indigo-100', 'p-1', 'rounded-lg');
         infoPu.classList.add('cursor-pointer');
+    }
+
+    if (!fabricReadOnly) {
+        infoFabric.classList.add('bg-white', 'ring-2', 'ring-indigo-100', 'p-1', 'rounded-lg');
+        infoFabric.classList.remove('cursor-pointer');
+    } else {
+        infoFabric.classList.remove('bg-white', 'ring-2', 'ring-indigo-100', 'p-1', 'rounded-lg');
         infoFabric.classList.add('cursor-pointer');
     }
 }
@@ -571,19 +618,23 @@ async function saveSurplus() {
     btnSaveSurplus.disabled = true;
     btnSaveSurplus.textContent = "⏳ Đang lưu...";
 
-    let rpro = rproInput.value.trim() || activeOrderData['PRO ODER'] || activeOrderData['rpro'];
+    let rpro = activeOrderData['rpro'] || activeOrderData['PRO ODER'] || activeOrderData['PRO_ODER'] || '';
+    if (currentRproType === 'rpro' && rproInput.value.trim().toUpperCase().startsWith('RPRO-')) {
+        rpro = rproInput.value.trim().toUpperCase();
+    }
+
     const pu = infoPu.value.trim();
     const fabric = infoFabric.value.trim();
 
     if (!rpro) {
         // Fallback RPRO identifier for manual entries
         if (!pu || !fabric) {
-            showToast("⚠️ Nếu không có RPRO, vui lòng nhập cả PU và Fabric!", "error");
+            showToast("⚠️ Vui lòng nhập thông tin RPRO hoặc cả PU và Fabric!", "error");
             btnSaveSurplus.disabled = false;
             btnSaveSurplus.textContent = "💾 LƯU DỮ LIỆU";
             return;
         }
-        rpro = `MANUAL-${pu.substring(0, 10)}-${fabric.substring(0, 10)}`.replace(/\s+/g, '-').toUpperCase();
+        rpro = `MANUAL-${(pu.split(' ')[0] || pu).substring(0, 8)}-${(fabric.split(' ')[0] || fabric).substring(0, 8)}`.replace(/[^a-zA-Z0-9]/g, '-').toUpperCase();
     }
 
     if (!activeSection) {
