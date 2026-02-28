@@ -287,6 +287,11 @@ async function updateSuggestions(column, value, inputId, datalistId) {
             }
 
             const results = await Promise.all(promises);
+
+            // Abort rendering if user typed more or selected an item while the network request was in-flight
+            const currentInputElement = document.getElementById(inputId);
+            if (!currentInputElement || currentInputElement.value.trim() !== val) return;
+
             const allVals = new Set();
 
             results.forEach(r => {
@@ -367,6 +372,11 @@ async function updateRPROSuggestions(value) {
         }
 
         const results = await Promise.all(promises);
+
+        // Abort rendering if user typed more or selected an item while the network request was in-flight
+        const rproInputEl = document.getElementById('rpro-input');
+        if (!rproInputEl || rproInputEl.value.trim() !== safeValue) return;
+
         const set = new Set();
 
         results.forEach(r => {
