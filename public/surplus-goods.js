@@ -11,7 +11,8 @@ let extraSizes = []; // Any sizes found outside the standard range
 let html5QrScanner = null;
 let isScanning = false;
 let activeSection = null; // LPS, MOLDING, LEANLINE
-let currentSearchType = 'rpro'; // Default search type
+let currentSearchType = 'rpro'; // Default search type (History)
+let currentRproType = 'rpro'; // Default search type (Scanning/Search)
 
 // ==================== DOM ELEMENTS ====================
 const rproInput = document.getElementById('rpro-input');
@@ -32,6 +33,7 @@ const entryNote = document.getElementById('entry-note');
 const historySearch = document.getElementById('history-search');
 const historyList = document.getElementById('history-list');
 const searchTypeBtns = document.querySelectorAll('.search-type-btn');
+const rproTypeBtns = document.querySelectorAll('.rpro-type-btn');
 
 // Export Elements
 const btnExportExcel = document.getElementById('btn-export-excel');
@@ -139,6 +141,14 @@ function setupEventListeners() {
     infoPu.addEventListener('input', (e) => updateSuggestions('PU DESCRIPTION', e.target.value, 'pu-suggestions'));
     infoFabric.addEventListener('input', (e) => updateSuggestions('FB DESCRIPTION', e.target.value, 'fb-suggestions'));
 
+    // RPRO Search Type Selection
+    rproTypeBtns.forEach(btn => {
+        btn.onclick = () => {
+            currentRproType = btn.dataset.type;
+            updateRproTypeUI();
+        };
+    });
+
     // If RPRO is empty, check if PU+Fabric already exists when losing focus
     [infoPu, infoFabric].forEach(input => {
         input.addEventListener('blur', async () => {
@@ -196,32 +206,66 @@ async function checkExistingManualEntry() {
         showToast("📝 Đã tìm thấy đơn hàng cũ. Bạn có thể cập nhật!", "orange");
     }
 }
-
 async function updateRPROSuggestions(value) {
-    if (value.length < 3 || value.toUpperCase().startsWith('RPRO-')) {
+    if (value.length < 3) {
         const datalist = document.getElementById('rpro-suggestions');
         if (datalist) datalist.innerHTML = '';
         return;
     }
 
+    if (currentRproType === 'rpro' && value.toUpperCase().startsWith('RPRO-')) return;
+
     try {
-        const { data: puData } = await supabase.from('powerapp')
-            .select('PU DESCRIPTION')
-            .ilike('PU DESCRIPTION', `%${value}%`)
-            .limit(5);
+        let query1, query2;
 
-        const { data: fbData } = await supabase.from('powerapp')
-            .select('FB DESCRIPTION')
-            .ilike('FB DESCRIPTION', `%${value}%`)
-            .limit(5);
+        if (currentRproType === 'rpro') {
+            query1 = supabase.from('powerapp').select('PU DESCRIPTION, FB DESCRIPTION').or(`"PU DESCRIPTION".ilike.%${value}%,"FB DESCRIPTION".ilike.%${value}%`).limit(10);
+            query2 = supabase.from('Masterdata').select('PU DESCRIPTION, FB DESCRIPTION').or(`"PU DESCRIPTION".ilike.%${value}%,"FB DESCRIPTION".ilike.%${value}%`).limit(10);
+        } else if (currentRproType === 'pu') {
+            query1 = supabase.from('powerapp').select('PU DESCRIPTION').ilike('PU DESCRIPTION', `%${value}%`).limit(15);
+            query2 = supabase.from('Masterdata').select('PU DESCRIPTION').ilike('PU DESCRIPTION', `%${value}%`).limit(15);
+        } else {
+            query1 = supabase.from('powerapp').select('FB DESCRIPTION').ilike('FB DESCRIPTION', `%${value}%`).limit(15);
+            query2 = supabase.from('Masterdata').select('FB DESCRIPTION').ilike('FB DESCRIPTION', `%${value}%`).limit(15);
+        }
 
-        const suggestions = new Set();
-        if (puData) puData.forEach(d => suggestions.add(d['PU DESCRIPTION']));
-        if (fbData) fbData.forEach(d => suggestions.add(d['FB DESCRIPTION']));
+        const results = await Promise.all([query1, query2]);
+        const set = new Set();
+        results.forEach(r => {
+            if (r.data) r.data.forEach(d => {
+                if (currentRproType === 'pu') {
+                    if (d['PU DESCRIPTION']) set.add(d['PU DESCRIPTION']);
+                } else if (currentRproType === 'fabric') {
+                    if (d['FB DESCRIPTION']) set.add(d['FB DESCRIPTION']);
+                } else {
+                    if (d['PU DESCRIPTION']?.toLowerCase().includes(value.toLowerCase())) set.add(d['PU DESCRIPTION']);
+                    if (d['FB DESCRIPTION']?.toLowerCase().includes(value.toLowerCase())) set.add(d['FB DESCRIPTION']);
+                }
+            });
+        });
 
-        const datalist = document.getElementById('rpro-suggestions');
-        if (datalist) datalist.innerHTML = Array.from(suggestions).map(s => `<option value="${s}">`).join('');
-    } catch (err) { console.error(err); }
+        const dl = document.getElementById('rpro-suggestions');
+        if (dl) dl.innerHTML = Array.from(set).map(s => `<option value="${s}">`).join('');
+    } catch (e) { console.error(e); }
+}
+
+function updateRproTypeUI() {
+    rproTypeBtns.forEach(btn => {
+        if (btn.dataset.type === currentRproType) {
+            btn.classList.add('bg-slate-800', 'text-white', 'border-slate-800', 'shadow-sm');
+            btn.classList.remove('border-slate-100', 'text-slate-500', 'hover:bg-slate-50');
+        } else {
+            btn.classList.remove('bg-slate-800', 'text-white', 'border-slate-800', 'shadow-sm');
+            btn.classList.add('border-slate-100', 'text-slate-500', 'hover:bg-slate-50');
+        }
+    });
+
+    const placeholders = {
+        rpro: "RPRO hoặc Tên PU, Fabric...",
+        pu: "Nhập tên PU DESCRIPTION để tìm...",
+        fabric: "Nhập tên FABRIC DESCRIPTION để tìm..."
+    };
+    rproInput.placeholder = placeholders[currentRproType] || "Nhập từ khóa tìm kiếm...";
 }
 
 function updateSearchTypeUI() {
@@ -265,7 +309,7 @@ async function handleScan(text) {
     let rpro = text.toUpperCase();
 
     // Distinguish between RPRO and PU/Fabric
-    const isStandardRPRO = /RPRO/i.test(text) || /^\d{6,15}$/.test(text.replace(/[^0-9]/g, ''));
+    const isStandardRPRO = currentRproType === 'rpro' && (/RPRO/i.test(text) || /^\d{6,15}$/.test(text.replace(/[^0-9]/g, '')));
 
     if (isStandardRPRO) {
         if (rpro.includes('|')) rpro = rpro.split('|').find(p => p.startsWith('RPRO')) || rpro;
@@ -297,11 +341,17 @@ async function handleScan(text) {
     showToast("🔍 Đang tìm thông tin đơn hàng...", "info");
 
     try {
-        // Tầng 0: Kiểm tra xem đơn này đã được nhập hàng dư chưa (để sửa)
-        const { data: existingSurplus } = await supabase.from('surplusgoods')
-            .select('*')
-            .or(`rpro.eq."${rpro}",pu.eq."${rpro}",fabric.eq."${rpro}"`)
-            .maybeSingle();
+        // Tầng 0: Kiểm tra surplusgoods
+        let existingSurplusQuery = supabase.from('surplusgoods').select('*');
+        if (currentRproType === 'pu') {
+            existingSurplusQuery = existingSurplusQuery.ilike('pu', `%${rpro}%`);
+        } else if (currentRproType === 'fabric') {
+            existingSurplusQuery = existingSurplusQuery.ilike('fabric', `%${rpro}%`);
+        } else {
+            existingSurplusQuery = existingSurplusQuery.or(`rpro.eq."${rpro}",pu.eq."${rpro}",fabric.eq."${rpro}"`);
+        }
+
+        const { data: existingSurplus } = await existingSurplusQuery.maybeSingle();
 
         if (existingSurplus) {
             editingId = existingSurplus.id;
@@ -328,23 +378,38 @@ async function handleScan(text) {
             return;
         }
 
-        // Tầng 1: Powerapp (Search by RPRO or exact PU/FB name)
-        let { data: order } = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle();
-        if (!order) order = await supabase.from('powerapp').select('*').eq('PU DESCRIPTION', rpro).limit(1).maybeSingle().then(r => r.data);
-        if (!order) order = await supabase.from('powerapp').select('*').eq('FB DESCRIPTION', rpro).limit(1).maybeSingle().then(r => r.data);
+        // Tầng 1: Powerapp
+        let order;
+        if (currentRproType === 'pu') {
+            order = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+        } else if (currentRproType === 'fabric') {
+            order = await supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+        } else {
+            order = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
+            if (!order) order = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            if (!order) order = await supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+        }
 
         // Tầng 2: Masterdata
         if (!order) {
-            order = await supabase.from('Masterdata').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
-            if (!order) order = await supabase.from('Masterdata').select('*').eq('PU DESCRIPTION', rpro).limit(1).maybeSingle().then(r => r.data);
-            if (!order) order = await supabase.from('Masterdata').select('*').eq('FB DESCRIPTION', rpro).limit(1).maybeSingle().then(r => r.data);
+            if (currentRproType === 'pu') {
+                order = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            } else if (currentRproType === 'fabric') {
+                order = await supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            } else {
+                order = await supabase.from('Masterdata').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
+                if (!order) order = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                if (!order) order = await supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            }
         }
 
         if (!order) {
             if (text.length > 5) {
                 enableInput();
-                showToast("💡 Không thấy RPRO. Mời nhập thông tin PU/Fabric thủ công!", "info");
+                showToast("💡 Không thấy đơn hàng. Bạn có thể tự nhập thông tin!", "info");
                 activeOrderData = { 'PRO ODER': '' };
+                if (currentRproType === 'pu') infoPu.value = text;
+                if (currentRproType === 'fabric') infoFabric.value = text;
                 return;
             }
             showToast("❌ Không thấy đơn này trên hệ thống!", "error");
@@ -415,6 +480,21 @@ function enableInput() {
     orderInfoContainer.classList.remove('opacity-50', 'pointer-events-none');
     sizeInputPanel.classList.remove('opacity-50', 'pointer-events-none');
     if (sectionSelector) sectionSelector.classList.remove('opacity-50', 'pointer-events-none');
+
+    // Toggle manual edit if RPRO is missing/manual
+    const rproVal = rproInput.value.trim();
+    const isManual = !activeOrderData || (!activeOrderData['PRO ODER'] && !activeOrderData['PRO_ODER'] && !activeOrderData['rpro']);
+
+    infoPu.readOnly = !isManual;
+    infoFabric.readOnly = !isManual;
+
+    if (isManual) {
+        infoPu.classList.add('bg-white', 'ring-2', 'ring-teal-100', 'p-1', 'rounded-lg');
+        infoFabric.classList.add('bg-white', 'ring-2', 'ring-indigo-100', 'p-1', 'rounded-lg');
+    } else {
+        infoPu.classList.remove('bg-white', 'ring-2', 'ring-teal-100', 'p-1', 'rounded-lg');
+        infoFabric.classList.remove('bg-white', 'ring-2', 'ring-indigo-100', 'p-1', 'rounded-lg');
+    }
 }
 
 // ==================== CAMERA SCANNER ====================
