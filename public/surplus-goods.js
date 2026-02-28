@@ -216,37 +216,47 @@ async function updateRPROSuggestions(value) {
     if (currentRproType === 'rpro' && value.toUpperCase().startsWith('RPRO-')) return;
 
     try {
-        let query1, query2;
+        const promises = [];
+        const safeValue = value.trim();
 
-        if (currentRproType === 'rpro') {
-            query1 = supabase.from('powerapp').select('PU DESCRIPTION, FB DESCRIPTION').or(`"PU DESCRIPTION".ilike.%${value}%,"FB DESCRIPTION".ilike.%${value}%`).limit(10);
-            query2 = supabase.from('Masterdata').select('PU DESCRIPTION, FB DESCRIPTION').or(`"PU DESCRIPTION".ilike.%${value}%,"FB DESCRIPTION".ilike.%${value}%`).limit(10);
-        } else if (currentRproType === 'pu') {
-            query1 = supabase.from('powerapp').select('PU DESCRIPTION').ilike('PU DESCRIPTION', `%${value}%`).limit(15);
-            query2 = supabase.from('Masterdata').select('PU DESCRIPTION').ilike('PU DESCRIPTION', `%${value}%`).limit(15);
-        } else {
-            query1 = supabase.from('powerapp').select('FB DESCRIPTION').ilike('FB DESCRIPTION', `%${value}%`).limit(15);
-            query2 = supabase.from('Masterdata').select('FB DESCRIPTION').ilike('FB DESCRIPTION', `%${value}%`).limit(15);
+        if (currentRproType === 'pu' || currentRproType === 'rpro') {
+            promises.push(supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
+            promises.push(supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
+            promises.push(supabase.from('powerapp').select('*').ilike('Mã dao', `%${safeValue}%`).limit(5));
         }
 
-        const results = await Promise.all([query1, query2]);
+        if (currentRproType === 'fabric' || currentRproType === 'rpro') {
+            promises.push(supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
+            promises.push(supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
+            promises.push(supabase.from('powerapp').select('*').ilike('Tên vải', `%${safeValue}%`).limit(5));
+            promises.push(supabase.from('Masterdata').select('*').ilike('Tên vải', `%${safeValue}%`).limit(5));
+            promises.push(supabase.from('powerapp').select('*').ilike('FABRIC DESCRIPTION', `%${safeValue}%`).limit(5));
+        }
+
+        const results = await Promise.all(promises);
         const set = new Set();
+
         results.forEach(r => {
-            if (r.data) r.data.forEach(d => {
-                if (currentRproType === 'pu') {
-                    if (d['PU DESCRIPTION']) set.add(d['PU DESCRIPTION']);
-                } else if (currentRproType === 'fabric') {
-                    if (d['FB DESCRIPTION']) set.add(d['FB DESCRIPTION']);
-                } else {
-                    if (d['PU DESCRIPTION']?.toLowerCase().includes(value.toLowerCase())) set.add(d['PU DESCRIPTION']);
-                    if (d['FB DESCRIPTION']?.toLowerCase().includes(value.toLowerCase())) set.add(d['FB DESCRIPTION']);
-                }
-            });
+            if (r.data) {
+                r.data.forEach(d => {
+                    const pu = d['PU DESCRIPTION'] || d['Mã dao'] || d['pu'] || '';
+                    const fb = d['FB DESCRIPTION'] || d['Tên vải'] || d['FABRIC DESCRIPTION'] || d['fabric'] || '';
+
+                    if (currentRproType === 'pu') {
+                        if (pu.toLowerCase().includes(safeValue.toLowerCase())) set.add(pu);
+                    } else if (currentRproType === 'fabric') {
+                        if (fb.toLowerCase().includes(safeValue.toLowerCase())) set.add(fb);
+                    } else {
+                        if (pu.toLowerCase().includes(safeValue.toLowerCase())) set.add(pu);
+                        if (fb.toLowerCase().includes(safeValue.toLowerCase())) set.add(fb);
+                    }
+                });
+            }
         });
 
         const dl = document.getElementById('rpro-suggestions');
         if (dl) dl.innerHTML = Array.from(set).map(s => `<option value="${s}">`).join('');
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Error fetching suggestions:", e); }
 }
 
 function updateRproTypeUI() {
@@ -382,8 +392,11 @@ async function handleScan(text) {
         let order;
         if (currentRproType === 'pu') {
             order = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            if (!order) order = await supabase.from('powerapp').select('*').ilike('Mã dao', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
         } else if (currentRproType === 'fabric') {
             order = await supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            if (!order) order = await supabase.from('powerapp').select('*').ilike('Tên vải', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            if (!order) order = await supabase.from('powerapp').select('*').ilike('FABRIC DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
         } else {
             order = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
             if (!order) order = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
@@ -394,8 +407,11 @@ async function handleScan(text) {
         if (!order) {
             if (currentRproType === 'pu') {
                 order = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                if (!order) order = await supabase.from('Masterdata').select('*').ilike('Mã dao', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
             } else if (currentRproType === 'fabric') {
                 order = await supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                if (!order) order = await supabase.from('Masterdata').select('*').ilike('Tên vải', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                if (!order) order = await supabase.from('Masterdata').select('*').ilike('FABRIC DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
             } else {
                 order = await supabase.from('Masterdata').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
                 if (!order) order = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
