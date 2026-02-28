@@ -164,11 +164,14 @@ function setupEventListeners() {
 
     // Manual Split Event
     if (btnSplitSurplus) {
-        btnSplitSurplus.addEventListener('click', () => {
-            editingId = null; // Detach from the old record
-            isSplittingOrder = true;
+        btnSplitSurplus.addEventListener('click', (e) => {
+            e.preventDefault(); // Tránh lỗi form submit nếu có
+            editingId = null; // Gỡ bỏ liên kết với đơn cũ
+            isSplittingOrder = true; // Bật cờ tách đơn
             btnSplitSurplus.classList.add('hidden');
-            showToast("✂️ Chế độ tách đơn: Phiếu nhập này sẽ được lưu thành một dòng độc lập!", "info");
+            if (btnSaveSurplus) btnSaveSurplus.textContent = "💾 LƯU PHIẾU TÁCH MỚI";
+            alert("✂️ Đã chuyển sang chế độ Tách Đơn!\nPhiếu nhập này sẽ được lưu thành một dòng riêng biệt, không đè lên lượng tồn cũ.");
+            showToast("Đã kích hoạt Tách đơn!", "success");
         });
     }
 
@@ -186,7 +189,7 @@ function setupEventListeners() {
     // Check if PU+Fabric already exists dynamically as the user types or leaves the field
     const checkDuplicateDebounced = debounce(async () => {
         // Chỉ quét trùng lặp khi đang ở chế độ nhập tay bằng PU hoặc Fabric
-        if ((currentRproType === 'pu' || currentRproType === 'fabric') && !rproInput.value.trim() && infoPu.value.trim() && infoFabric.value.trim()) {
+        if ((currentRproType === 'pu' || currentRproType === 'fabric') && infoPu.value.trim() && infoFabric.value.trim()) {
             await checkExistingManualEntry();
         }
     }, 500);
@@ -272,7 +275,7 @@ async function checkExistingManualEntry() {
             editingId = existingData.id;
             activeOrderData = existingData;
             loadSurplusDataToUI(existingData);
-            showToast("⚠️ CẢNH BÁO: Đơn này đã TỒN TẠI ở bộ phận hiện tại! Hệ thống đã chuyển sang chế độ CẬP NHẬT.", "error");
+            alert("⚠️ CẢNH BÁO TỪ HỆ THỐNG:\nĐơn hàng với cặp PU và VẢI này ĐÃ TỒN TẠI ở khu vực hiện tại!\n\nHệ thống đã điền lại số lượng tồn cũ và chuyển sang chế độ CẬP NHẬT GHI ĐÈ.\n\nNếu đây là đơn nhập mới, vui lòng nhấn nút '✂️ TÁCH ĐƠN' màu vàng để lưu độc lập.");
             if (btnSplitSurplus) btnSplitSurplus.classList.remove('hidden');
             if (btnSaveSurplus) btnSaveSurplus.textContent = "💾 CHẤP NHẬN GHI ĐÈ";
 
@@ -786,10 +789,10 @@ async function saveSurplus() {
 
             if (duplicateCheck) {
                 editingId = duplicateCheck.id; // Automatically bind to avoid repeat checks if they click save again
-                showToast("⚠️ CẢNH BÁO: Đơn này đã TỒN TẠI ở bộ phận hiện tại! Hệ thống đã chuyển sang chế độ CẬP NHẬT. Nhấn 'Lưu' lần nữa để ghi đè hoặc nhấn 'Tách Đơn' nếu đây là đơn mới!", "error");
+                alert("⛔ CHẶN LƯU GHI ĐÈ:\nBạn đang cố lưu một đơn hàng TRÙNG LẶP vật tư ở chung một bộ phận!\n\nNút lưu đã bị chặn tạm thời. Nếu bạn chắc chắn muốn ghi đè lượng cũ, hãy bấm Lưu lần nữa.\nNếu muốn lưu thành đơn mới, hãy bấm '✂️ Tách Đơn'.");
                 if (btnSplitSurplus) btnSplitSurplus.classList.remove('hidden');
                 btnSaveSurplus.disabled = false;
-                btnSaveSurplus.textContent = "💾 CHẤP NHẬN GHI ĐÈ";
+                btnSaveSurplus.textContent = "💾 XÁC NHẬN GHI ĐÈ";
                 return; // Abort this first click
             }
         }
