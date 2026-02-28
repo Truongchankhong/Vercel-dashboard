@@ -118,8 +118,19 @@ function displayOrderInfo(order) {
     infoBrand.textContent = order['Brand Code'] || '-';
     infoMold.textContent = order['#MOLD'] || order['Mã Khuôn'] || '-';
     infoBom.textContent = order['BOM'] || '-';
-    infoPu.textContent = order['PU'] || order['Mã dao'] || '-';
-    infoFabric.textContent = order['FB DESCRIPTION'] || order['Tên vải'] || '-';
+
+    const puFull = order['PU DESCRIPTION'] || order['Mã dao'] || '-';
+    const fbFull = order['FB DESCRIPTION'] || order['Tên vải'] || '-';
+
+    infoPu.textContent = puFull;
+    infoFabric.textContent = fbFull;
+
+    // Add click event for full view
+    infoPu.className = "text-[11px] font-bold text-teal-600 truncate block cursor-pointer hover:underline";
+    infoPu.onclick = () => alert("Mã PU đầy đủ:\n" + puFull);
+
+    infoFabric.className = "text-[11px] font-bold text-indigo-600 truncate block cursor-pointer hover:underline";
+    infoFabric.onclick = () => alert("Mã Vải đầy đủ:\n" + fbFull);
 
     orderInfoContainer.classList.remove('opacity-50', 'pointer-events-none');
 }
@@ -129,11 +140,13 @@ function detectExtraSizes(order) {
     extraSizeGrid.innerHTML = '';
     extraSizesContainer.classList.add('hidden');
 
-    // Scan all columns for size patterns like 3, 4.5, 10, etc that aren't in STANDARD_SIZES
+    // Scan all columns for size patterns
     Object.keys(order).forEach(key => {
         const num = parseFloat(key);
         if (!isNaN(num) && num > 0) {
-            if (!STANDARD_SIZES.includes(num)) {
+            // Check if size has actual quantity in system
+            const systemQty = parseFloat(order[key]);
+            if (!STANDARD_SIZES.includes(num) && !isNaN(systemQty) && systemQty > 0) {
                 extraSizes.push(num);
             }
         }
@@ -214,7 +227,7 @@ async function saveSurplus() {
         brand_code: activeOrderData['Brand Code'] || '',
         mold: activeOrderData['#MOLD'] || activeOrderData['Mã Khuôn'] || '',
         bom: activeOrderData['BOM'] || '',
-        pu: activeOrderData['PU'] || activeOrderData['Mã dao'] || '',
+        pu: activeOrderData['PU DESCRIPTION'] || activeOrderData['Mã dao'] || '',
         fabric: activeOrderData['FB DESCRIPTION'] || activeOrderData['Tên vải'] || '',
         note: entryNote.value.trim(),
         dynamic_sizes: {}
@@ -360,8 +373,19 @@ window.previewEntry = async (id) => {
     infoBrand.textContent = data.brand_code || '-';
     infoMold.textContent = data.mold || '-';
     infoBom.textContent = data.bom || '-';
-    infoPu.textContent = data.pu || '-';
-    infoFabric.textContent = data.fabric || '-';
+
+    const puFull = data.pu || '-';
+    const fbFull = data.fabric || '-';
+
+    infoPu.textContent = puFull;
+    infoFabric.textContent = fbFull;
+
+    // Interactive elements for history preview as well
+    infoPu.className = "text-[11px] font-bold text-teal-600 truncate block cursor-pointer hover:underline";
+    infoPu.onclick = () => alert("Mã PU đầy đủ:\n" + puFull);
+
+    infoFabric.className = "text-[11px] font-bold text-indigo-600 truncate block cursor-pointer hover:underline";
+    infoFabric.onclick = () => alert("Mã Vải đầy đủ:\n" + fbFull);
 
     // Highlight UI
     orderInfoContainer.classList.remove('opacity-50', 'pointer-events-none');

@@ -1047,9 +1047,30 @@ window.addEventListener('DOMContentLoaded', () => {
   progressBtnClear.addEventListener('click', clearProgressSearch);
   progressBtnExport.addEventListener('click', exportProgressToExcel);
 
+  // Search on Enter (Mobile/Desktop)
+  progressSearchBox.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') searchProgress();
+  });
+
+  // Live search for Mobile (Debounced)
+  let searchTimeout;
+  progressSearchBox.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      if (progressSearchBox.value.trim().length >= 3 || progressSearchBox.value.trim().length === 0) {
+        searchProgress();
+      }
+    }, 800);
+  });
+
   delayBtnSearch.addEventListener('click', () => {
     console.log("Searching for:", currentDelayType);
     loadDelayUrgentData(currentDelayType);
+  });
+
+  // Enter for Delay Search
+  delaySearchBox.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') loadDelayUrgentData(currentDelayType);
   });
 
   delayBtnClear.addEventListener('click', () => {
