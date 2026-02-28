@@ -259,7 +259,7 @@ async function saveSurplus() {
     }
 
     try {
-        const { error } = await supabase.from('Surplusgoods').insert([payload]);
+        const { error } = await supabase.from('surplusgoods').insert([payload]);
         if (error) throw error;
 
         showToast("🎉 Đã lưu thông tin hàng dư thành công!", "success");
@@ -304,7 +304,7 @@ function resetEntry() {
 async function loadHistory() {
     const q = historySearch.value.trim().toUpperCase();
 
-    let query = supabase.from('Surplusgoods').select('*').order('created_at', { ascending: false }).limit(20);
+    let query = supabase.from('surplusgoods').select('*').order('created_at', { ascending: false }).limit(20);
 
     // Simple search (relative)
     if (q) {
@@ -362,7 +362,7 @@ async function loadHistory() {
 // Function to preview an entry from history
 window.previewEntry = async (id) => {
     showToast("📥 Đang tải thông tin chi tiết...", "info");
-    const { data, error } = await supabase.from('Surplusgoods').select('*').eq('id', id).single();
+    const { data, error } = await supabase.from('surplusgoods').select('*').eq('id', id).single();
     if (error || !data) return;
 
     resetEntry();
