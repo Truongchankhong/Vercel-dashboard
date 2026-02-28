@@ -1289,3 +1289,8 @@ document.getElementById("btn-supplement")?.addEventListener("click", () => {
 document.getElementById("btn-confirm-page")?.addEventListener("click", () => {
   window.location.href = "/supplement-confirm.html";
 });
+
+// Nút Realtime Hàng Bù
+document.getElementById("btn-supplement-count")?.addEventListener("click", () => {
+  window.location.href = "/supplement-count.html";
+});
