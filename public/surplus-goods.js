@@ -367,6 +367,7 @@ function loadSurplusDataToUI(data) {
             `;
         }).join('');
     }
+    updateSizeHighlights();
 }
 
 function resetEntry() {
@@ -402,11 +403,11 @@ function updateSizeHighlights() {
         const isExtra = input.closest('#extra-size-grid');
 
         if (val > 0) {
-            // Highlighted state
+            // Highlighted state: Soft color, dark font, readable selection
             if (isExtra) {
-                input.className = "size-input w-full bg-orange-500 border-2 border-orange-600 p-2 rounded-xl text-center font-black text-white shadow-lg ring-4 ring-orange-100 outline-none transition-all scale-105 z-10";
+                input.className = "size-input w-full bg-orange-200 border-2 border-orange-400 p-2 rounded-xl text-center font-black text-slate-800 shadow-md ring-4 ring-orange-50 outline-none transition-all scale-105 z-10";
             } else {
-                input.className = "size-input w-full bg-teal-500 border-2 border-teal-600 p-2 rounded-xl text-center font-black text-white shadow-lg ring-4 ring-teal-100 outline-none transition-all scale-105 z-10";
+                input.className = "size-input w-full bg-teal-200 border-2 border-teal-400 p-2 rounded-xl text-center font-black text-slate-800 shadow-md ring-4 ring-teal-50 outline-none transition-all scale-105 z-10";
             }
         } else {
             // Normal state
@@ -537,6 +538,7 @@ window.previewEntry = async (id) => {
             `;
         }).join('');
     }
+    updateSizeHighlights();
 };
 
 // ==================== UI MISC ====================
