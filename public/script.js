@@ -32,7 +32,6 @@ async function fetchAllPowerAppData() {
   return { data: allRows };
 }
 
-
 // --- DOM elements chung ---
 const container = document.getElementById('table-container');
 const detailsContainer = document.getElementById('details-container');
@@ -200,7 +199,6 @@ const delayErrorOnly = document.getElementById('delayErrorOnly');
 let currentDelayType = 'DELAY';
 
 // đổi tên cho dễ đọc
-// đổi tên cho dễ đọc
 const headerDisplayMap = {
   'PRO ODER': 'Order Code',
   'Brand Code': 'Brand',
@@ -231,8 +229,8 @@ function hideSectionBar() {
 }
 
 function setBtnLoading(btn, isLoading) {
-  btn.disabled = isLoading;
   if (!btn) return;
+  btn.disabled = isLoading;
   if (btn.id === 'btn-raw') {
     btn.textContent = isLoading ? 'Loading…' : 'Raw View';
   } else if (btn.id === 'btn-summary') {
@@ -271,21 +269,19 @@ function hideProgressSearchBar() {
   document.getElementById('progress-search-bar')?.classList.add('hidden');
 }
 
-// Thêm vào đây:
-
 // Hiện thanh tìm kiếm nâng cao Progress
 function showProgressAdvancedFilter() {
   document.getElementById('advanced-search-title').classList.remove('hidden');
   document.getElementById('progress-advanced-filter').classList.remove('hidden');
 }
 
-// ← Chèn ngay dưới đây
 function showDelaySearchWidgets() {
   document.getElementById('delay-basic-search-title').classList.remove('hidden');
   document.getElementById('delay-search-bar').classList.remove('hidden');
   document.getElementById('delay-advanced-search-title').classList.remove('hidden');
   document.getElementById('delay-advanced-filter').classList.remove('hidden');
 }
+
 // Ẩn thanh tìm kiếm nâng cao Progress
 function hideProgressAdvancedFilter() {
   document.getElementById('advanced-search-title')?.classList.add('hidden');
@@ -297,17 +293,9 @@ function hideProgressAdvancedFilter() {
 // -----------------------------------
 async function loadSummary() {
   hideAllViews();
-
-  // 1) thiết lập section mặc định là Lamination
   selectedSection = 'LAMINATION';
-
-  // 2) vẽ lại nút Lamination/Leanline
   renderSectionButtons();
-
-  // 3) vẽ bảng Section summary (có cột SỐ TẤM nếu là Lamination)
   await renderSummarySection();
-
-  // 4) đánh dấu view hiện tại
   currentView = 'summary';
   currentMachine = null;
 }
@@ -321,20 +309,14 @@ async function loadProgress() {
   hideAllViews();
   currentMachine = null;
   showProgressSearchBar();
-  // Hiện tiêu đề tìm kiếm cơ bản và nâng cao
   document.getElementById('basic-search-title').classList.remove('hidden');
   document.getElementById('advanced-search-title').classList.remove('hidden');
-
-  // Hiện thanh tìm kiếm cơ bản & nâng cao
   showProgressSearchBar();
   showProgressAdvancedFilter();
-  // Ẩn các view khác:
   hideDetails();
   container.innerHTML = '';
   searchResult.innerHTML = '';
-
   hideSectionBar();
-  // Hiện thanh tìm kiếm Progress:
   showProgressSearchBar();
 }
 
@@ -347,7 +329,6 @@ async function searchProgress() {
   const keyword = progressSearchBox.value.trim().toLowerCase();
   const selectedField = document.getElementById('progressColumnSelect').value;
 
-  // Lấy dữ liệu từ checkbox + input nâng cao
   const inputs = document.querySelectorAll('.progress-input');
   const checks = document.querySelectorAll('.progress-check');
   const filters = {};
@@ -362,15 +343,11 @@ async function searchProgress() {
   });
 
   try {
-    // → fetch data from Supabase
-    // const res  = await fetch('/powerapp.json', { cache: 'no-store' });
-    // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    // const json = await res.json();
     const json = await fetchAllPowerAppData();
     const data = json.data;
 
     const fields = [
-      'PRO ODER', 'Total Qty', 'Finish date', 'Molding (PPC)', 'Molding Pro (IN)', 'Molding Pro', 'STATUS', 'Brand Code', '#MOLD', 'BOM', 'PU', 'FB', ,
+      'PRO ODER', 'Total Qty', 'Finish date', 'Molding (PPC)', 'Molding Pro (IN)', 'Molding Pro', 'STATUS', 'Brand Code', '#MOLD', 'BOM', 'PU', 'FB',
       'RECEIVED (MATERIAL)', 'RECEIVED (LOGO)', 'Laminating (Pro)',
       'Prefitting (Pro)', 'Slipting (Pro)', 'Bào (Pro)', 'IN lean Line (Pro)',
       'IN lean Line (MACHINE)', 'Out lean Line (Pro)',
@@ -393,21 +370,14 @@ async function searchProgress() {
         `${date.getFullYear()}`;
     };
 
-    // Lọc dữ liệu theo: chọn 1 cột + checkbox nâng cao
     const filtered = data.filter(row => {
-      // 1. Lọc cơ bản theo dropdown + ô nhập keyword
       const cell = row[selectedField];
-      const cellValue = cell !== undefined && cell !== null
-        ? cell.toString().toLowerCase()
-        : '';
+      const cellValue = cell !== undefined && cell !== null ? cell.toString().toLowerCase() : '';
       const matchBasic = cellValue.includes(keyword);
-
-      // 2. Lọc nâng cao theo các checkbox
       const matchAdvanced = Object.entries(filters).every(([key, val]) => {
         const v = (row[key] || '').toString().toLowerCase();
         return v.includes(val);
       });
-
       return matchBasic && matchAdvanced;
     });
 
@@ -416,7 +386,6 @@ async function searchProgress() {
       return;
     }
 
-    // Render kết quả
     let html = '<table class="min-w-full table-auto border-collapse">';
     html += '<thead class="bg-gray-50"><tr>';
     html += `<th class="border px-2 py-1 text-left text-sm font-medium text-gray-700">STT</th>`;
@@ -445,7 +414,6 @@ async function searchProgress() {
 
     html += '</tbody></table>';
     container.innerHTML = html;
-
 
   } catch (err) {
     console.error('[searchProgress error]', err);
@@ -501,7 +469,6 @@ async function exportProgressToExcel() {
         `${date.getFullYear()}`;
     };
 
-    // Lọc dữ liệu
     const filtered = data.filter(row => {
       const cell = row[selectedField];
       const cellValue = cell !== undefined && cell !== null ? cell.toString().toLowerCase() : '';
@@ -518,8 +485,6 @@ async function exportProgressToExcel() {
       return;
     }
 
-    // Chuẩn bị dữ liệu cho ExcelJS/SheetJS
-    // SheetJS hoạt động tốt với mảng các mảng (AoA) hoặc mảng các đối tượng
     const excelData = filtered.map((row, idx) => {
       const newRow = { 'STT': idx + 1 };
       fields.forEach(key => {
@@ -539,7 +504,6 @@ async function exportProgressToExcel() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Progress");
 
-    // Xuất file
     const dateStr = new Date().toISOString().split('T')[0];
     XLSX.writeFile(workbook, `Progress_Export_${dateStr}.xlsx`);
 
@@ -550,10 +514,6 @@ async function exportProgressToExcel() {
     setBtnLoading(progressBtnExport, false);
   }
 }
-
-
-
-
 
 function clearProgressSearch() {
   progressSearchBox.value = '';
@@ -567,19 +527,18 @@ function shouldDisplayRow(d, isInitial) {
   const selectedField = document.getElementById('detailsColumnSelect')?.value || '';
   const keyword = document.getElementById('detailsSearchInput')?.value.trim().toUpperCase() || '';
 
-  // Khi click máy lần đầu (không có thao tác tìm kiếm), chỉ lọc theo STATUS
   if (isInitial) {
     return (d['STATUS'] || '').toUpperCase() === `2.${selectedSection.toUpperCase()}`;
   }
 
-  // Nếu chọn "Tất cả" hoặc không nhập gì → hiển thị tất cả
   if (selectedField === 'ALL' || keyword === '') {
     return true;
   }
 
-  // Nếu chọn cột cụ thể và có từ khóa → lọc theo từ khóa
   return (d[selectedField] || '').toString().toUpperCase().includes(keyword);
-} async function loadDetailsClient(
+}
+
+async function loadDetailsClient(
   machine,
   isInitial = false,
   rememberedField = 'ALL',
@@ -592,14 +551,9 @@ function shouldDisplayRow(d, isInitial) {
   detailsContainer.innerHTML = '<div class="text-center py-4">Loading chi tiết…</div>';
 
   try {
-    // 1) Fetch data from Supabase
-    // const res = await fetch('/powerapp.json', { cache: 'no-store' });
-    // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    // const json     = await res.json();
     const json = await fetchAllPowerAppData();
     const fullData = json.data;
 
-    // 2) Xác định các cột Plan / Actual / Verify
     const planCol = selectedSection === 'LEANLINE_DC'
       ? 'LEANLINE PLAN'
       : 'LAMINATION MACHINE (PLAN)';
@@ -610,12 +564,6 @@ function shouldDisplayRow(d, isInitial) {
       ? 'CheckLL'
       : 'Check';
 
-    // 3) (Không dùng statusKeys ở đây vì chỉ hiển thị theo máy)
-    // const statusKeys = selectedSection === 'LEANLINE_DC'
-    //   ? ['5.LEAN LINE DC', '6.IN LEAN LINE DC']
-    //   : [`2.${selectedSection.toUpperCase()}`];
-
-    // 4) Lọc bản ghi cho máy hiện tại
     const rows = fullData.filter(row => row[planCol] === machine);
 
     if (rows.length === 0) {
@@ -626,23 +574,11 @@ function shouldDisplayRow(d, isInitial) {
       return;
     }
 
-    // 5) Chọn các cột cần hiển thị
     const selectedColumns = [
-      'PRO ODER',
-      'Brand Code',
-      '#MOLD',
-      'Delay/Urgent',
-      'Total Qty',
-      'STATUS',
-      'PU',
-      'FB',
-      'FB DESCRIPTION',
-      planCol,
-      realtimeCol,
-      verifyCol
+      'PRO ODER', 'Brand Code', '#MOLD', 'Delay/Urgent', 'Total Qty',
+      'STATUS', 'PU', 'FB', 'FB DESCRIPTION', planCol, realtimeCol, verifyCol
     ];
 
-    // 6) Xây array details với STT và các trường đã chọn
     const details = rows.map((row, i) => {
       const obj = { STT: i + 1 };
       selectedColumns.forEach(col => {
@@ -651,10 +587,8 @@ function shouldDisplayRow(d, isInitial) {
       return obj;
     });
 
-    // 7) Áp filter initial / tìm kiếm
     const filtered = details.filter(d => {
       if (isInitial) {
-        // initial: chỉ show các đơn chưa có Actual Machine
         return !(d[realtimeCol] || '').toString().trim();
       }
       if (rememberedField === 'ALL' || !rememberedKeyword.trim()) {
@@ -665,7 +599,6 @@ function shouldDisplayRow(d, isInitial) {
         .includes(rememberedKeyword.trim().toUpperCase());
     });
 
-    // 8) Tính phần trăm Verify
     const validRows = details.filter(d =>
       d[verifyCol] === true || d[verifyCol] === 'True' ||
       d[verifyCol] === false || d[verifyCol] === 'False'
@@ -677,7 +610,6 @@ function shouldDisplayRow(d, isInitial) {
       ? ((trueCount / validRows.length) * 100).toFixed(1)
       : '0.0';
 
-    // 9) Gán màu nhóm theo PU + FB
     const palette = ['#fef08a', '#a7f3d0', '#fca5a5', '#c4b5fd', '#f9a8d4', '#fde68a', '#bfdbfe', '#6ee7b7'];
     const groups = [...new Set(details.map(d => `${d.PU}_${d.FB}`))];
     const colorMap = {};
@@ -685,7 +617,6 @@ function shouldDisplayRow(d, isInitial) {
       colorMap[g] = palette[idx % palette.length];
     });
 
-    // 10) Build HTML chi tiết
     const headerMap = {
       ...headerDisplayMap,
       [planCol]: 'Plan Machine',
@@ -751,18 +682,15 @@ function shouldDisplayRow(d, isInitial) {
       </div>
     `;
 
-    // 11) Gắn event cho Tìm / Xóa
-    document.getElementById('detailsSearchBtn')
-      .addEventListener('click', () => {
-        const f = document.getElementById('detailsColumnSelect').value;
-        const kw = document.getElementById('detailsSearchInput').value.trim();
-        loadDetailsClient(machine, false, f, kw);
-      });
-    document.getElementById('detailsClearBtn')
-      .addEventListener('click', () => {
-        document.getElementById('detailsSearchInput').value = '';
-        loadDetailsClient(machine, false, rememberedField, '');
-      });
+    document.getElementById('detailsSearchBtn').addEventListener('click', () => {
+      const f = document.getElementById('detailsColumnSelect').value;
+      const kw = document.getElementById('detailsSearchInput').value.trim();
+      loadDetailsClient(machine, false, f, kw);
+    });
+    document.getElementById('detailsClearBtn').addEventListener('click', () => {
+      document.getElementById('detailsSearchInput').value = '';
+      loadDetailsClient(machine, false, rememberedField, '');
+    });
 
   } catch (err) {
     console.error('DETAILS LOAD ERROR:', err);
@@ -776,89 +704,22 @@ btnRefresh.addEventListener('click', () => {
   window.location.reload();
 });
 
-// --- KHỞI TẠO: Đăng ký sự kiện ---
-
-btnSummary.addEventListener('click', loadSummary);
-btnProgress.addEventListener('click', loadProgress);
-
-const btnSurplusGoods = document.getElementById('btn-surplus-goods');
-if (btnSurplusGoods) {
-  btnSurplusGoods.addEventListener('click', () => {
-    window.location.href = 'surplus-goods.html';
-  });
-}
-
-btnDelayUrgent.addEventListener('click', () => {
-  hideAllViews();
-  delayTabs.classList.remove('hidden');
-  // Hiện tiêu đề & thanh tìm kiếm cơ bản + nâng cao
-  document.getElementById('delay-basic-search-title').classList.remove('hidden');
-  document.getElementById('delay-advanced-search-title').classList.remove('hidden');
-
-  delaySearchBar.classList.remove('hidden');
-  delayAdvancedFilter.classList.remove('hidden');
-
-  loadDelayUrgentData('DELAY');
-
-  // Mặc định highlight nút Delay khi mở
-  btnDelayTab.classList.add('bg-yellow-400', 'text-white');
-  btnDelayTab.classList.remove('bg-gray-300', 'text-black');
-  btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
-  btnUrgentTab.classList.add('bg-gray-300', 'text-black');
-});
-
-
-// Sự kiện nút Delay
-btnDelayTab.addEventListener('click', () => {
-  currentDelayType = 'DELAY';
-  hideAllViews();
-  delayTabs.classList.remove('hidden');
-  showDelaySearchWidgets();
-  loadDelayUrgentData('DELAY');
-
-  // highlight nút
-  btnDelayTab.classList.add('bg-yellow-400', 'text-white');
-  btnDelayTab.classList.remove('bg-gray-300', 'text-black');
-  btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
-  btnUrgentTab.classList.add('bg-gray-300', 'text-black');
-});
-
-// Sự kiện nút Xuất gấp
-btnUrgentTab.addEventListener('click', () => {
-  currentDelayType = 'URGENT';
-  hideAllViews();
-  delayTabs.classList.remove('hidden');
-  showDelaySearchWidgets();
-  loadDelayUrgentData('URGENT');
-
-  // highlight nút
-  btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
-  btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
-  btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
-  btnDelayTab.classList.add('bg-gray-300', 'text-black');
-});
-
-
-
-
-// Biến toàn cục
+// --- Biến toàn cục ---
 let selectedSection = 'LAMINATION';
 const sectionButtons = [
   { id: 'btn-lamination', label: 'Lamination', value: 'LAMINATION' },
   { id: 'btn-leanline-dc', label: 'Leanline DC', value: 'LEANLINE_DC' },
-  // … các section tiếp theo …
 ];
 
-// Hàm vẽ nút
 function renderSectionButtons() {
   const bar = document.getElementById('section-bar');
+  if (!bar) return;
   bar.innerHTML = '';
   sectionButtons.forEach(({ id, label, value }) => {
     const btn = document.createElement('button');
     btn.id = id;
     btn.textContent = label;
-    btn.className = `px-4 py-1 rounded font-medium text-white ${selectedSection === value ? 'bg-green-600' : 'bg-gray-400'
-      }`;
+    btn.className = `px-4 py-1 rounded font-medium text-white ${selectedSection === value ? 'bg-green-600' : 'bg-gray-400'}`;
     btn.onclick = () => {
       selectedSection = value;
       renderSectionButtons();
@@ -866,20 +727,17 @@ function renderSectionButtons() {
     };
     bar.appendChild(btn);
   });
-
 }
-function getDelayUrgentQty(machine, data) {
-  const planKey = selectedSection === 'LEANLINE_DC'
-    ? 'LEANLINE PLAN'
-    : 'LAMINATION MACHINE (PLAN)';
 
+function getDelayUrgentQty(machine, data) {
+  const planKey = selectedSection === 'LEANLINE_DC' ? 'LEANLINE PLAN' : 'LAMINATION MACHINE (PLAN)';
   return data.reduce((sum, row) => {
     const status = (row['STATUS'] || '').toUpperCase();
     const delayType = (row['Delay/Urgent'] || '').toUpperCase();
     const qty = Number(row['Total Qty']) || 0;
     if (
       row[planKey] === machine &&
-      (delayType === 'URGENT' || delayType === 'PRODUCTION DELAY') &&
+      (['URGENT', 'PRODUCTION DELAY'].includes(delayType)) &&
       (
         (selectedSection === 'LEANLINE_DC' && ['5.LEAN LINE DC', '6.IN LEAN LINE DC'].includes(status)) ||
         (selectedSection !== 'LEANLINE_DC' && status === `2.${selectedSection.toUpperCase()}`)
@@ -889,39 +747,24 @@ function getDelayUrgentQty(machine, data) {
     }
     return sum;
   }, 0);
-} async function renderSummarySection() {
+}
+
+async function renderSummarySection() {
   setBtnLoading(btnSummary, true);
   hideDetails();
   hideProgressSearchBar();
   container.innerHTML = '';
-
-  // Làm mới thanh chọn section
   const sectionBarEl = document.getElementById('section-bar');
   if (sectionBarEl) sectionBarEl.innerHTML = '';
   renderSectionButtons();
 
   try {
-    // const res = await fetch('/powerapp.json', { cache: 'no-store' });
-    // if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    // const json = await res.json();
     const json = await fetchAllPowerAppData();
     const data = json.data;
-
-    // 🧩 Chọn cột máy và trạng thái cần lọc
-    const planKey =
-      selectedSection === 'LEANLINE_DC'
-        ? 'LEANLINE PLAN'
-        : 'LAMINATION MACHINE (PLAN)';
-
-    const statusFilter =
-      selectedSection === 'LEANLINE_DC'
-        ? '6.WIP IN LEAN LINE'
-        : '2.MATERIAL CHƯA DÁN';
-
-    // 🧩 Tên cột Delay/Urgent (đúng như JSON)
+    const planKey = selectedSection === 'LEANLINE_DC' ? 'LEANLINE PLAN' : 'LAMINATION MACHINE (PLAN)';
+    const statusFilter = selectedSection === 'LEANLINE_DC' ? '6.WIP IN LEAN LINE' : '2.MATERIAL CHƯA DÁN';
     const delayKey = 'Delay-Urgent';
 
-    // 🧩 Gom nhóm dữ liệu
     const machines = {};
     const delayCounts = {};
     const sheetCounts = {};
@@ -933,24 +776,17 @@ function getDelayUrgentQty(machine, data) {
       const qty = Number(row['Total Qty']) || 0;
       const sheets = Number(row['DL PU']) || 0;
 
-      // ✅ 1. Cộng tổng kế hoạch theo Status (QUANTITY PAIR PLAN)
       if (status === statusFilter.toUpperCase() && machine) {
         machines[machine] = (machines[machine] || 0) + qty;
         if (selectedSection === 'LAMINATION') {
           sheetCounts[machine] = (sheetCounts[machine] || 0) + sheets;
         }
       }
-
-      // ✅ 2. Cộng tổng Delay/Urgent theo DelayFlag
-      if (
-        machine &&
-        ['PRODUCTION DELAY', 'URGENT'].includes(delayFlag)
-      ) {
+      if (machine && ['PRODUCTION DELAY', 'URGENT'].includes(delayFlag)) {
         delayCounts[machine] = (delayCounts[machine] || 0) + qty;
       }
     });
 
-    // 🧮 Render bảng
     let html = `
       <table class="min-w-full text-sm border border-gray-300 bg-white shadow">
         <thead class="bg-gray-100">
@@ -958,121 +794,70 @@ function getDelayUrgentQty(machine, data) {
             <th class="px-6 py-3 text-left">MACHINE</th>
             <th class="px-6 py-3 text-right">QUANTITY PAIR PLAN</th>
             <th class="px-6 py-3 text-right text-red-600">Delay/Urgent</th>
-            ${selectedSection === 'LAMINATION'
-        ? `<th class="px-6 py-3 text-right">SỐ TẤM (SHEET)</th>`
-        : ''}
+            ${selectedSection === 'LAMINATION' ? `<th class="px-6 py-3 text-right">SỐ TẤM (SHEET)</th>` : ''}
           </tr>
         </thead>
         <tbody>
     `;
 
-    let totalQty = 0;
-    let totalDelay = 0;
-    let totalSheets = 0;
-
-    Object.keys({ ...machines, ...delayCounts })
-      .sort()
-      .forEach(machine => {
-        const qty = machines[machine] || 0;
-        const delay = delayCounts[machine] || 0;
-        const sheets = sheetCounts[machine] || 0;
-
-        totalQty += qty;
-        totalDelay += delay;
-        totalSheets += sheets;
-
-        html += `
-          <tr class="hover:bg-gray-50 cursor-pointer" data-machine="${machine}">
-            <td class="px-6 py-3 text-sm text-gray-700">${machine}</td>
-            <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(qty)}</td>
-            <td class="px-6 py-3 text-sm text-right text-red-600 font-semibold">${formatNumber(delay)}</td>
-            ${selectedSection === 'LAMINATION'
-            ? `<td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(sheets)}</td>`
-            : ''
-          }
-          </tr>
-        `;
-      });
+    let totalQty = 0, totalDelay = 0, totalSheets = 0;
+    Object.keys({ ...machines, ...delayCounts }).sort().forEach(machine => {
+      const qty = machines[machine] || 0;
+      const delay = delayCounts[machine] || 0;
+      const sheets = sheetCounts[machine] || 0;
+      totalQty += qty; totalDelay += delay; totalSheets += sheets;
+      html += `
+        <tr class="hover:bg-gray-50 cursor-pointer" data-machine="${machine}">
+          <td class="px-6 py-3 text-sm text-gray-700">${machine}</td>
+          <td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(qty)}</td>
+          <td class="px-6 py-3 text-sm text-right text-red-600 font-semibold">${formatNumber(delay)}</td>
+          ${selectedSection === 'LAMINATION' ? `<td class="px-6 py-3 text-sm text-gray-900 text-right">${formatNumber(sheets)}</td>` : ''}
+        </tr>
+      `;
+    });
 
     html += `
         <tr class="font-bold bg-gray-100">
           <td class="px-6 py-3 text-right">Tổng cộng:</td>
           <td class="px-6 py-3 text-right">${formatNumber(totalQty)}</td>
           <td class="px-6 py-3 text-right text-red-600 font-semibold">${formatNumber(totalDelay)}</td>
-          ${selectedSection === 'LAMINATION'
-        ? `<td class="px-6 py-3 text-right">${formatNumber(totalSheets)}</td>`
-        : ''
-      }
+          ${selectedSection === 'LAMINATION' ? `<td class="px-6 py-3 text-right">${formatNumber(totalSheets)}</td>` : ''}
         </tr>
       </tbody>
       </table>
     `;
-
     container.innerHTML = html;
-
-    // Gắn sự kiện click xem chi tiết máy
-    container.querySelectorAll('tbody tr[data-machine]').forEach(row =>
-      row.addEventListener('click', () => {
-        const m = row.getAttribute('data-machine');
-        loadDetailsClient(m, true);
-      })
-    );
-
-    console.log(`✅ Summary hiển thị cho ${selectedSection}, STATUS = ${statusFilter}, cột Delay/Urgent = ${delayKey}`);
-
+    container.querySelectorAll('tbody tr[data-machine]').forEach(row => row.addEventListener('click', () => loadDetailsClient(row.getAttribute('data-machine'), true)));
   } catch (err) {
     console.error('[renderSummarySection error]', err);
-    container.innerHTML = `
-      <div class="text-red-500 py-4">
-        ⚠️ Lỗi tải dữ liệu section
-      </div>
-    `;
+    container.innerHTML = `<div class="text-red-500 py-4">⚠️ Lỗi tải dữ liệu section</div>`;
   } finally {
     setBtnLoading(btnSummary, false);
   }
 }
 
-
-
-// ✅ Gọi khi load trang xong
 window.addEventListener('DOMContentLoaded', () => {
   loadSummary();
   fetchLastPushTime();
-
   btnSummary.addEventListener('click', loadSummary);
   btnProgress.addEventListener('click', loadProgress);
   btnRefresh.addEventListener('click', () => window.location.reload());
-
   progressBtnSearch.addEventListener('click', searchProgress);
   progressBtnClear.addEventListener('click', clearProgressSearch);
   progressBtnExport.addEventListener('click', exportProgressToExcel);
 
-  // Search on Enter (Mobile/Desktop)
-  progressSearchBox.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') searchProgress();
-  });
+  progressSearchBox.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchProgress(); });
 
-  // Live search for Mobile (Debounced)
   let searchTimeout;
   progressSearchBox.addEventListener('input', () => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-      if (progressSearchBox.value.trim().length >= 3 || progressSearchBox.value.trim().length === 0) {
-        searchProgress();
-      }
+      if (progressSearchBox.value.trim().length >= 3 || progressSearchBox.value.trim().length === 0) searchProgress();
     }, 800);
   });
 
-  delayBtnSearch.addEventListener('click', () => {
-    console.log("Searching for:", currentDelayType);
-    loadDelayUrgentData(currentDelayType);
-  });
-
-  // Enter for Delay Search
-  delaySearchBox.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') loadDelayUrgentData(currentDelayType);
-  });
-
+  delayBtnSearch.addEventListener('click', () => loadDelayUrgentData(currentDelayType));
+  delaySearchBox.addEventListener('keypress', (e) => { if (e.key === 'Enter') loadDelayUrgentData(currentDelayType); });
   delayBtnClear.addEventListener('click', () => {
     delaySearchBox.value = '';
     document.querySelectorAll('.delay-input').forEach(i => i.value = '');
@@ -1084,102 +869,71 @@ window.addEventListener('DOMContentLoaded', () => {
     hideAllViews();
     delayTabs.classList.remove('hidden');
     currentDelayType = 'DELAY';
-
-    // Hiện tiêu đề tìm kiếm cơ bản & nâng cao cho Delay
     document.getElementById('delay-basic-search-title').classList.remove('hidden');
     document.getElementById('delay-advanced-search-title').classList.remove('hidden');
-
     delaySearchBar.classList.remove('hidden');
     delayAdvancedFilter.classList.remove('hidden');
     loadDelayUrgentData('DELAY');
-
     btnDelayTab.classList.add('bg-yellow-400', 'text-white');
     btnDelayTab.classList.remove('bg-gray-300', 'text-black');
     btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
     btnUrgentTab.classList.add('bg-gray-300', 'text-black');
   });
 
-  // Sự kiện nút Delay
   btnDelayTab.addEventListener('click', () => {
     currentDelayType = 'DELAY';
     hideAllViews();
     delayTabs.classList.remove('hidden');
     showDelaySearchWidgets();
     loadDelayUrgentData('DELAY');
-
-    // highlight nút
     btnDelayTab.classList.add('bg-yellow-400', 'text-white');
     btnDelayTab.classList.remove('bg-gray-300', 'text-black');
     btnUrgentTab.classList.remove('bg-yellow-400', 'text-white');
     btnUrgentTab.classList.add('bg-gray-300', 'text-black');
   });
 
-  // Sự kiện nút Xuất gấp
   btnUrgentTab.addEventListener('click', () => {
     currentDelayType = 'URGENT';
     hideAllViews();
     delayTabs.classList.remove('hidden');
     showDelaySearchWidgets();
     loadDelayUrgentData('URGENT');
-
-    // highlight nút
     btnUrgentTab.classList.add('bg-yellow-400', 'text-white');
     btnUrgentTab.classList.remove('bg-gray-300', 'text-black');
     btnDelayTab.classList.remove('bg-yellow-400', 'text-white');
     btnDelayTab.classList.add('bg-gray-300', 'text-black');
   });
 
-  delayErrorOnly.addEventListener('change', () => {
-    loadDelayUrgentData(currentDelayType);
-  });
+  delayErrorOnly.addEventListener('change', () => loadDelayUrgentData(currentDelayType));
 });
 
 function hideAllViews() {
-  document.getElementById('section-bar').innerHTML = '';
-  document.getElementById('searchResult').innerHTML = '';
-  document.getElementById('table-container').innerHTML = '';
+  const ids = ['section-bar', 'searchResult', 'table-container'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
   document.getElementById('details-container').classList.add('hidden');
   document.getElementById('progress-search-bar').classList.add('hidden');
   document.getElementById('progress-advanced-filter').classList.add('hidden');
-  document.getElementById('basic-search-title')?.classList.add('hidden');
-  document.getElementById('advanced-search-title')?.classList.add('hidden');
-  document.getElementById('delay-tabs')?.classList.add('hidden');
-  document.getElementById('delay-basic-search-title')?.classList.add('hidden');
-  document.getElementById('delay-advanced-search-title')?.classList.add('hidden');
-  document.getElementById('delay-search-bar')?.classList.add('hidden');
-  document.getElementById('delay-advanced-filter')?.classList.add('hidden');
+  document.querySelectorAll('#basic-search-title, #advanced-search-title, #delay-tabs, #delay-basic-search-title, #delay-advanced-search-title, #delay-search-bar, #delay-advanced-filter').forEach(el => el.classList.add('hidden'));
 }
-
-
 
 function formatExcelDate(serial) {
   if (!serial || isNaN(serial)) return '';
   const base = new Date(1899, 11, 30);
   const date = new Date(base.getTime() + serial * 86400000);
-  return `${String(date.getDate()).padStart(2, '0')}/` +
-    `${String(date.getMonth() + 1).padStart(2, '0')}/` +
-    `${date.getFullYear()}`;
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
-
-
 async function loadDelayUrgentData(type) {
-  console.log(`[loadDelayUrgentData] Started filtering for type: ${type}`);
   const btn = document.getElementById('delayBtnSearch');
   if (btn) setBtnLoading(btn, true);
-
   try {
     const json = await fetchAllPowerAppData();
     const data = json.data;
-    console.log(`[loadDelayUrgentData] Total data rows: ${data.length}`);
     const heading = document.getElementById('delay-basic-search-title');
     if (heading) heading.textContent = (type === 'DELAY' ? 'TÌM KIẾM DELAY' : 'TÌM KIẾM XUẤT GẤP');
-
     const keyword = delaySearchBox.value.trim().toLowerCase();
     const selectedField = delayColumnSelect.value;
     const errorOnly = delayErrorOnly.checked;
-
-    // Lọc theo điều kiện nâng cao
     const inputs = document.querySelectorAll('.delay-input');
     const checks = document.querySelectorAll('.delay-check');
     const filters = {};
@@ -1187,110 +941,48 @@ async function loadDelayUrgentData(type) {
       if (chk.checked) {
         const key = chk.dataset.key;
         const input = [...inputs].find(i => i.dataset.key === key);
-        if (input && input.value.trim()) {
-          filters[key] = input.value.trim().toLowerCase();
-        }
+        if (input && input.value.trim()) filters[key] = input.value.trim().toLowerCase();
       }
     });
 
-    // Lọc chính
     let filtered = data.filter(row => {
       const delayVal = (row['Delay-Urgent'] || '').toUpperCase();
-      // Chọn DELAY hay URGENT
-      if ((type === 'DELAY' && delayVal !== 'PRODUCTION DELAY') ||
-        (type === 'URGENT' && delayVal !== 'URGENT')) {
-        return false;
-      }
-
-      // Basic search
+      if ((type === 'DELAY' && delayVal !== 'PRODUCTION DELAY') || (type === 'URGENT' && delayVal !== 'URGENT')) return false;
       const main = (row[selectedField] || '').toString().toLowerCase();
       if (keyword && !main.includes(keyword)) return false;
-
-      // Advanced filters
-      for (let [k, v] of Object.entries(filters)) {
-        if (!(row[k] || '').toString().toLowerCase().includes(v)) {
-          return false;
-        }
-      }
-
-      // Nếu check “Chỉ lỗi” thì chỉ lấy status ≠ 7.PACKING & ≠ 9.STORED
+      for (let [k, v] of Object.entries(filters)) { if (!(row[k] || '').toString().toLowerCase().includes(v)) return false; }
       if (errorOnly) {
         const st = (row['STATUS'] || '').toUpperCase();
         if (st === '7.PACKING' || st === '9.STORED') return false;
       }
-
       return true;
     });
 
-    // Tạo table
-    const headers = [
-      'STT', 'PRO ODER', 'Brand Code', 'Loại hàng', 'Mã khuôn',
-      'BOM', 'Total Qty', 'Finish date', 'PPC Confirm', 'STORED', 'STATUS'
-    ];
-    let html = `
-        <table class="min-w-full text-sm text-left border">
-          <thead class="bg-gray-200">
-            <tr>${headers
-        .map(h => `<th class="px-2 py-1 border">${h}</th>`)
-        .join('')}
-            </tr>
-          </thead>
-          <tbody>
-      `;
+    const headers = ['STT', 'PRO ODER', 'Brand Code', 'Loại hàng', 'Mã khuôn', 'BOM', 'Total Qty', 'Finish date', 'PPC Confirm', 'STORED', 'STATUS'];
+    let html = `<table class="min-w-full text-sm text-left border"><thead class="bg-gray-200"><tr>${headers.map(h => `<th class="px-2 py-1 border">${h}</th>`).join('')}</tr></thead><tbody>`;
     html += filtered.map((row, i) => {
       const status = row['STATUS'] || '';
-      const highlight = (!errorOnly && status !== '7.PACKING' && status !== '9.STORED')
-        ? 'bg-red-100'
-        : '';
-      return `
-          <tr class="${highlight}">
-            <td class="border px-2 py-1">${i + 1}</td>
-            <td class="border px-2 py-1">${row['PRO ODER'] || ''}</td>
-            <td class="border px-2 py-1">${row['Brand Code'] || ''}</td>
-            <td class="border px-2 py-1">${row['#MOLDED'] || ''}</td>
-            <td class="border px-2 py-1">${row['#MOLD'] || ''}</td>
-            <td class="border px-2 py-1">${row['BOM'] || ''}</td>
-            <td class="border px-2 py-1">${row['Total Qty'] || ''}</td>
-            <td class="border px-2 py-1">${formatExcelDate(Number(row['Finish date']))}</td>
-            <td class="border px-2 py-1">${formatExcelDate(Number(row['PPC Confirm']))}</td>
-            <td class="border px-2 py-1">${formatExcelDate(Number(row['STORED']))}</td>
-            <td class="border px-2 py-1">${status}</td>
-          </tr>
-        `;
+      const highlight = (!errorOnly && status !== '7.PACKING' && status !== '9.STORED') ? 'bg-red-100' : '';
+      return `<tr class="${highlight}"><td class="border px-2 py-1">${i + 1}</td><td class="border px-2 py-1">${row['PRO ODER'] || ''}</td><td class="border px-2 py-1">${row['Brand Code'] || ''}</td><td class="border px-2 py-1">${row['#MOLDED'] || ''}</td><td class="border px-2 py-1">${row['#MOLD'] || ''}</td><td class="border px-2 py-1">${row['BOM'] || ''}</td><td class="border px-2 py-1">${row['Total Qty'] || ''}</td><td class="border px-2 py-1">${formatExcelDate(Number(row['Finish date']))}</td><td class="border px-2 py-1">${formatExcelDate(Number(row['PPC Confirm']))}</td><td class="border px-2 py-1">${formatExcelDate(Number(row['STORED']))}</td><td class="border px-2 py-1">${status}</td></tr>`;
     }).join('');
-    html += `
-          </tbody>
-        </table>
-      `;
-
-    if (filtered.length === 0) {
-      document.getElementById('table-container').innerHTML = '<div class="text-center py-4 text-red-500 font-semibold">❌ Không tìm thấy dữ liệu phù hợp!</div>';
-    } else {
-      document.getElementById('table-container').innerHTML = html;
-    }
-    console.log(`[loadDelayUrgentData] Rendered ${filtered.length} rows.`);
+    html += '</tbody></table>';
+    if (filtered.length === 0) document.getElementById('table-container').innerHTML = '<div class="text-center py-4 text-red-500 font-semibold">❌ Không tìm thấy dữ liệu phù hợp!</div>';
+    else document.getElementById('table-container').innerHTML = html;
   } catch (err) {
     console.error('Lỗi loadDelayUrgentData:', err);
-    document.getElementById('table-container').innerHTML =
-      '<div class="text-red-500 p-4">Không tải được dữ liệu</div>';
+    document.getElementById('table-container').innerHTML = '<div class="text-red-500 p-4">Không tải được dữ liệu</div>';
   } finally {
     if (btn) setBtnLoading(btn, false);
   }
 }
 
+document.getElementById("btn-supplement")?.addEventListener("click", () => { window.location.href = "/supplement.html"; });
+document.getElementById("btn-confirm-page")?.addEventListener("click", () => { window.location.href = "/supplement-confirm.html"; });
+document.getElementById("btn-supplement-count")?.addEventListener("click", () => { window.location.href = "/supplement-count.html"; });
 
-// Sau khi định nghĩa hàm, đừng quên gắn sự kiện để khi check/uncheck “Chỉ lỗi” lại load lại bảng:
-// Đảm bảo nút Bù hàng luôn hoạt động
-document.getElementById("btn-supplement")?.addEventListener("click", () => {
-  window.location.href = "/supplement.html";
-});
-
-// Nút Bù hàng - Xác nhận trên trang chính
-document.getElementById("btn-confirm-page")?.addEventListener("click", () => {
-  window.location.href = "/supplement-confirm.html";
-});
-
-// Nút Realtime Hàng Bù
-document.getElementById("btn-supplement-count")?.addEventListener("click", () => {
-  window.location.href = "/supplement-count.html";
-});
+const btnSurplusGoods = document.getElementById('btn-surplus-goods');
+if (btnSurplusGoods) {
+  btnSurplusGoods.addEventListener('click', () => {
+    window.location.href = 'surplus-goods.html';
+  });
+}
