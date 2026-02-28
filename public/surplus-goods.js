@@ -183,13 +183,17 @@ function setupEventListeners() {
         };
     });
 
-    // If RPRO is empty, check if PU+Fabric already exists when losing focus
+    // Check if PU+Fabric already exists dynamically as the user types or leaves the field
+    const checkDuplicateDebounced = debounce(async () => {
+        // Chỉ quét trùng lặp khi đang ở chế độ nhập tay bằng PU hoặc Fabric
+        if ((currentRproType === 'pu' || currentRproType === 'fabric') && !rproInput.value.trim() && infoPu.value.trim() && infoFabric.value.trim()) {
+            await checkExistingManualEntry();
+        }
+    }, 500);
+
     [infoPu, infoFabric].forEach(input => {
-        input.addEventListener('blur', async () => {
-            if (!rproInput.value.trim() && infoPu.value.trim() && infoFabric.value.trim()) {
-                await checkExistingManualEntry();
-            }
-        });
+        input.addEventListener('input', checkDuplicateDebounced);
+        input.addEventListener('blur', checkDuplicateDebounced);
     });
 }
 
@@ -263,11 +267,19 @@ async function checkExistingManualEntry() {
     const existingData = data && data.length > 0 ? data[0] : null;
 
     if (existingData) {
-        editingId = existingData.id;
-        activeOrderData = existingData;
-        loadSurplusDataToUI(existingData);
-        showToast("⚠️ Đơn với cặp vật tư này đã tồn tại! Bạn đang thao tác trên đơn cũ. Nhấn '✂️ Tách Đơn' nếu muốn tạo dòng nhập kho riêng.", "orange");
-        if (btnSplitSurplus) btnSplitSurplus.classList.remove('hidden');
+        // Prevent re-triggering loader if it's already the same ID
+        if (editingId !== existingData.id) {
+            editingId = existingData.id;
+            activeOrderData = existingData;
+            loadSurplusDataToUI(existingData);
+            showToast("⚠️ CẢNH BÁO: Đơn này đã TỒN TẠI ở bộ phận hiện tại! Hệ thống đã chuyển sang chế độ CẬP NHẬT.", "error");
+            if (btnSplitSurplus) btnSplitSurplus.classList.remove('hidden');
+            if (btnSaveSurplus) btnSaveSurplus.textContent = "💾 CHẤP NHẬN GHI ĐÈ";
+
+            // Enable inputs just in case they were locked
+            enableInput();
+            updateSizeHighlights();
+        }
     }
 }
 async function updateRPROSuggestions(value) {
@@ -503,7 +515,12 @@ async function handleScan(text) {
         displayOrderInfo(order);
         detectExtraSizes(order);
         enableInput();
+
+        // Immediately trigger check right after auto-populating PU/Fabric from system database
         showToast("✅ Tìm thấy dữ liệu. Mời nhập số lượng dôi!", "success");
+        if ((currentRproType === 'pu' || currentRproType === 'fabric') && infoPu.value.trim() && infoFabric.value.trim()) {
+            await checkExistingManualEntry();
+        }
 
     } catch (err) {
         console.error(err);
@@ -755,16 +772,41 @@ async function saveSurplus() {
 
     try {
         let result;
+
+        // Final guard: Determine if user is unintentionally overwriting an existing record in the SAME section.
+        if (!editingId && !isSplittingOrder) {
+            const { data } = await supabase.from('surplusgoods')
+                .select('id, rpro')
+                .eq('rpro', payload.rpro)
+                .eq('section', activeSection)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            const duplicateCheck = data && data.length > 0 ? data[0] : null;
+
+            if (duplicateCheck) {
+                editingId = duplicateCheck.id; // Automatically bind to avoid repeat checks if they click save again
+                showToast("⚠️ CẢNH BÁO: Đơn này đã TỒN TẠI ở bộ phận hiện tại! Hệ thống đã chuyển sang chế độ CẬP NHẬT. Nhấn 'Lưu' lần nữa để ghi đè hoặc nhấn 'Tách Đơn' nếu đây là đơn mới!", "error");
+                if (btnSplitSurplus) btnSplitSurplus.classList.remove('hidden');
+                btnSaveSurplus.disabled = false;
+                btnSaveSurplus.textContent = "💾 CHẤP NHẬN GHI ĐÈ";
+                return; // Abort this first click
+            }
+        }
+
         if (editingId) {
             // UPDATE existing
             result = await supabase.from('surplusgoods').update(payload).eq('id', editingId);
         } else {
             // Check if this exact rpro already exists in surplusgoods IN THE SAME SECTION to prevent duplicates
-            const { data: existData } = await supabase.from('surplusgoods')
+            const { data } = await supabase.from('surplusgoods')
                 .select('id')
                 .eq('rpro', payload.rpro)
                 .eq('section', activeSection)
-                .maybeSingle();
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            const existData = data && data.length > 0 ? data[0] : null;
 
             if (existData) {
                 // UPDATE existing fallback
