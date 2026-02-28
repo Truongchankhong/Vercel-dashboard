@@ -180,16 +180,16 @@ async function updateSuggestions(column, value, datalistId) {
                 .limit(5));
 
             if (isPu) {
-                promises.push(supabase.from('powerapp').select('PU DESCRIPTION, Mã dao').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('powerapp').select('PU DESCRIPTION, Mã dao').ilike('Mã dao', `%${val}%`).limit(5));
-                promises.push(supabase.from('Masterdata').select('PU DESCRIPTION, Mã dao').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('Masterdata').select('PU DESCRIPTION, Mã dao').ilike('Mã dao', `%${val}%`).limit(5));
+                promises.push(supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('powerapp').select('*').ilike('Mã dao', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('*').ilike('Mã dao', `%${val}%`).limit(5));
             } else {
-                promises.push(supabase.from('powerapp').select('FB DESCRIPTION, Tên vải, FABRIC DESCRIPTION').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('powerapp').select('FB DESCRIPTION, Tên vải, FABRIC DESCRIPTION').ilike('Tên vải', `%${val}%`).limit(5));
-                promises.push(supabase.from('powerapp').select('FB DESCRIPTION, Tên vải, FABRIC DESCRIPTION').ilike('FABRIC DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('Masterdata').select('FB DESCRIPTION, Tên vải, FABRIC DESCRIPTION').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('Masterdata').select('FB DESCRIPTION, Tên vải, FABRIC DESCRIPTION').ilike('Tên vải', `%${val}%`).limit(5));
+                promises.push(supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('powerapp').select('*').ilike('Tên vải', `%${val}%`).limit(5));
+                promises.push(supabase.from('powerapp').select('*').ilike('FABRIC DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('*').ilike('Tên vải', `%${val}%`).limit(5));
             }
 
             const results = await Promise.all(promises);
