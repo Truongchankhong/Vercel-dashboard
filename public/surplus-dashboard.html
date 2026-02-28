@@ -91,9 +91,12 @@
                             </th>
                             <th class="p-4 bg-orange-50 text-orange-700 text-center border-l border-white w-24">LEANLINE
                             </th>
-                            <th class="p-4 bg-slate-100 text-slate-800 text-center border-l border-white w-28">TỔNG CỘNG
+                            <th class="p-4 bg-orange-50 text-orange-700 text-center border-l border-white w-24">LEANLINE
                             </th>
-                            <th class="p-4 bg-slate-50 rounded-tr-xl border-l border-slate-200">Cập nhật lần cuối</th>
+                            <th
+                                class="p-4 bg-slate-100 text-slate-800 text-center border-l border-white w-28 rounded-tr-xl">
+                                TỔNG CỘNG
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="dashboard-tbody" class="divide-y divide-slate-100 text-sm">
@@ -146,6 +149,9 @@
                             lps: 0,
                             molding: 0,
                             leanline: 0,
+                            lpsLastUpdated: null,
+                            moldingLastUpdated: null,
+                            leanlineLastUpdated: null,
                             lastUpdated: new Date(item.created_at) // Assuming created_at is updated or represents the entry time
                         };
                     }
@@ -161,14 +167,22 @@
                         });
                     }
 
-                    // Add to section totals
+                    // Add to section totals and track individual last updated dates
                     const section = (item.section || '').toUpperCase();
-                    if (section === 'LPS') groupings[rpro].lps += totalQty;
-                    else if (section === 'MOLDING') groupings[rpro].molding += totalQty;
-                    else if (section === 'LEANLINE') groupings[rpro].leanline += totalQty;
-
-                    // Update timestamp
                     const itemDate = new Date(item.created_at);
+
+                    if (section === 'LPS') {
+                        groupings[rpro].lps += totalQty;
+                        if (!groupings[rpro].lpsLastUpdated || itemDate > groupings[rpro].lpsLastUpdated) groupings[rpro].lpsLastUpdated = itemDate;
+                    } else if (section === 'MOLDING') {
+                        groupings[rpro].molding += totalQty;
+                        if (!groupings[rpro].moldingLastUpdated || itemDate > groupings[rpro].moldingLastUpdated) groupings[rpro].moldingLastUpdated = itemDate;
+                    } else if (section === 'LEANLINE') {
+                        groupings[rpro].leanline += totalQty;
+                        if (!groupings[rpro].leanlineLastUpdated || itemDate > groupings[rpro].leanlineLastUpdated) groupings[rpro].leanlineLastUpdated = itemDate;
+                    }
+
+                    // Update global timestamp for sorting
                     if (itemDate > groupings[rpro].lastUpdated) {
                         groupings[rpro].lastUpdated = itemDate;
                     }
@@ -198,15 +212,27 @@
                 if (total === 0) return ''; // Skip empty records
 
                 const timeDiff = now - r.lastUpdated;
-                const isWarning = timeDiff > sevenDaysInMs;
+                const isWarningGlobal = timeDiff > sevenDaysInMs;
+                const rowWarningClass = isWarningGlobal ? 'bg-rose-50/30' : ''; // Optional subtle highlight for very old entries
 
-                const dateStr = r.lastUpdated.toLocaleString('vi-VN');
-                const timeWarningHtml = isWarning
-                    ? `<span class="inline-flex items-center gap-1 bg-rose-100 text-rose-700 px-2 py-0.5 rounded-lg font-bold text-[10px]"><span class="animate-pulse">⚠️</span> Quá 7 ngày</span>`
-                    : `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-lg font-bold text-[10px]">Đang lưu kho</span>`;
+                // Format helper for dates
+                const getDateHtml = (qty, dateObj) => {
+                    if (qty <= 0 || !dateObj) return '-';
+                    const diff = now - dateObj;
+                    const isWarn = diff > sevenDaysInMs;
+
+                    const timeStr = dateObj.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                    const dateStr = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+
+                    return `
+                        <div class="text-xs text-slate-400 mt-1">${timeStr}</div>
+                        <div class="text-[10px] text-slate-500 font-medium mb-1">${dateStr}</div>
+                        ${isWarn ? `<span class="inline-block bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded text-[9px] font-bold"><span class="animate-pulse">⚠️</span> Quá hạn</span>` : ''}
+                    `;
+                };
 
                 return `
-                    <tr class="hover:bg-slate-50 transition-colors group">
+                    <tr class="hover:bg-slate-50 transition-colors group ${rowWarningClass}">
                         <td class="p-4 border-r border-slate-100 sticky left-0 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-slate-50">
                             <div class="font-black text-slate-700 mb-1 flex items-center gap-2">
                                 <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">${r.rpro}</span>
@@ -215,21 +241,26 @@
                             <div class="text-[10px] text-slate-500 italic truncate max-w-[200px]" title="PU: ${r.pu}">P: ${r.pu}</div>
                             <div class="text-[10px] text-slate-500 italic truncate max-w-[200px]" title="Fb: ${r.fabric}">F: ${r.fabric}</div>
                         </td>
-                        <td class="p-4 text-center font-bold text-teal-600 border-r border-slate-100">${r.lps > 0 ? r.lps : '-'}</td>
-                        <td class="p-4 text-center font-bold text-indigo-600 border-r border-slate-100">${r.molding > 0 ? r.molding : '-'}</td>
-                        <td class="p-4 text-center font-bold text-orange-600 border-r border-slate-100">${r.leanline > 0 ? r.leanline : '-'}</td>
-                        <td class="p-4 text-center border-r border-slate-100 bg-slate-50">
-                            <span class="text-lg font-black text-slate-800">${total}</span>
+                        <td class="p-4 text-center border-r border-slate-100 align-top">
+                            <div class="font-bold text-teal-600 text-base mb-1">${r.lps > 0 ? r.lps : '-'}</div>
+                            ${getDateHtml(r.lps, r.lpsLastUpdated)}
                         </td>
-                        <td class="p-4">
-                            <div class="text-xs font-bold text-slate-600 mb-1">${dateStr}</div>
-                            ${timeWarningHtml}
+                        <td class="p-4 text-center border-r border-slate-100 align-top">
+                            <div class="font-bold text-indigo-600 text-base mb-1">${r.molding > 0 ? r.molding : '-'}</div>
+                            ${getDateHtml(r.molding, r.moldingLastUpdated)}
+                        </td>
+                        <td class="p-4 text-center border-r border-slate-100 align-top">
+                            <div class="font-bold text-orange-600 text-base mb-1">${r.leanline > 0 ? r.leanline : '-'}</div>
+                            ${getDateHtml(r.leanline, r.leanlineLastUpdated)}
+                        </td>
+                        <td class="p-4 text-center border-slate-100 bg-slate-50 align-top">
+                            <span class="text-xl font-black text-slate-800 block mb-1">${total}</span>
                         </td>
                     </tr>
                 `;
             }).join('');
 
-            tbody.innerHTML = html || `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold uppercase">Kho trống</td></tr>`;
+            tbody.innerHTML = html || `<tr><td colspan="5" class="p-8 text-center text-slate-400 font-bold uppercase">Kho trống</td></tr>`;
         }
 
         // Excel Export
