@@ -263,15 +263,15 @@ async function saveSurplus() {
     btnSaveSurplus.disabled = true;
     btnSaveSurplus.textContent = "⏳ Đang lưu...";
 
-    const rpro = activeOrderData['PRO ODER'];
+    const rpro = activeOrderData['PRO ODER'] || activeOrderData['rpro'];
     const payload = {
         rpro: rpro,
-        so: activeOrderData['SO'] || activeOrderData['Sales Order'] || '',
-        brand_code: activeOrderData['Brand Code'] || '',
-        mold: activeOrderData['#MOLD'] || activeOrderData['Mã Khuôn'] || '',
-        bom: activeOrderData['BOM'] || '',
-        pu: activeOrderData['PU DESCRIPTION'] || activeOrderData['Mã dao'] || '',
-        fabric: activeOrderData['FB DESCRIPTION'] || activeOrderData['Tên vải'] || '',
+        so: activeOrderData['SO'] || activeOrderData['so'] || activeOrderData['Sales Order'] || '',
+        brand_code: activeOrderData['brand_code'] || activeOrderData['Brand Code'] || '',
+        mold: activeOrderData['mold'] || activeOrderData['#MOLD'] || activeOrderData['Mã Khuôn'] || '',
+        bom: activeOrderData['bom'] || activeOrderData['BOM'] || '',
+        pu: activeOrderData['pu'] || activeOrderData['PU DESCRIPTION'] || activeOrderData['Mã dao'] || activeOrderData['PU'] || '',
+        fabric: activeOrderData['fabric'] || activeOrderData['FB DESCRIPTION'] || activeOrderData['Tên vải'] || '',
         note: entryNote.value.trim(),
         dynamic_sizes: {}
     };
@@ -454,8 +454,7 @@ window.previewEntry = async (id) => {
 
     resetEntry();
     editingId = data.id;
-
-    // Fill basic info
+    activeOrderData = data; // Ensure saving from preview also works
     rproInput.value = data.rpro;
     entryNote.value = data.note || '';
     infoBrand.textContent = data.brand_code || '-';
