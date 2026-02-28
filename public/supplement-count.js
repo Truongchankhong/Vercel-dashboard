@@ -196,9 +196,33 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+function normalizeRPRO(text) {
+    if (!text) return "";
+    let clean = text.trim().toUpperCase();
+
+    // Parse QR if pipe-delimited
+    if (clean.includes('|')) {
+        const parts = clean.split('|');
+        const found = parts.find(p => p.trim().startsWith('RPRO'));
+        if (found) clean = found.trim();
+    }
+
+    // Remove all variants of RPRO prefix and clean
+    clean = clean.replace(/^RPRO-+/i, '').replace(/^RPRO/i, '');
+    clean = clean.replace(/[^A-Z0-9-]/g, '');
+
+    // Ensure standard RPRO-XXXXXX-XXXX format if possible
+    const pureNumbers = clean.replace(/-/g, '');
+    if (pureNumbers.length >= 7) {
+        return `RPRO-${pureNumbers.substring(0, 6)}-${pureNumbers.substring(6)}`;
+    }
+    return "RPRO-" + clean.replace(/-+/g, '-');
+}
+
 // ==================== AUTO-FETCH NOTE & QUANTITY ====================
-async function fetchDetails(rpro) {
-    if (!rpro || !activeSection) return false;
+async function fetchDetails(rawRpro) {
+    const rpro = normalizeRPRO(rawRpro);
+    if (!rpro || rpro === 'RPRO-' || !activeSection) return false;
 
     // Simple RPRO pattern check
     if (rpro.length < 5) return false;
@@ -360,18 +384,34 @@ async function fetchDetails(rpro) {
             // Hide PU info for non-Dán sections
             if (puInfoContainer) puInfoContainer.classList.add('hidden');
 
-            // "lấy mặc định theo số scan Out của section dán"
-            const { data: trackingData, error: trackingError } = await supabase
+            // Cải tiến: Lấy số lượng từ bản ghi gần nhất của RPRO này trong hệ thống tracking
+            // Điều này đảm bảo số lượng được "truyền" qua các công đoạn (Dán -> Cắt -> Molding -> Leanline)
+            const { data: lastScan, error: lastScanErr } = await supabase
                 .from('supplement_tracking')
-                .select('quantity')
+                .select('quantity, section')
                 .eq('rpro', rpro)
-                .eq('section', 'Dán')
-                .eq('action', 'OUT');
+                .order('created_at', { ascending: false })
+                .limit(1);
 
-            if (!trackingError && trackingData && trackingData.length > 0) {
-                defaultQty = trackingData.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                console.log(`📦 ${activeSection}: Default quantity from Dán Scan Out: ${defaultQty}`);
+            if (!lastScanErr && lastScan && lastScan.length > 0) {
+                defaultQty = lastScan[0].quantity;
+                console.log(`📦 ${activeSection}: Mặc định lấy SL từ lần quét gần nhất (${lastScan[0].section}): ${defaultQty}`);
                 foundAnyData = true;
+            } else {
+                // Nếu chưa có scan nào, thử lấy từ supplement_confirm (giống logic của Dán)
+                const { data: confirmData } = await supabase
+                    .from('supplement_confirm')
+                    .select('available_supplement, total')
+                    .eq('rpro', rpro)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (confirmData && confirmData.length > 0) {
+                    const rec = confirmData[0];
+                    defaultQty = (rec.available_supplement !== null) ? rec.available_supplement : rec.total;
+                    foundAnyData = true;
+                    console.log(`📦 ${activeSection}: Chưa có lịch sử, lấy SL từ hệ thống: ${defaultQty}`);
+                }
             }
         } else {
             // Hide PU info for any other sections
@@ -428,29 +468,14 @@ function showMultiRproConfirmation(matches, mode, note) {
     };
 }
 async function processRPRO(text, mode, note = '', isInBatch = false) {
-    console.log(`🚀 Processing RPRO: ${text} | Mode: ${mode} | Note: ${note} | Section: ${activeSection} | Action: ${activeAction}`);
+    const rpro = normalizeRPRO(text);
+    console.log(`🚀 Processing RPRO: ${rpro} | Mode: ${mode} | Note: ${note} | Section: ${activeSection} | Action: ${activeAction}`);
 
     if (!isInBatch) isProcessing = true;
 
-    // Parse QR if pipe-delimited
-    let cleanText = text.trim().toUpperCase();
-    if (cleanText.includes('|')) {
-        const parts = cleanText.split('|');
-        const found = parts.find(p => p.trim().toUpperCase().startsWith('RPRO'));
-        if (found) cleanText = found.trim().toUpperCase();
-    }
-
-    // Chuẩn hóa RPRO: Loại bỏ prefix cũ và thêm lại chuẩn RPRO-
-    cleanText = cleanText.replace(/^RPRO-+/i, '').replace(/^RPRO/i, '');
-    cleanText = "RPRO-" + cleanText;
-    cleanText = cleanText.replace(/-+/g, '-');
-
-    const rpro = cleanText;
-
     // Validation (Strict check: ensure it's a single clean RPRO)
-    const isSingleRpro = /^RPRO-[\d-]+$/.test(rpro);
-    if (!isSingleRpro) {
-        const errorMsg = `❌ Mã sai định dạng hoặc bị dính: ${rpro}`;
+    if (rpro === 'RPRO-' || rpro.length < 8) {
+        const errorMsg = `❌ Mã sai định dạng: ${rpro}`;
         showFeedback(errorMsg, "text-red-600");
         showToast(errorMsg, "error");
         playAudioFeedback(false);
