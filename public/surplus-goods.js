@@ -821,6 +821,8 @@ async function saveSurplus() {
         bom: infoBom.textContent === '-' ? '' : infoBom.textContent,
         pu: pu,
         fabric: fabric,
+        pu_code: activeOrderData['PU'] || activeOrderData['pu_code'] || '',
+        fb_code: activeOrderData['FB'] || activeOrderData['fb_code'] || '',
         section: activeSection,
         note: entryNote.value.trim(),
         dynamic_sizes: {}
@@ -1247,6 +1249,8 @@ async function exportSurplusExcel() {
                 'BOM': item.bom || '',
                 'PU': item.pu || '',
                 'Fabric': item.fabric || '',
+                'Code PU': item.pu_code || '',
+                'Code FB': item.fb_code || '',
                 'Section': item.section || '',
                 'Ghi chú': item.note || ''
             };
