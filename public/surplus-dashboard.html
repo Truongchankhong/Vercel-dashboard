@@ -47,23 +47,41 @@
                 </h1>
                 <p class="text-slate-500 font-bold mt-1">Theo dõi tồn kho hàng dư tại các bộ phận</p>
             </div>
-            <div class="flex flex-wrap gap-3 items-center mt-4 md:mt-0">
-                <input type="date" id="export-start-date"
-                    class="px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:border-indigo-500 shadow-sm">
-                <span class="text-slate-400 font-bold">-</span>
-                <input type="date" id="export-end-date"
-                    class="px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:border-indigo-500 shadow-sm">
-                <button id="btn-export-excel"
-                    class="px-5 py-2.5 bg-green-500 text-white hover:bg-green-600 font-bold rounded-xl shadow-md transition-colors flex items-center gap-2">
-                    ⬇️ Xuất Excel
-                </button>
-                <button onclick="loadDashboardData()"
-                    class="px-5 py-2.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-xl border border-indigo-200 transition-colors flex items-center gap-2">
-                    🔄 Làm mới
-                </button>
+            <div class="flex flex-wrap gap-3 items-end mt-4 md:mt-0">
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-wider">Từ ngày -
+                        Giờ</label>
+                    <input type="datetime-local" id="export-start-date"
+                        class="px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:border-indigo-500 shadow-sm bg-white">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-wider">Đến ngày -
+                        Giờ</label>
+                    <input type="datetime-local" id="export-end-date"
+                        class="px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:border-indigo-500 shadow-sm bg-white">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-wider">Tìm kiếm
+                        nhanh</label>
+                    <div class="relative">
+                        <input type="text" id="dashboard-search" placeholder="RPRO, BOM, Mold..."
+                            class="pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:border-indigo-500 shadow-sm bg-white w-48">
+                        <span class="absolute left-2.5 top-2.5 text-slate-400">🔍</span>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="loadDashboardData()"
+                        class="px-4 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-xl shadow-md transition-all flex items-center gap-2 active:scale-95">
+                        🔄 Lọc
+                    </button>
+                    <button id="btn-export-excel"
+                        class="px-4 py-2.5 bg-emerald-500 text-white hover:bg-emerald-600 font-bold rounded-xl shadow-md transition-all flex items-center gap-2 active:scale-95">
+                        Excel
+                    </button>
+                </div>
                 <button onclick="window.location.href='https://vercel-dashboard-new.vercel.app/surplus-landing.html'"
-                    class="px-5 py-2.5 bg-white text-slate-600 hover:bg-slate-50 font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-2 shadow-sm">
-                    🏠 Quay lại
+                    class="px-4 py-2.5 bg-white text-slate-600 hover:bg-slate-50 font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-2 shadow-sm">
+                    🏠
                 </button>
             </div>
         </div>
@@ -176,6 +194,21 @@
 
         const startDateInput = document.getElementById('export-start-date');
         const endDateInput = document.getElementById('export-end-date');
+        const dashboardSearch = document.getElementById('dashboard-search');
+
+        // Live filtering
+        dashboardSearch.addEventListener('input', () => {
+            const term = dashboardSearch.value.trim().toLowerCase();
+            if (!window._dashboardData) return;
+            const filtered = window._dashboardData.filter(r =>
+                r.rpro.toLowerCase().includes(term) ||
+                r.bom.toLowerCase().includes(term) ||
+                r.mold.toLowerCase().includes(term) ||
+                r.pu.toLowerCase().includes(term) ||
+                r.fabric.toLowerCase().includes(term)
+            );
+            renderTable(filtered);
+        });
 
         // Fetch and process data
         window.loadDashboardData = async function () {
@@ -189,8 +222,8 @@
 
                 const startVal = startDateInput.value;
                 const endVal = endDateInput.value;
-                if (startVal) query = query.gte('created_at', startVal + 'T00:00:00+07:00');
-                if (endVal) query = query.lte('created_at', endVal + 'T23:59:59+07:00');
+                if (startVal) query = query.gte('created_at', startVal + ':00+07:00');
+                if (endVal) query = query.lte('created_at', endVal + ':59+07:00');
 
                 const { data, error } = await query;
                 if (error) throw error;
@@ -422,12 +455,18 @@
 
         // Init Dates
         document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date();
-            const lastMonth = new Date(today);
-            lastMonth.setMonth(today.getMonth() - 1);
+            const now = new Date();
+            const lastMonth = new Date(now);
+            lastMonth.setMonth(now.getMonth() - 1);
 
-            startDateInput.value = lastMonth.toISOString().split('T')[0];
-            endDateInput.value = today.toISOString().split('T')[0];
+            // Format to YYYY-MM-DDTHH:mm
+            const formatDT = (d) => {
+                const pad = (n) => n.toString().padStart(2, '0');
+                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            };
+
+            startDateInput.value = formatDT(lastMonth);
+            endDateInput.value = formatDT(now);
 
             loadDashboardData();
         });
