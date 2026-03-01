@@ -7,6 +7,7 @@
     <title>Quản Lý Hàng Dư - Ortholite Vietnam</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" defer></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css" />
     <style>
         .size-input:focus {
             background-color: #f0fdfa;
@@ -20,6 +21,24 @@
         .no-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
+        }
+
+        @keyframes pulse-amber {
+            0% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+            }
+        }
+
+        .animate-pulse-amber {
+            animation: pulse-amber 2s infinite;
         }
     </style>
 </head>
@@ -57,6 +76,14 @@
                 <button onclick="window.location.href='https://vercel-dashboard-new.vercel.app/surplus-landing.html'"
                     class="px-6 py-3 bg-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-300 transition shadow-md active:scale-95">
                     ← Quay lại
+                </button>
+                <button id="btn-tutorial" title="Hướng dẫn sử dụng"
+                    class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center hover:bg-amber-100 transition shadow-lg active:scale-95 border-2 border-amber-200 animate-pulse-amber">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                 </button>
             </div>
         </div>
@@ -305,6 +332,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
     <script type="module" src="./surplus-goods.js"></script>
 </body>
 

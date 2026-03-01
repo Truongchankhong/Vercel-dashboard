@@ -36,6 +36,7 @@ const historySearch = document.getElementById('history-search');
 const historyList = document.getElementById('history-list');
 const searchTypeBtns = document.querySelectorAll('.search-type-btn');
 const rproTypeBtns = document.querySelectorAll('.rpro-type-btn');
+const btnTutorial = document.getElementById('btn-tutorial');
 
 // Export Elements
 const btnExportExcel = document.getElementById('btn-export-excel');
@@ -202,6 +203,11 @@ function setupEventListeners() {
         input.addEventListener('input', checkDuplicateDebounced);
         input.addEventListener('blur', checkDuplicateDebounced);
     });
+
+    // Tutorial
+    if (btnTutorial) {
+        btnTutorial.onclick = startTutorial;
+    }
 }
 
 function renderCustomDropdown(inputId, dropdownId, valuesArray) {
@@ -1287,6 +1293,91 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+// ==================== TUTORIAL ====================
+
+function startTutorial() {
+    if (typeof window.driver === 'undefined') {
+        console.error("Driver.js not loaded");
+        return;
+    }
+
+    const driver = window.driver.js.driver;
+    const driverObj = driver({
+        showProgress: true,
+        nextBtnText: 'Tiếp theo',
+        prevBtnText: 'Quay lại',
+        doneBtnText: 'Hoàn tất',
+        steps: [
+            {
+                element: '#btn-tutorial',
+                popover: {
+                    title: '🌟 Chào mừng!',
+                    description: 'Đây là hệ thống Quản Lý Hàng Dư. Tôi sẽ hướng dẫn bạn cách nhập liệu và truy xuất dữ liệu chỉ trong vài bước.',
+                    side: "bottom", align: 'start'
+                }
+            },
+            {
+                element: '#rpro-input',
+                popover: {
+                    title: '1. Tìm kiếm hoặc Quét mã',
+                    description: 'Nhập mã RPRO hoặc sử dụng nút Máy ảnh để quét mã QR. Bạn cũng có thể chọn tìm theo Tên PU hoặc Vải nếu không có mã RPRO.',
+                    side: "bottom", align: 'start'
+                }
+            },
+            {
+                element: '#order-info-container',
+                popover: {
+                    title: '2. Thông tin đơn hàng',
+                    description: 'Hệ thống sẽ tự động hiển thị Brand, Mold, BOM, PU và Fabric sau khi tìm thấy mã. Nếu không có dữ liệu, bạn có thể tự nhập thêm vào các ô này.',
+                    side: "top", align: 'start'
+                }
+            },
+            {
+                element: '#section-selector',
+                popover: {
+                    title: '3. Chọn Section',
+                    description: 'Rất quan trọng! Hãy chọn đúng khu vực phát sinh hàng dư (LPS, Molding hoặc Leanline) để dữ liệu không bị nhầm lẫn.',
+                    side: "top", align: 'start'
+                }
+            },
+            {
+                element: '#size-grid',
+                popover: {
+                    title: '4. Nhập số lượng theo Size',
+                    description: 'Nhập số lượng đôi dôi thực tế vào các ô size tương ứng. Ô có số lượng sẽ tự động đổi màu để bạn dễ nhận biết.',
+                    side: "top", align: 'start'
+                }
+            },
+            {
+                element: '#btn-save-surplus',
+                popover: {
+                    title: '5. Lưu dữ liệu',
+                    description: 'Sau khi hoàn tất, hãy nhấn nút LƯU DỮ LIỆU. \n💡 Lưu ý: Nếu đơn đã tồn tại, hệ thống sẽ hỏi bạn muốn Ghi đè hay Tách đơn.',
+                    side: "top", align: 'end'
+                }
+            },
+            {
+                element: '#history-list',
+                popover: {
+                    title: '6. Lịch sử & Truy xuất',
+                    description: 'Danh sách 20 đơn mới nhất được hiển thị tại đây. Bạn có thể sử dụng ô tìm kiếm phía trên để truy xuất dữ liệu cũ theo RPRO, BOM, PU hoặc Vải.',
+                    side: "left", align: 'start'
+                }
+            },
+            {
+                element: '#btn-export-excel',
+                popover: {
+                    title: '7. Xuất báo cáo Excel',
+                    description: 'Cuối cùng, bạn có thể chọn khoảng ngày và nhấn nút này để tải báo cáo chi tiết về máy.',
+                    side: "top", align: 'end'
+                }
+            },
+        ]
+    });
+
+    driverObj.drive();
 }
 
 // Start everything
