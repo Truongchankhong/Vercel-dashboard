@@ -217,6 +217,20 @@
                     <textarea id="manual-note" rows="2" placeholder="Nhập ghi chú cho bộ phận này..."
                         class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none"></textarea>
                 </div>
+
+                <!-- Scan History Window (Realtime List) -->
+                <div id="scan-history-container"
+                    class="mt-4 p-3 bg-slate-900 rounded-xl border border-slate-700 shadow-inner hidden">
+                    <div class="flex justify-between items-center mb-2 leading-none">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">📜 Danh sách đơn vừa
+                            quét (Realtime):</p>
+                        <button id="btn-clear-scan-history"
+                            class="text-[10px] text-slate-500 hover:text-slate-300 underline">Xóa hết</button>
+                    </div>
+                    <div id="scan-history-list" class="space-y-1 overflow-y-auto max-h-40 custom-scrollbar pr-1">
+                        <!-- History items go here -->
+                    </div>
+                </div>
             </div>
 
 

@@ -35,6 +35,9 @@ const btnMultiGroup = document.getElementById('btn-multi-group');
 const btnMultiRescan = document.getElementById('btn-multi-rescan');
 const autoSaveCheckbox = document.getElementById('auto-save-checkbox');
 const btnQuickHbkd = document.getElementById('btn-quick-hbkd');
+const scanHistoryContainer = document.getElementById('scan-history-container');
+const scanHistoryList = document.getElementById('scan-history-list');
+const btnClearScanHistory = document.getElementById('btn-clear-scan-history');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -497,12 +500,12 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
 
     if (!isInBatch) isProcessing = true;
 
-    // Validation (Strict check: ensure it's a single clean RPRO)
     if (rpro === 'RPRO-' || rpro.length < 8) {
         const errorMsg = `❌ Mã sai định dạng: ${rpro}`;
         showFeedback(errorMsg, "text-red-600");
         showToast(errorMsg, "error");
         playAudioFeedback(false);
+        addScanHistoryEntry(rpro, 0, "ERROR", false, "Mã sai định dạng");
         setTimeout(() => isProcessing = false, 1500);
         return;
     }
@@ -544,6 +547,7 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
                 showFeedback(errorMsg, "text-red-700 bg-red-50 p-3 rounded-xl border-2 border-red-200 animate-pulse");
                 showToast(errorMsg, "error");
                 playAudioFeedback(false);
+                addScanHistoryEntry(rpro, 1, "MISSING_PREV", false, `Thiếu Scan Out ${prevSection}`);
                 if (!isInBatch) isProcessing = false;
                 return;
             }
@@ -559,6 +563,7 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
             showFeedback(errorMsg, "text-red-500 font-bold");
             showToast(errorMsg, "error");
             playAudioFeedback(false);
+            addScanHistoryEntry(rpro, 0, "QTY_INVALID", false, "Số lượng rỗng");
             isProcessing = false;
             return;
         }
@@ -599,6 +604,8 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
         showFeedback(successMsg, "text-green-600 font-black");
         showToast(successMsg, "success");
         playAudioFeedback(true);
+        addScanHistoryEntry(rpro, quantity, "SUCCESS", true);
+
         // if (mode === 'CAMERA') alert(`✅ Scan thành công:\n${rpro}`); // Alert is redundant now with Toast
         undoContainer.classList.remove('hidden');
 
@@ -613,6 +620,7 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
         showFeedback(errorMsg, "text-red-600 text-sm");
         showToast(errorMsg, "error");
         playAudioFeedback(false);
+        addScanHistoryEntry(rpro, 0, "SYS_ERROR", false, err.message);
     } finally {
         if (!isInBatch) {
             isProcessing = false;
@@ -695,6 +703,42 @@ function showToast(message, type = "success") {
         toast.style.transform = "translateX(-50%) scale(0.9)";
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+
+// ==================== SCAN HISTORY HANDLER ====================
+function addScanHistoryEntry(rpro, qty, status, isSuccess, errorReason = '') {
+    if (!scanHistoryContainer || !scanHistoryList) return;
+
+    // Show container on first entry
+    scanHistoryContainer.classList.remove('hidden');
+
+    const entry = document.createElement('div');
+    entry.className = `flex justify-between items-center gap-2 p-1.5 rounded border ${isSuccess ? 'bg-emerald-950/30 border-emerald-900/50 text-emerald-400' : 'bg-rose-950/30 border-rose-900/50 text-rose-400'}`;
+
+    const time = new Date().toLocaleTimeString('vi-VN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const actionSymbol = activeAction === 'IN' ? '⬇️' : '⬆️';
+
+    entry.innerHTML = `
+        <div class="flex flex-col flex-1 min-w-0">
+            <div class="flex items-center gap-1.5">
+                <span class="text-[9px] opacity-60 shrink-0">${time}</span>
+                <span class="font-bold truncate text-sm leading-none">${rpro}</span>
+            </div>
+            <div class="flex items-center gap-2 text-[10px] mt-0.5 opacity-80">
+                <span>${actionSymbol} ${activeSection}</span>
+                <span class="bg-gray-800 px-1 rounded">SL: ${qty}</span>
+                ${!isSuccess ? `<span class="italic text-rose-300 font-bold truncate">⚠️ ${errorReason}</span>` : `<span class="bg-emerald-800/50 px-1 rounded text-[8px]">OK</span>`}
+            </div>
+        </div>
+    `;
+
+    // Prepend to top
+    scanHistoryList.prepend(entry);
+
+    // Keep only last 50 entries
+    if (scanHistoryList.children.length > 50) {
+        scanHistoryList.lastElementChild.remove();
+    }
 }
 
 // ==================== UNDO FUNCTION ====================
@@ -958,6 +1002,13 @@ setInterval(() => {
         scannerInputOverlay.focus();
     }
 }, 500);
+
+if (btnClearScanHistory) {
+    btnClearScanHistory.addEventListener('click', () => {
+        if (scanHistoryList) scanHistoryList.innerHTML = '';
+        if (scanHistoryContainer) scanHistoryContainer.classList.add('hidden');
+    });
+}
 
 initAutoSave();
 console.log("✅ Supplement Count Tracking Loaded");
