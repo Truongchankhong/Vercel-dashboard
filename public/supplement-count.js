@@ -43,6 +43,16 @@ let html5QrScanner = null;
 let cameraActive = false;
 let isProcessing = false;
 let lastRecordId = null;
+
+// ==================== FLOW CONFIGURATION ====================
+function getPreviousSection(section) {
+    if (section === 'Cắt') return 'Dán';
+    if (section === 'Molding') return 'Cắt';
+    if (section === 'Molded') return 'Molding';
+    if (section === 'DC') return 'Dán';
+    return null;
+}
+
 let scanQueue = []; // New: Queue for rapid scanning
 let isQueueProcessing = false;
 
@@ -384,21 +394,36 @@ async function fetchDetails(rawRpro) {
             // Hide PU info for non-Dán sections
             if (puInfoContainer) puInfoContainer.classList.add('hidden');
 
-            // Cải tiến: Lấy số lượng từ bản ghi gần nhất của RPRO này trong hệ thống tracking
-            // Điều này đảm bảo số lượng được "truyền" qua các công đoạn (Dán -> Cắt -> Molding -> Leanline)
-            const { data: lastScan, error: lastScanErr } = await supabase
-                .from('supplement_tracking')
-                .select('quantity, section')
-                .eq('rpro', rpro)
-                .order('created_at', { ascending: false })
-                .limit(1);
+            // NEW: Lấy số lượng từ bản ghi "OUT" của công đoạn TRƯỚC theo quy trình
+            const prevSection = getPreviousSection(activeSection);
+            if (prevSection) {
+                console.log(`🔍 Seeking OUT record from ${prevSection} as default for ${activeSection}...`);
+                const { data: prevOut, error: prevErr } = await supabase
+                    .from('supplement_tracking')
+                    .select('quantity')
+                    .eq('rpro', rpro)
+                    .eq('section', prevSection)
+                    .eq('action', 'OUT')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
 
-            if (!lastScanErr && lastScan && lastScan.length > 0) {
-                defaultQty = lastScan[0].quantity;
-                console.log(`📦 ${activeSection}: Mặc định lấy SL từ lần quét gần nhất (${lastScan[0].section}): ${defaultQty}`);
-                foundAnyData = true;
+                if (!prevErr && prevOut && prevOut.length > 0) {
+                    defaultQty = prevOut[0].quantity;
+                    console.log(`✅ ${activeSection}: Mặc định lấy SL Scan OUT của ${prevSection}: ${defaultQty}`);
+                    foundAnyData = true;
+                } else {
+                    console.warn(`⚠️ Không tìm thấy bản ghi Scan OUT của ${prevSection} cho ${rpro}`);
+                    // Fallback to last scan of any stage if prev OUT not found (optional, maybe keep it 1 or system total)
+                    const { data: lastAny } = await supabase
+                        .from('supplement_tracking')
+                        .select('quantity')
+                        .eq('rpro', rpro)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+                    if (lastAny && lastAny.length > 0) defaultQty = lastAny[0].quantity;
+                }
             } else {
-                // Nếu chưa có scan nào, thử lấy từ supplement_confirm (giống logic của Dán)
+                // If no defined prevSection, use system total
                 const { data: confirmData } = await supabase
                     .from('supplement_confirm')
                     .select('available_supplement, total')
@@ -410,7 +435,6 @@ async function fetchDetails(rawRpro) {
                     const rec = confirmData[0];
                     defaultQty = (rec.available_supplement !== null) ? rec.available_supplement : rec.total;
                     foundAnyData = true;
-                    console.log(`📦 ${activeSection}: Chưa có lịch sử, lấy SL từ hệ thống: ${defaultQty}`);
                 }
             }
         } else {
@@ -500,6 +524,31 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
         }
 
         console.log("📄 Last Record found:", lastRecord);
+
+        // 2. NEW: Validation Stage Sequence (Strict flow check)
+        const prevSection = getPreviousSection(activeSection);
+        if (prevSection) {
+            console.log(`🛡️ Flow Guard: Checking if ${prevSection} has Scan OUT for ${rpro}...`);
+            const { data: prevOut, error: prevErr } = await supabase
+                .from('supplement_tracking')
+                .select('id')
+                .eq('rpro', rpro)
+                .eq('section', prevSection)
+                .eq('action', 'OUT')
+                .limit(1);
+
+            if (prevErr) throw prevErr;
+
+            if (!prevOut || prevOut.length === 0) {
+                const errorMsg = `❌ Lỗi: Phải Scan OUT công đoạn ${prevSection} trước!`;
+                showFeedback(errorMsg, "text-red-700 bg-red-50 p-3 rounded-xl border-2 border-red-200 animate-pulse");
+                showToast(errorMsg, "error");
+                playAudioFeedback(false);
+                if (!isInBatch) isProcessing = false;
+                return;
+            }
+            console.log(`✅ Flow Guard passed: ${prevSection} Scan OUT found.`);
+        }
 
         // 2. Validate IN/OUT logic (Existing logic kept same)
         // ... (Logic skipping for brevity as it remains same, proceed to Insert)
