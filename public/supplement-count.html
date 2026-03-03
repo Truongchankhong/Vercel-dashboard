@@ -224,8 +224,13 @@
                     <div class="flex justify-between items-center mb-2 leading-none">
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">📜 Danh sách đơn vừa
                             quét (Realtime):</p>
-                        <button id="btn-clear-scan-history"
-                            class="text-[10px] text-slate-500 hover:text-slate-300 underline">Xóa hết</button>
+                        <div class="flex gap-2">
+                            <button id="btn-refresh-scan-history"
+                                class="text-[10px] text-blue-400 hover:text-blue-300 underline font-bold">Làm
+                                mới</button>
+                            <button id="btn-clear-scan-history"
+                                class="text-[10px] text-slate-500 hover:text-slate-300 underline">Xóa bảng</button>
+                        </div>
                     </div>
                     <div id="scan-history-list" class="space-y-1 overflow-y-auto max-h-40 custom-scrollbar pr-1">
                         <!-- History items go here -->

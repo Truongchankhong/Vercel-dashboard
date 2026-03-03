@@ -38,6 +38,7 @@ const btnQuickHbkd = document.getElementById('btn-quick-hbkd');
 const scanHistoryContainer = document.getElementById('scan-history-container');
 const scanHistoryList = document.getElementById('scan-history-list');
 const btnClearScanHistory = document.getElementById('btn-clear-scan-history');
+const btnRefreshScanHistory = document.getElementById('btn-refresh-scan-history');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -1002,6 +1003,13 @@ setInterval(() => {
         scannerInputOverlay.focus();
     }
 }, 500);
+
+if (btnRefreshScanHistory) {
+    btnRefreshScanHistory.addEventListener('click', () => {
+        if (scanHistoryList) scanHistoryList.innerHTML = '';
+        showFeedback("🔄 Đã làm mới danh sách theo dõi.", "text-blue-500");
+    });
+}
 
 if (btnClearScanHistory) {
     btnClearScanHistory.addEventListener('click', () => {
