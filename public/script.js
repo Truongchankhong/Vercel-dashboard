@@ -371,9 +371,20 @@ async function searchProgress() {
     };
 
     const filtered = data.filter(row => {
-      const cell = row[selectedField];
-      const cellValue = cell !== undefined && cell !== null ? cell.toString().toLowerCase() : '';
-      const matchBasic = cellValue.includes(keyword);
+      const rawKeyword = progressSearchBox.value.trim().toUpperCase();
+      const rproMatches = rawKeyword.match(/RPRO-[\d-]+/g);
+      let matchBasic = true;
+
+      if (rproMatches && rproMatches.length > 0 && selectedField === 'PRO ODER') {
+        const cleanMatches = rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase());
+        const cleanRpro = (row['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+        matchBasic = cleanMatches.some(m => cleanRpro.includes(m));
+      } else {
+        const cell = row[selectedField];
+        const cellValue = cell !== undefined && cell !== null ? cell.toString().toLowerCase() : '';
+        matchBasic = cellValue.includes(keyword);
+      }
+
       const matchAdvanced = Object.entries(filters).every(([key, val]) => {
         const v = (row[key] || '').toString().toLowerCase();
         return v.includes(val);
@@ -470,9 +481,20 @@ async function exportProgressToExcel() {
     };
 
     const filtered = data.filter(row => {
-      const cell = row[selectedField];
-      const cellValue = cell !== undefined && cell !== null ? cell.toString().toLowerCase() : '';
-      const matchBasic = cellValue.includes(keyword);
+      const rawKeyword = progressSearchBox.value.trim().toUpperCase();
+      const rproMatches = rawKeyword.match(/RPRO-[\d-]+/g);
+      let matchBasic = true;
+
+      if (rproMatches && rproMatches.length > 0 && selectedField === 'PRO ODER') {
+        const cleanMatches = rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase());
+        const cleanRpro = (row['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+        matchBasic = cleanMatches.some(m => cleanRpro.includes(m));
+      } else {
+        const cell = row[selectedField];
+        const cellValue = cell !== undefined && cell !== null ? cell.toString().toLowerCase() : '';
+        matchBasic = cellValue.includes(keyword);
+      }
+
       const matchAdvanced = Object.entries(filters).every(([key, val]) => {
         const v = (row[key] || '').toString().toLowerCase();
         return v.includes(val);

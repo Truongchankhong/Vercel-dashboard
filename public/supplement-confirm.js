@@ -72,13 +72,21 @@ async function loadConfirmList() {
 
 function applySearchAndRender() {
   const searchTerm = (searchRproInput?.value || "").trim().toUpperCase();
-  const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, ""); // Remove non-alphanumeric
 
-  if (cleanSearch) {
+  // Extract multiple RPROs if they exist
+  const rproMatches = searchTerm.match(/RPRO-[\d-]+/g);
+
+  if (rproMatches && rproMatches.length > 0) {
+    const cleanMatches = rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase());
+    filteredData = currentData.filter(row => {
+      const cleanRpro = (row.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+      return cleanMatches.some(m => cleanRpro.includes(m));
+    });
+  } else if (searchTerm) {
+    const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, ""); // Remove non-alphanumeric
     filteredData = currentData.filter(row => {
       const cleanRpro = (row.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
       const cleanSo = (row.so || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
-
       return cleanRpro.includes(cleanSearch) || cleanSo.includes(cleanSearch);
     });
   } else {
