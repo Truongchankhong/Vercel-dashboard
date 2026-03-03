@@ -426,10 +426,21 @@ function renderTable() {
     }
 
     const filtered = progressData.filter(item => {
-        const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, "");
-        const cleanRpro = (item.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+        // Multi-RPRO search logic
+        const rproMatches = searchTerm.match(/RPRO-[\d-]+/g);
+        let codeMatch = true;
 
-        const codeMatch = cleanSearch ? cleanRpro.includes(cleanSearch) : true;
+        if (rproMatches && rproMatches.length > 0) {
+            // If input contains standard RPRO formats, match any of them
+            const cleanMatches = rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase());
+            const cleanRpro = (item.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+            codeMatch = cleanMatches.some(m => cleanRpro.includes(m));
+        } else if (searchTerm) {
+            // Fallback to single string search
+            const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, "");
+            const cleanRpro = (item.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+            codeMatch = cleanRpro.includes(cleanSearch);
+        }
 
         // Mold Filter (Relative search)
         const cleanMoldSearch = moldFilter.replace(/[^A-Z0-9]/g, "").toUpperCase();
