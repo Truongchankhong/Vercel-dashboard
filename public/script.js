@@ -970,8 +970,23 @@ async function loadDelayUrgentData(type) {
     let filtered = data.filter(row => {
       const delayVal = (row['Delay-Urgent'] || '').toUpperCase();
       if ((type === 'DELAY' && delayVal !== 'PRODUCTION DELAY') || (type === 'URGENT' && delayVal !== 'URGENT')) return false;
-      const main = (row[selectedField] || '').toString().toLowerCase();
-      if (keyword && !main.includes(keyword)) return false;
+
+      // Multi-RPRO search logic
+      const rawKeyword = delaySearchBox.value.trim().toUpperCase();
+      const rproMatches = rawKeyword.match(/RPRO-[\d-]+/g);
+      let matchBasic = true;
+
+      if (rproMatches && rproMatches.length > 0 && selectedField === 'PRO ODER') {
+        const cleanMatches = rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase());
+        const cleanRpro = (row['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+        matchBasic = cleanMatches.some(m => cleanRpro.includes(m));
+      } else {
+        const main = (row[selectedField] || '').toString().toLowerCase();
+        matchBasic = keyword ? main.includes(keyword) : true;
+      }
+
+      if (!matchBasic) return false;
+
       for (let [k, v] of Object.entries(filters)) { if (!(row[k] || '').toString().toLowerCase().includes(v)) return false; }
       if (errorOnly) {
         const st = (row['STATUS'] || '').toUpperCase();
