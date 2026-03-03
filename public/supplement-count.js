@@ -1156,7 +1156,8 @@ setInterval(() => {
         document.activeElement !== scannerInputOverlay &&
         document.activeElement !== manualRproInput &&
         document.activeElement !== inputQty &&
-        document.activeElement !== manualNoteInput) {
+        document.activeElement !== manualNoteInput &&
+        document.activeElement !== batchRproTextarea) {
         scannerInputOverlay.focus();
     }
 }, 500);
