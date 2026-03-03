@@ -222,14 +222,15 @@
                 <div id="scan-history-container"
                     class="mt-4 p-3 bg-slate-900 rounded-xl border border-slate-700 shadow-inner hidden">
                     <div class="flex justify-between items-center mb-2 leading-none">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">📜 Danh sách đơn vừa
-                            quét (Realtime):</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            📜 Danh sách đơn vừa quét (Realtime):
+                            <span class="ml-2 text-blue-400">Số đơn: <span id="scan-count-total">0</span></span>
+                            <span class="ml-2 text-red-400">Lỗi: <span id="scan-count-error">0</span></span>
+                        </p>
                         <div class="flex gap-2">
                             <button id="btn-refresh-scan-history"
                                 class="text-[10px] text-blue-400 hover:text-blue-300 underline font-bold">Làm
                                 mới</button>
-                            <button id="btn-clear-scan-history"
-                                class="text-[10px] text-slate-500 hover:text-slate-300 underline">Xóa bảng</button>
                         </div>
                     </div>
                     <div id="scan-history-list" class="space-y-1 overflow-y-auto max-h-40 custom-scrollbar pr-1">

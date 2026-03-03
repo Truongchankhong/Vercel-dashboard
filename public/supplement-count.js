@@ -37,7 +37,6 @@ const autoSaveCheckbox = document.getElementById('auto-save-checkbox');
 const btnQuickHbkd = document.getElementById('btn-quick-hbkd');
 const scanHistoryContainer = document.getElementById('scan-history-container');
 const scanHistoryList = document.getElementById('scan-history-list');
-const btnClearScanHistory = document.getElementById('btn-clear-scan-history');
 const btnRefreshScanHistory = document.getElementById('btn-refresh-scan-history');
 
 // ==================== STATE VARIABLES ====================
@@ -47,6 +46,10 @@ let html5QrScanner = null;
 let cameraActive = false;
 let isProcessing = false;
 let lastRecordId = null;
+let scanCountTotalVal = 0;
+let scanCountErrorVal = 0;
+const scanCountTotalElem = document.getElementById('scan-count-total');
+const scanCountErrorElem = document.getElementById('scan-count-error');
 
 // ==================== FLOW CONFIGURATION ====================
 function getPreviousSection(section) {
@@ -162,8 +165,11 @@ async function onCameraScanSuccess(decodedText) {
 // Global keydown listener for handheld scanner
 document.addEventListener('keydown', (e) => {
     // Ignore if user is typing in an actual input field or textarea
+    // Ignore ONLY if user is typing in Note field (allow intercepting scans in RPRO/Qty fields)
     if ((document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') &&
-        document.activeElement.id !== 'scanner-input-overlay') {
+        document.activeElement.id !== 'scanner-input-overlay' &&
+        document.activeElement.id !== 'manual-rpro' &&
+        document.activeElement.id !== 'input-qty') {
         return;
     }
 
@@ -398,7 +404,6 @@ async function fetchDetails(rawRpro) {
             // Hide PU info for non-Dán sections
             if (puInfoContainer) puInfoContainer.classList.add('hidden');
 
-            // NEW: Lấy số lượng từ bản ghi "OUT" của công đoạn TRƯỚC theo quy trình
             const prevSection = getPreviousSection(activeSection);
             if (prevSection) {
                 console.log(`🔍 Seeking OUT record from ${prevSection} as default for ${activeSection}...`);
@@ -417,17 +422,21 @@ async function fetchDetails(rawRpro) {
                     foundAnyData = true;
                 } else {
                     console.warn(`⚠️ Không tìm thấy bản ghi Scan OUT của ${prevSection} cho ${rpro}`);
-                    // Fallback to last scan of any stage if prev OUT not found (optional, maybe keep it 1 or system total)
                     const { data: lastAny } = await supabase
                         .from('supplement_tracking')
                         .select('quantity')
                         .eq('rpro', rpro)
                         .order('created_at', { ascending: false })
                         .limit(1);
-                    if (lastAny && lastAny.length > 0) defaultQty = lastAny[0].quantity;
+                    if (lastAny && lastAny.length > 0) {
+                        defaultQty = lastAny[0].quantity;
+                        foundAnyData = true;
+                    }
                 }
-            } else {
-                // If no defined prevSection, use system total
+            }
+
+            // FINAL FALLBACK: If still 1 or no data found above, try supplement_confirm
+            if (defaultQty <= 1) {
                 const { data: confirmData } = await supabase
                     .from('supplement_confirm')
                     .select('available_supplement, total')
@@ -439,6 +448,7 @@ async function fetchDetails(rawRpro) {
                     const rec = confirmData[0];
                     defaultQty = (rec.available_supplement !== null) ? rec.available_supplement : rec.total;
                     foundAnyData = true;
+                    console.log(`📦 Fallback to supplement_confirm total: ${defaultQty}`);
                 }
             }
         } else {
@@ -709,6 +719,14 @@ function showToast(message, type = "success") {
 // ==================== SCAN HISTORY HANDLER ====================
 function addScanHistoryEntry(rpro, qty, status, isSuccess, errorReason = '') {
     if (!scanHistoryContainer || !scanHistoryList) return;
+
+    // Increment counters
+    if (isSuccess) {
+        scanCountTotalVal++;
+    } else {
+        scanCountErrorVal++;
+    }
+    updateStatsUI();
 
     // Show container on first entry
     scanHistoryContainer.classList.remove('hidden');
@@ -1004,17 +1022,19 @@ setInterval(() => {
     }
 }, 500);
 
+function updateStatsUI() {
+    if (scanCountTotalElem) scanCountTotalElem.textContent = scanCountTotalVal;
+    if (scanCountErrorElem) scanCountErrorElem.textContent = scanCountErrorVal;
+}
+
 if (btnRefreshScanHistory) {
     btnRefreshScanHistory.addEventListener('click', () => {
         if (scanHistoryList) scanHistoryList.innerHTML = '';
-        showFeedback("🔄 Đã làm mới danh sách theo dõi.", "text-blue-500");
-    });
-}
-
-if (btnClearScanHistory) {
-    btnClearScanHistory.addEventListener('click', () => {
-        if (scanHistoryList) scanHistoryList.innerHTML = '';
+        scanCountTotalVal = 0;
+        scanCountErrorVal = 0;
+        updateStatsUI();
         if (scanHistoryContainer) scanHistoryContainer.classList.add('hidden');
+        showFeedback("🔄 Đã làm mới danh sách theo dõi.", "text-blue-500");
     });
 }
 
