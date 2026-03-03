@@ -425,18 +425,16 @@ function renderTable() {
         if (finishDateBadgeContainer) finishDateBadgeContainer.classList.add('hidden');
     }
 
-    const filtered = progressData.filter(item => {
-        // Multi-RPRO search logic
-        const rproMatches = searchTerm.match(/RPRO-[\d-]+/g);
+    const rproMatches = searchTerm.match(/RPRO-[\d-]+/g);
+    const cleanMatches = rproMatches ? rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase()) : [];
+
+    let filtered = progressData.filter(item => {
         let codeMatch = true;
 
-        if (rproMatches && rproMatches.length > 0) {
-            // If input contains standard RPRO formats, match any of them
-            const cleanMatches = rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase());
+        if (cleanMatches.length > 0) {
             const cleanRpro = (item.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
             codeMatch = cleanMatches.some(m => cleanRpro.includes(m));
         } else if (searchTerm) {
-            // Fallback to single string search
             const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, "");
             const cleanRpro = (item.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
             codeMatch = cleanRpro.includes(cleanSearch);
@@ -452,6 +450,27 @@ function renderTable() {
         const itemDateStr = getComparableDateStr(item.finish_date);
         return codeMatch && moldMatch && itemDateStr === finishDateFilterVal;
     });
+
+    // Custom Sort by search order
+    if (cleanMatches.length > 0) {
+        filtered.sort((a, b) => {
+            const rproA = (a.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+            const rproB = (b.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+            let idxA = cleanMatches.findIndex(m => rproA.includes(m));
+            let idxB = cleanMatches.findIndex(m => rproB.includes(m));
+            return (idxA === -1 ? 99999 : idxA) - (idxB === -1 ? 99999 : idxB);
+        });
+
+        // Show alert for missing RPROs
+        const foundRpros = filtered.map(item => (item.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase());
+        const missing = rproMatches.filter(m => {
+            const cleanM = m.replace(/[^A-Z0-9]/g, "").toUpperCase();
+            return !foundRpros.some(f => f.includes(cleanM));
+        });
+        if (missing.length > 0) {
+            alert("⚠️ Không tìm thấy các đơn: " + missing.join(", "));
+        }
+    }
 
     if (filtered.length === 0) {
         tableBody.innerHTML = '';

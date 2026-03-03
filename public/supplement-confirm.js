@@ -75,13 +75,32 @@ function applySearchAndRender() {
 
   // Extract multiple RPROs if they exist
   const rproMatches = searchTerm.match(/RPRO-[\d-]+/g);
+  const cleanMatches = rproMatches ? rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase()) : [];
 
-  if (rproMatches && rproMatches.length > 0) {
-    const cleanMatches = rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase());
+  if (cleanMatches.length > 0) {
     filteredData = currentData.filter(row => {
       const cleanRpro = (row.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
       return cleanMatches.some(m => cleanRpro.includes(m));
     });
+
+    // Custom Sort by search order
+    filteredData.sort((a, b) => {
+      const rproA = (a.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+      const rproB = (b.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+      let idxA = cleanMatches.findIndex(m => rproA.includes(m));
+      let idxB = cleanMatches.findIndex(m => rproB.includes(m));
+      return (idxA === -1 ? 99999 : idxA) - (idxB === -1 ? 99999 : idxB);
+    });
+
+    // Show alert for missing RPROs
+    const foundRpros = filteredData.map(row => (row.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase());
+    const missing = rproMatches.filter(m => {
+      const cleanM = m.replace(/[^A-Z0-9]/g, "").toUpperCase();
+      return !foundRpros.some(f => f.includes(cleanM));
+    });
+    if (missing.length > 0) {
+      alert("⚠️ Không tìm thấy các đơn trong khoảng thời gian này: " + missing.join(", "));
+    }
   } else if (searchTerm) {
     const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, ""); // Remove non-alphanumeric
     filteredData = currentData.filter(row => {

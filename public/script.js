@@ -370,13 +370,14 @@ async function searchProgress() {
         `${date.getFullYear()}`;
     };
 
-    const filtered = data.filter(row => {
-      const rawKeyword = progressSearchBox.value.trim().toUpperCase();
-      const rproMatches = rawKeyword.match(/RPRO-[\d-]+/g);
+    const rawKeyword = progressSearchBox.value.trim().toUpperCase();
+    const rproMatches = rawKeyword.match(/RPRO-[\d-]+/g);
+    const cleanMatches = rproMatches ? rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase()) : [];
+
+    let filtered = data.filter(row => {
       let matchBasic = true;
 
-      if (rproMatches && rproMatches.length > 0 && selectedField === 'PRO ODER') {
-        const cleanMatches = rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase());
+      if (cleanMatches.length > 0 && selectedField === 'PRO ODER') {
         const cleanRpro = (row['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
         matchBasic = cleanMatches.some(m => cleanRpro.includes(m));
       } else {
@@ -391,6 +392,27 @@ async function searchProgress() {
       });
       return matchBasic && matchAdvanced;
     });
+
+    // Custom Sort by search order
+    if (cleanMatches.length > 0 && selectedField === 'PRO ODER') {
+      filtered.sort((a, b) => {
+        const rproA = (a['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+        const rproB = (b['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+        let idxA = cleanMatches.findIndex(m => rproA.includes(m));
+        let idxB = cleanMatches.findIndex(m => rproB.includes(m));
+        return (idxA === -1 ? 99999 : idxA) - (idxB === -1 ? 99999 : idxB);
+      });
+
+      // Show alert for missing RPROs
+      const foundRpros = filtered.map(row => (row['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase());
+      const missing = rproMatches.filter(m => {
+        const cleanM = m.replace(/[^A-Z0-9]/g, "").toUpperCase();
+        return !foundRpros.some(f => f.includes(cleanM));
+      });
+      if (missing.length > 0) {
+        alert("⚠️ Không tìm thấy các đơn: " + missing.join(", "));
+      }
+    }
 
     if (filtered.length === 0) {
       container.innerHTML = `<div class="text-center py-4 text-red-500">Không tìm thấy dữ liệu khớp.</div>`;
@@ -480,27 +502,37 @@ async function exportProgressToExcel() {
         `${date.getFullYear()}`;
     };
 
-    const filtered = data.filter(row => {
-      const rawKeyword = progressSearchBox.value.trim().toUpperCase();
-      const rproMatches = rawKeyword.match(/RPRO-[\d-]+/g);
-      let matchBasic = true;
+    const rawKeywordForExport = progressSearchBox.value.trim().toUpperCase();
+    const rproMatchesExport = rawKeywordForExport.match(/RPRO-[\d-]+/g);
+    const cleanMatchesExport = rproMatchesExport ? rproMatchesExport.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase()) : [];
 
-      if (rproMatches && rproMatches.length > 0 && selectedField === 'PRO ODER') {
-        const cleanMatches = rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase());
+    let filtered = data.filter(row => {
+      let matchBasic = true;
+      if (cleanMatchesExport.length > 0 && selectedField === 'PRO ODER') {
         const cleanRpro = (row['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
-        matchBasic = cleanMatches.some(m => cleanRpro.includes(m));
+        matchBasic = cleanMatchesExport.some(m => cleanRpro.includes(m));
       } else {
         const cell = row[selectedField];
         const cellValue = cell !== undefined && cell !== null ? cell.toString().toLowerCase() : '';
         matchBasic = cellValue.includes(keyword);
       }
-
       const matchAdvanced = Object.entries(filters).every(([key, val]) => {
         const v = (row[key] || '').toString().toLowerCase();
         return v.includes(val);
       });
       return matchBasic && matchAdvanced;
     });
+
+    // Custom Sort for Export order
+    if (cleanMatchesExport.length > 0 && selectedField === 'PRO ODER') {
+      filtered.sort((a, b) => {
+        const rproA = (a['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+        const rproB = (b['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+        let idxA = cleanMatchesExport.findIndex(m => rproA.includes(m));
+        let idxB = cleanMatchesExport.findIndex(m => rproB.includes(m));
+        return (idxA === -1 ? 99999 : idxA) - (idxB === -1 ? 99999 : idxB);
+      });
+    }
 
     if (filtered.length === 0 && (keyword || Object.keys(filters).length > 0)) {
       alert("Không có dữ liệu để xuất!");
@@ -967,26 +999,24 @@ async function loadDelayUrgentData(type) {
       }
     });
 
+    const rawKeywordDelay = delaySearchBox.value.trim().toUpperCase();
+    const rproMatchesDelay = rawKeywordDelay.match(/RPRO-[\d-]+/g);
+    const cleanMatchesDelay = rproMatchesDelay ? rproMatchesDelay.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase()) : [];
+
     let filtered = data.filter(row => {
       const delayVal = (row['Delay-Urgent'] || '').toUpperCase();
       if ((type === 'DELAY' && delayVal !== 'PRODUCTION DELAY') || (type === 'URGENT' && delayVal !== 'URGENT')) return false;
 
-      // Multi-RPRO search logic
-      const rawKeyword = delaySearchBox.value.trim().toUpperCase();
-      const rproMatches = rawKeyword.match(/RPRO-[\d-]+/g);
       let matchBasic = true;
-
-      if (rproMatches && rproMatches.length > 0 && selectedField === 'PRO ODER') {
-        const cleanMatches = rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase());
+      if (cleanMatchesDelay.length > 0 && selectedField === 'PRO ODER') {
         const cleanRpro = (row['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
-        matchBasic = cleanMatches.some(m => cleanRpro.includes(m));
+        matchBasic = cleanMatchesDelay.some(m => cleanRpro.includes(m));
       } else {
         const main = (row[selectedField] || '').toString().toLowerCase();
         matchBasic = keyword ? main.includes(keyword) : true;
       }
 
       if (!matchBasic) return false;
-
       for (let [k, v] of Object.entries(filters)) { if (!(row[k] || '').toString().toLowerCase().includes(v)) return false; }
       if (errorOnly) {
         const st = (row['STATUS'] || '').toUpperCase();
@@ -994,6 +1024,27 @@ async function loadDelayUrgentData(type) {
       }
       return true;
     });
+
+    // Custom Sort for Delay order
+    if (cleanMatchesDelay.length > 0 && selectedField === 'PRO ODER') {
+      filtered.sort((a, b) => {
+        const rproA = (a['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+        const rproB = (b['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+        let idxA = cleanMatchesDelay.findIndex(m => rproA.includes(m));
+        let idxB = cleanMatchesDelay.findIndex(m => rproB.includes(m));
+        return (idxA === -1 ? 99999 : idxA) - (idxB === -1 ? 99999 : idxB);
+      });
+
+      // Show alert for missing RPROs
+      const foundRpros = filtered.map(row => (row['PRO ODER'] || "").replace(/[^A-Z0-9]/g, "").toUpperCase());
+      const missing = rproMatchesDelay.filter(m => {
+        const cleanM = m.replace(/[^A-Z0-9]/g, "").toUpperCase();
+        return !foundRpros.some(f => f.includes(cleanM));
+      });
+      if (missing.length > 0) {
+        alert("⚠️ Không tìm thấy các đơn trong danh mục này: " + missing.join(", "));
+      }
+    }
 
     const headers = ['STT', 'PRO ODER', 'Brand Code', 'Loại hàng', 'Mã khuôn', 'BOM', 'Total Qty', 'Finish date', 'PPC Confirm', 'STORED', 'STATUS'];
     let html = `<table class="min-w-full text-sm text-left border"><thead class="bg-gray-200"><tr>${headers.map(h => `<th class="px-2 py-1 border">${h}</th>`).join('')}</tr></thead><tbody>`;
