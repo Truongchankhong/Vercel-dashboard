@@ -164,12 +164,11 @@ async function onCameraScanSuccess(decodedText) {
 // ==================== HANDHELD SCANNER ====================
 // Global keydown listener for handheld scanner
 document.addEventListener('keydown', (e) => {
-    // Ignore if user is typing in an actual input field or textarea
-    // Ignore ONLY if user is typing in Note field (allow intercepting scans in RPRO/Qty fields)
-    if ((document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') &&
-        document.activeElement.id !== 'scanner-input-overlay' &&
-        document.activeElement.id !== 'manual-rpro' &&
-        document.activeElement.id !== 'input-qty') {
+    // Ignore if user is typing in an actual input field or textarea (except our hidden overlay)
+    const isEditing = (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+    const isOverlay = document.activeElement.id === 'scanner-input-overlay';
+
+    if (isEditing && !isOverlay) {
         return;
     }
 
@@ -973,15 +972,8 @@ if (manualRproInput) {
         }
     });
 
-    // Thêm sự kiện Enter cho input thủ công nếu bật tự động lưu
-    manualRproInput.addEventListener('keydown', (e) => {
-        if (e.key === "Enter") {
-            if (autoSaveCheckbox?.checked) {
-                e.preventDefault();
-                handleManualSave();
-            }
-        }
-    });
+    // Note: REMOVED Enter listener to prevent handheld scanner from auto-saving when focus is here.
+    // User MUST click Save manually for review or when scanning into this field.
 }
 
 if (inputQty) {
