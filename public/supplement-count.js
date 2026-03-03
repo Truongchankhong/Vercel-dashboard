@@ -38,6 +38,11 @@ const btnQuickHbkd = document.getElementById('btn-quick-hbkd');
 const scanHistoryContainer = document.getElementById('scan-history-container');
 const scanHistoryList = document.getElementById('scan-history-list');
 const btnRefreshScanHistory = document.getElementById('btn-refresh-scan-history');
+const importListCheckbox = document.getElementById('import-list-checkbox');
+const batchInputContainer = document.getElementById('batch-input-container');
+const batchRproTextarea = document.getElementById('batch-rpro-textarea');
+const btnProcessBatch = document.getElementById('btn-process-batch');
+const btnSaveAllBatch = document.getElementById('btn-save-all-batch');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -48,6 +53,7 @@ let isProcessing = false;
 let lastRecordId = null;
 let scanCountTotalVal = 0;
 let scanCountErrorVal = 0;
+let pendingBatchScans = [];
 const scanCountTotalElem = document.getElementById('scan-count-total');
 const scanCountErrorElem = document.getElementById('scan-count-error');
 
@@ -803,6 +809,147 @@ async function handleManualSave() {
     // Không cần focus lại ở đây vì setInterval sẽ tự động focus
 }
 
+// ==================== BATCH IMPORT LOGIC ====================
+async function handleBatchImport() {
+    if (!activeSection || !activeAction) {
+        showToast("⚠️ Vui lòng chọn bộ phận và hành động trước!", "error");
+        return;
+    }
+
+    const text = batchRproTextarea.value.trim();
+    if (!text) {
+        showToast("⚠️ Vui lòng dán danh sách mã RPRO!", "error");
+        return;
+    }
+
+    // Extract all RPRO codes using regex
+    // Matches RPRO- followed by digits and dashes, or just RPRO followed by digits
+    const rproMatches = text.match(/RPRO-?[\d-]+/gi) || [];
+    if (rproMatches.length === 0) {
+        showToast("❌ Không tìm thấy mã RPRO hợp lệ nào!", "error");
+        return;
+    }
+
+    // Reset UI and internal state for batch
+    if (scanHistoryList) scanHistoryList.innerHTML = '';
+    scanCountTotalVal = 0;
+    scanCountErrorVal = 0;
+    updateStatsUI();
+    pendingBatchScans = [];
+    btnSaveAllBatch.classList.add('hidden');
+    scanHistoryContainer.classList.remove('hidden');
+
+    showFeedback(`⏳ Đang xử lý ${rproMatches.length} mã...`, "text-blue-600");
+    showToast(`🔄 Đang phân tích ${rproMatches.length} đơn hàng...`, "success");
+
+    for (const rawCode of rproMatches) {
+        const code = normalizeRPRO(rawCode);
+
+        // Fetch details (Qty, Note, PU)
+        // Note: fetchDetails updates global inputs (qty, manualNoteInput, inputPuSheets)
+        // We need to capture these values for each item
+        const status = await fetchDetails(code);
+
+        const item = {
+            rpro: code,
+            quantity: parseInt(inputQty.value) || 1,
+            note: manualNoteInput.value.trim(),
+            pu_sheets: (activeSection === 'Dán' && inputPuSheets) ? parseInt(inputPuSheets.value) : null,
+            status: status
+        };
+
+        pendingBatchScans.push(item);
+        addBatchScanHistoryEntry(item);
+
+        // Small delay to keep UI responsive
+        await new Promise(r => setTimeout(r, 50));
+    }
+
+    if (pendingBatchScans.length > 0) {
+        showFeedback(`✅ Đã phân tích xong ${pendingBatchScans.length} mã. Vui lòng kiểm tra và lưu.`, "text-green-600");
+        btnSaveAllBatch.classList.remove('hidden');
+        btnSaveAllBatch.innerText = `LƯU TẤT CẢ (${pendingBatchScans.length})`;
+    } else {
+        showFeedback("❌ Không có mã hợp lệ để xử lý.", "text-red-500");
+    }
+}
+
+function addBatchScanHistoryEntry(item) {
+    if (!scanHistoryList) return;
+
+    const entry = document.createElement('div');
+    const isSuccess = item.status === 'found';
+    entry.className = `flex justify-between items-center gap-2 p-1.5 rounded border bg-blue-900/20 border-blue-800/50 text-blue-300`;
+
+    const actionSymbol = activeAction === 'IN' ? '⬇️' : '⬆️';
+
+    entry.innerHTML = `
+        <div class="flex flex-col flex-1 min-w-0">
+            <div class="flex items-center gap-1.5">
+                <span class="text-[9px] opacity-60 shrink-0">CHỜ LƯU</span>
+                <span class="font-bold truncate text-sm leading-none">${item.rpro}</span>
+            </div>
+            <div class="flex items-center gap-2 text-[10px] mt-0.5 opacity-80">
+                <span>${actionSymbol} ${activeSection}</span>
+                <span class="bg-gray-800 px-1 rounded">SL: ${item.quantity}</span>
+                ${item.note ? `<span class="italic text-yellow-300 truncate">📝 ${item.note}</span>` : ''}
+                ${!isSuccess ? `<span class="italic text-orange-300 font-bold truncate">⚠️ Ko có data</span>` : `<span class="text-green-400 font-bold">OK</span>`}
+            </div>
+        </div>
+    `;
+
+    scanHistoryList.prepend(entry);
+    scanCountTotalVal++;
+    updateStatsUI();
+}
+
+async function saveBatchScans() {
+    if (pendingBatchScans.length === 0) return;
+    if (!confirm(`Bạn có chắc chắn muốn lưu ${pendingBatchScans.length} đơn hàng này vào hệ thống?`)) return;
+
+    btnSaveAllBatch.disabled = true;
+    btnSaveAllBatch.innerText = "ĐANG LƯU...";
+    showFeedback("⏳ Đang lưu dữ liệu vào hệ thống...", "text-blue-600");
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const item of pendingBatchScans) {
+        try {
+            // Build record
+            const insertRecord = {
+                rpro: item.rpro,
+                section: activeSection,
+                action: activeAction,
+                operator: 'User',
+                quantity: item.quantity,
+                note: item.note,
+                scan_date: new Date().toISOString().split('T')[0]
+            };
+
+            if (item.pu_sheets) insertRecord.pu_sheets = item.pu_sheets;
+
+            const { error } = await supabase.from('supplement_tracking').insert([insertRecord]);
+            if (error) throw error;
+            successCount++;
+        } catch (err) {
+            console.error(`Error saving ${item.rpro}:`, err);
+            failCount++;
+        }
+    }
+
+    showToast(`✅ Đã lưu ${successCount} đơn thành công! ${failCount > 0 ? `❌ Lỗi: ${failCount}` : ''}`, successCount > 0 ? "success" : "error");
+    showFeedback(`✅ Hoàn tất: Lưu ${successCount} đơn thành công.`, "text-green-600");
+
+    // Clear pending
+    pendingBatchScans = [];
+    btnSaveAllBatch.classList.add('hidden');
+    batchRproTextarea.value = '';
+
+    // Refresh history list to show real records from DB (or just leave as is)
+    // For simplicity, let's just clear the "PREVIEW" tags
+}
+
 // Khôi phục trạng thái checkbox tự động lưu
 function initAutoSave() {
     if (autoSaveCheckbox) {
@@ -1024,10 +1171,31 @@ if (btnRefreshScanHistory) {
         if (scanHistoryList) scanHistoryList.innerHTML = '';
         scanCountTotalVal = 0;
         scanCountErrorVal = 0;
+        pendingBatchScans = [];
+        btnSaveAllBatch.classList.add('hidden');
         updateStatsUI();
         if (scanHistoryContainer) scanHistoryContainer.classList.add('hidden');
         showFeedback("🔄 Đã làm mới danh sách theo dõi.", "text-blue-500");
     });
+}
+
+// Batch Import Listeners
+if (importListCheckbox) {
+    importListCheckbox.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            batchInputContainer.classList.remove('hidden');
+        } else {
+            batchInputContainer.classList.add('hidden');
+        }
+    });
+}
+
+if (btnProcessBatch) {
+    btnProcessBatch.addEventListener('click', handleBatchImport);
+}
+
+if (btnSaveAllBatch) {
+    btnSaveAllBatch.addEventListener('click', saveBatchScans);
 }
 
 initAutoSave();
