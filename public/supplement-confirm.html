@@ -21,15 +21,13 @@
         <!-- Date filtering & Actions -->
         <div class="bg-purple-50 p-4 rounded-xl border border-purple-200 mb-6 space-y-4">
             <div class="flex flex-wrap gap-4 items-end">
-                <div class="flex-1 min-w-[140px]">
-                    <label class="block text-xs font-bold text-purple-600 mb-1">TỪ NGÀY:</label>
-                    <input type="date" id="date-from"
-                        class="w-full border p-2 rounded-lg shadow-sm focus:ring-2 focus:ring-purple-400 outline-none">
-                </div>
-                <div class="flex-1 min-w-[140px]">
-                    <label class="block text-xs font-bold text-purple-600 mb-1">ĐẾN NGÀY:</label>
-                    <input type="date" id="date-to"
-                        class="border w-full p-2 rounded-lg shadow-sm focus:ring-2 focus:ring-purple-400 outline-none">
+                <div
+                    class="flex items-center gap-2 bg-white p-2 rounded-xl border border-purple-200 flex-1 sm:flex-none justify-between shadow-sm">
+                    <input type="datetime-local" id="date-from"
+                        class="bg-transparent text-sm font-bold text-purple-700 outline-none px-1 w-full">
+                    <span class="text-purple-300">→</span>
+                    <input type="datetime-local" id="date-to"
+                        class="bg-transparent text-sm font-bold text-purple-700 outline-none px-1 w-full">
                 </div>
                 <div class="flex gap-2">
                     <button id="btn-filter"

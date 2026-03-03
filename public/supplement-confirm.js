@@ -23,22 +23,35 @@ function setInitialDates() {
   const threeDaysAgo = new Date();
   threeDaysAgo.setDate(today.getDate() - 2); // Result: Today, Yesterday, Day before (3 days total)
 
-  dateFromInput.value = threeDaysAgo.toISOString().split('T')[0];
-  dateToInput.value = today.toISOString().split('T')[0];
+  // Set start to beginning of day (00:00)
+  threeDaysAgo.setHours(0, 0, 0, 0);
+  // Set end to end of day (23:59)
+  today.setHours(23, 59, 59, 999);
+
+  const formatForInput = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  dateFromInput.value = formatForInput(threeDaysAgo);
+  dateToInput.value = formatForInput(today);
 }
 
 async function loadConfirmList() {
   const from = dateFromInput.value;
   const to = dateToInput.value;
 
-  const toDate = new Date(to);
-  toDate.setHours(23, 59, 59, 999);
+  if (!from || !to) return;
 
   const { data, error } = await supabase
     .from('supplement_confirm')
     .select('*')
     .gte('created_at', new Date(from).toISOString())
-    .lte('created_at', toDate.toISOString())
+    .lte('created_at', new Date(to).toISOString())
     .order('created_at', { ascending: false });
 
   if (error) {
