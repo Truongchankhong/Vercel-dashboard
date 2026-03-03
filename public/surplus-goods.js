@@ -1055,24 +1055,33 @@ function updateSizeHighlights() {
 // ==================== HISTORY & SEARCH ====================
 
 async function loadHistory() {
-    const q = historySearch.value.trim();
+    const q = historySearch.value.trim().toUpperCase();
     const chkAll = document.getElementById('search-all-sections');
     const isSearchAll = chkAll ? chkAll.checked : false;
 
-    let query = supabase.from('surplusgoods').select('*').order('created_at', { ascending: false }).limit(20);
+    // Detect multi-RPRO
+    const rproMatches = q.match(/RPRO-[\d-]+/g);
+    const cleanMatches = rproMatches ? rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase()) : [];
+
+    let query = supabase.from('surplusgoods').select('*').order('created_at', { ascending: false });
 
     if (activeSection && !isSearchAll) {
         query = query.eq('section', activeSection);
     }
 
-    if (q) {
+    if (cleanMatches.length > 0 && currentSearchType === 'rpro') {
+        // Fetch more rows to ensure we find all requested RPROs if they exist
+        query = query.limit(200);
+    } else if (q) {
         // Targeted search based on selected type
         let rqlColumn = "rpro";
         if (currentSearchType === "bom") rqlColumn = "bom";
         if (currentSearchType === "pu") rqlColumn = "pu";
         if (currentSearchType === "fabric") rqlColumn = "fabric";
 
-        query = query.ilike(rqlColumn, `%${q}%`);
+        query = query.ilike(rqlColumn, `%${q}%`).limit(20);
+    } else {
+        query = query.limit(20);
     }
 
     const { data, error } = await query;
@@ -1082,7 +1091,33 @@ async function loadHistory() {
         return;
     }
 
-    const filtered = data; // Already filtered by database if q exists
+    let filtered = data;
+
+    if (cleanMatches.length > 0 && currentSearchType === 'rpro') {
+        filtered = data.filter(item => {
+            const cleanRpro = (item.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+            return cleanMatches.some(m => cleanRpro.includes(m));
+        });
+
+        // Custom Sort by search order
+        filtered.sort((a, b) => {
+            const rproA = (a.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+            const rproB = (b.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase();
+            let idxA = cleanMatches.findIndex(m => rproA.includes(m));
+            let idxB = cleanMatches.findIndex(m => rproB.includes(m));
+            return (idxA === -1 ? 99999 : idxA) - (idxB === -1 ? 99999 : idxB);
+        });
+
+        // Alert missing
+        const foundRpros = filtered.map(item => (item.rpro || "").replace(/[^A-Z0-9]/g, "").toUpperCase());
+        const missing = rproMatches.filter(m => {
+            const cleanM = m.replace(/[^A-Z0-9]/g, "").toUpperCase();
+            return !foundRpros.some(f => f.includes(cleanM));
+        });
+        if (missing.length > 0) {
+            alert("⚠️ Không tìm thấy các đơn trong Lịch sử nhập: " + missing.join(", "));
+        }
+    }
 
     if (filtered.length === 0) {
         historyList.innerHTML = `<div class="p-8 text-center text-slate-300 italic text-sm">Không tìm thấy dữ liệu phù hợp.</div>`;
