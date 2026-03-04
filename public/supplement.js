@@ -130,10 +130,10 @@ async function loadOrderInfo(rpro) {
   try {
     // 1. Tải Data từ Supabase thay vì JSON static
     // Chúng ta query bảng "powerapp" với key "PRO ODER"
-    // OPTIMIZED: Select only needed columns for supplement entry
+    // OPTIMIZED: Select only needed columns for supplement entry (Removed non-existent fallback names to prevent 400 Error)
     const sizeKeys = [3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15]
       .map(s => `"${s.toString()}"`).join(',');
-    const orderSelectCols = `"PRO ODER","Sales Order","SO","CUSTOMERS","Giới tính","GENDER","Mã Khuôn","#MOLD","Mã dao","PU","Tên vải","FB DESCRIPTION","BOM",${sizeKeys}`;
+    const orderSelectCols = `"PRO ODER","SO","CUSTOMERS","GENDER","#MOLD","PU","FB DESCRIPTION","BOM",${sizeKeys}`;
 
     const { data: recs, error } = await supabase
       .from('powerapp')

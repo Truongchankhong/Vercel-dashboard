@@ -12,14 +12,17 @@ async function fetchAllPowerAppData() {
   let allRows = [];
   let from = 0;
   const step = 1000;
-  // OPTIMIZED: Select only needed columns for dashboard views to minimize Egress
+  // OPTIMIZED: Select only needed columns for dashboard views (with Aliases for mismatched names)
   const selectCols = [
-    'STT', '"PRO ODER"', '"Total Qty"', '"Finish date"', '"Molding (PPC)"', '"Molding Pro (IN)"', '"Molding Pro"',
-    '"STATUS"', '"Brand Code"', '"#MOLD"', '"BOM"', '"PU"', '"FB"', '"RECEIVED (MATERIAL)"', '"RECEIVED (LOGO)"',
-    '"Laminating (Pro)"', '"Prefitting (Pro)"', '"Slipting (Pro)"', '"Bào (Pro)"', '"IN lean Line (Pro)"',
-    '"IN lean Line (MACHINE)"', '"Out lean Line (Pro)"', '"PACKING PRO"', '"Packing date"', '"STORED"',
-    '"LAMINATION MACHINE (PLAN)"', '"LAMINATION MACHINE (REALTIME)"', '"LEANLINE PLAN"', '"LEANLINE (REALTIME)"',
-    '"Check"', '"CheckLL"', '"Delay/Urgent"', '"Giới tính"', '"CUSTOMERS"'
+    '"STT"', '"PRO ODER"', '"Total Qty"', '"Finish date"',
+    '"Molding (PPC)":"MOLDING PPC"', '"Molding Pro (IN)"', '"Molding Pro"',
+    '"STATUS"', '"Brand Code"', '"#MOLD"', '"BOM"', '"PU"', '"FB"', '"FB DESCRIPTION"',
+    '"RECEIVED (MATERIAL)"', '"RECEIVED (LOGO)"', '"Laminating (Pro)"',
+    '"Prefitting (Pro)"', '"Slipting (Pro)"', '"Bào (Pro)":"TachBao PPC"',
+    '"IN lean Line (Pro)"', '"IN lean Line (MACHINE)"', '"Out lean Line (Pro)"',
+    '"STORED"', '"LAMINATION MACHINE (PLAN)"', '"LAMINATION MACHINE (REALTIME)"',
+    '"LEANLINE PLAN"', '"LEANLINE (REALTIME)"', '"Check":"Check2"', '"CheckLL"',
+    '"Delay/Urgent":"Delay-Urgent"', '"Giới tính":"GENDER"', '"CUSTOMERS"'
   ].join(',');
 
   while (true) {
