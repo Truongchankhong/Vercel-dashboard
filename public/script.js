@@ -12,10 +12,20 @@ async function fetchAllPowerAppData() {
   let allRows = [];
   let from = 0;
   const step = 1000;
+  // OPTIMIZED: Select only needed columns for dashboard views to minimize Egress
+  const selectCols = [
+    'STT', '"PRO ODER"', '"Total Qty"', '"Finish date"', '"Molding (PPC)"', '"Molding Pro (IN)"', '"Molding Pro"',
+    '"STATUS"', '"Brand Code"', '"#MOLD"', '"BOM"', '"PU"', '"FB"', '"RECEIVED (MATERIAL)"', '"RECEIVED (LOGO)"',
+    '"Laminating (Pro)"', '"Prefitting (Pro)"', '"Slipting (Pro)"', '"Bào (Pro)"', '"IN lean Line (Pro)"',
+    '"IN lean Line (MACHINE)"', '"Out lean Line (Pro)"', '"PACKING PRO"', '"Packing date"', '"STORED"',
+    '"LAMINATION MACHINE (PLAN)"', '"LAMINATION MACHINE (REALTIME)"', '"LEANLINE PLAN"', '"LEANLINE (REALTIME)"',
+    '"Check"', '"CheckLL"', '"Delay/Urgent"', '"Giới tính"', '"CUSTOMERS"'
+  ].join(',');
+
   while (true) {
     const { data, error } = await supabase
       .from('powerapp')
-      .select('*')
+      .select(selectCols)
       .range(from, from + step - 1);
 
     if (error) {

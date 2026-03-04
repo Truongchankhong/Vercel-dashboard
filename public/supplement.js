@@ -130,9 +130,14 @@ async function loadOrderInfo(rpro) {
   try {
     // 1. Tải Data từ Supabase thay vì JSON static
     // Chúng ta query bảng "powerapp" với key "PRO ODER"
+    // OPTIMIZED: Select only needed columns for supplement entry
+    const sizeKeys = [3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15]
+      .map(s => `"${s.toString()}"`).join(',');
+    const orderSelectCols = `"PRO ODER","Sales Order","SO","CUSTOMERS","Giới tính","GENDER","Mã Khuôn","#MOLD","Mã dao","PU","Tên vải","FB DESCRIPTION","BOM",${sizeKeys}`;
+
     const { data: recs, error } = await supabase
       .from('powerapp')
-      .select('*')
+      .select(orderSelectCols)
       .eq('PRO ODER', rpro)
       .limit(1);
 
@@ -146,7 +151,7 @@ async function loadOrderInfo(rpro) {
       console.log(`🔍 RPRO ${rpro} not found in powerapp, checking Masterdata...`);
       const { data: mRecs, error: mError } = await supabase
         .from('Masterdata')
-        .select('*')
+        .select(orderSelectCols)
         .eq('PRO ODER', rpro)
         .limit(1);
 
@@ -197,9 +202,12 @@ async function loadOrderInfo(rpro) {
     }
 
     // 3. Tải dữ liệu cũ từ Supabase
+    const sizeFields = [3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15]
+      .map(s => `"size_${s.toString().replace('.', '_')}"`).join(',');
+
     const { data: existingRows } = await supabase
       .from('supplement')
-      .select('*')
+      .select(`rpro,${sizeFields}`)
       .eq('rpro', rpro)
       .limit(1);
 

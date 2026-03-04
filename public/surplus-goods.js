@@ -511,8 +511,12 @@ async function handleScan(text) {
         // Tầng 0: Kiểm tra surplusgoods (Chỉ tìm RPRO, không ép lấy đơn cũ khi đang dò PU/Vải)
         let existingSurplus = null;
         if (currentRproType === 'rpro') {
+            // OPTIMIZED: Select only needed columns for surplus lookup
+            const sizeFields = STANDARD_SIZES.map(s => `"size_${s.toString().replace('.', '_')}"`);
+            const surplusSelectCols = ['id', 'rpro', 'brand_code', 'mold', 'bom', 'pu', 'fabric', 'note', 'dynamic_sizes', ...sizeFields].join(',');
+
             let query = supabase.from('surplusgoods')
-                .select('*')
+                .select(surplusSelectCols)
                 .or(`rpro.eq."${rpro}",pu.eq."${rpro}",fabric.eq."${rpro}"`)
                 .order('created_at', { ascending: false })
                 .limit(1);

@@ -29,9 +29,14 @@ async function loadSupplementList() {
 
     listBody.innerHTML = `<tr><td colspan="11" class="text-center py-8"><div class="animate-spin text-2xl mb-2">⏳</div> Đang tải dữ liệu...</td></tr>`;
 
+    // OPTIMIZED: Select only needed columns for the list
+    const sizeFields = [3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15]
+        .map(s => `"size_${s.toString().replace('.', '_')}"`).join(',');
+    const listSelectCols = `created_at,rpro,so,customers,gender,pu,fabric,bom,total,remark,${sizeFields}`;
+
     let query = supabase
         .from('supplement')
-        .select('*')
+        .select(listSelectCols)
         .gte('created_at', new Date(fromDate).toISOString())
         .lte('created_at', toDateObj.toISOString());
 
@@ -89,9 +94,14 @@ async function loadSupplementList() {
 }
 
 window.handleSend = async (rpro) => {
+    // OPTIMIZED: Select specifically needed columns to copy
+    const sizeFields = [3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15]
+        .map(s => `"size_${s.toString().replace('.', '_')}"`).join(',');
+    const copyCols = `rpro,so,customers,gender,pu,fabric,bom,total,remark,remark2,mold,${sizeFields}`;
+
     const { data: row, error: fetchError } = await supabase
         .from('supplement')
-        .select('*')
+        .select(copyCols)
         .eq('rpro', rpro)
         .limit(1)
         .maybeSingle();

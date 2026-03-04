@@ -43,7 +43,12 @@ async function refreshStats() {
 }
 
 async function fetchFilteredSurplusData() {
-    let query = supabase.from('surplusgoods').select('*').order('created_at', { ascending: true });
+    // OPTIMIZED: Select only needed columns to minimize Egress usage
+    const sizeFields = [3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15]
+        .map(s => `"size_${s.toString().replace('.', '_')}"`);
+    const selectCols = ['rpro', 'bom', 'mold', 'brand_code', 'created_at', 'dynamic_sizes', ...sizeFields].join(',');
+
+    let query = supabase.from('surplusgoods').select(selectCols).order('created_at', { ascending: true });
 
     if (currentSection !== 'ALL') {
         query = query.eq('section', currentSection);
