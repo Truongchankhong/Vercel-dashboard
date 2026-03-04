@@ -1,6 +1,6 @@
 @echo off
 echo ============================================
-echo   Supabase Masterdata Upload Tool
+echo   Supabase Masterdata Upload Tool (Filtered)
 echo ============================================
 echo.
 echo Checking for upload file...

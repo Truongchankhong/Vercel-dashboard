@@ -67,37 +67,80 @@ async function uploadToMasterdata() {
     const isSizeCol = (key) => /^\s*\d+(\.\d+)?(Y|K)?\s*$/.test(String(key).trim());
 
     const cleanRows = rows.map(row => {
-        const newRow = { ...row };
+        const newRow = {};
 
-        for (const key of Object.keys(newRow)) {
-            const val = newRow[key];
+        // Trim keys and values, normalize empty/none to null
+        for (const key of Object.keys(row)) {
             const cleanKey = String(key).trim();
+            let val = row[key];
 
-            // Normalize key (remove spaces) if it matches our schema
-            if (numericCols.includes(cleanKey) || cleanKey.startsWith('DL ') || isSizeCol(cleanKey)) {
-                if (val === "" || val === null || val === "NONE" || val === undefined) {
-                    newRow[key] = null;
-                } else {
-                    const num = Number(val);
-                    newRow[key] = !isNaN(num) ? num : null;
-                }
-            } else if (val === "") {
-                newRow[key] = null;
+            if (typeof val === 'string') {
+                val = val.trim();
             }
+
+            // Normalize empty values
+            if (val === "" || val === "NONE" || val === "null" || val === undefined) {
+                val = null;
+            }
+
+            // Numeric conversion for specific columns
+            if (numericCols.includes(cleanKey) || cleanKey.startsWith('DL ') || isSizeCol(cleanKey)) {
+                if (val !== null) {
+                    const num = Number(val);
+                    val = !isNaN(num) ? num : null;
+                }
+            }
+
+            newRow[cleanKey] = val;
         }
 
+        // Remove unwanted fields
         delete newRow['__rowNum__'];
         delete newRow['created_at'];
         return newRow;
     });
 
-    // 3. Upsert to Masterdata
-    console.log(`📤 Upserting to "Masterdata" table...`);
+    // 3. Filter existing records by PRO ODER
+    console.log(`🔍 Checking for existing records in Supabase...`);
+    const allProOders = [...new Set(cleanRows.map(r => r['PRO ODER']).filter(Boolean))];
+    const existingProOders = new Set();
+
+    // Fetch existing PRO ODER in chunks to avoid URL length limits
+    const BATCH_SIZE = 1000;
+    for (let i = 0; i < allProOders.length; i += BATCH_SIZE) {
+        const chunk = allProOders.slice(i, i + BATCH_SIZE);
+        const { data, error } = await supabase
+            .from('Masterdata')
+            .select('PRO ODER')
+            .in('PRO ODER', chunk);
+
+        if (error) {
+            console.error(`❌ Error fetching existing records:`, error.message);
+        } else if (data) {
+            data.forEach(row => existingProOders.add(row['PRO ODER']));
+        }
+        process.stdout.write(`\rChecking existing records: ${Math.min(i + BATCH_SIZE, allProOders.length)}/${allProOders.length}...`);
+    }
+    console.log(`\n✅ Found ${existingProOders.size} existing RPRO(s) in database.`);
+
+    const filteredRows = cleanRows.filter(row => !existingProOders.has(row['PRO ODER']));
+    console.log(`⏭️  Skipping ${cleanRows.length - filteredRows.length} existing rows.`);
+    console.log(`🚀 Uploading ${filteredRows.length} new rows...`);
+
+    if (filteredRows.length === 0) {
+        console.log('✅ All rows already exist in Supabase. Nothing to upload.');
+        return;
+    }
+
+    // 4. Batch Upload to Masterdata
+    console.log(`📤 Sending data to "Masterdata" table...`);
     let totalSuccess = 0;
 
-    for (let i = 0; i < cleanRows.length; i += CHUNK_SIZE) {
-        const chunk = cleanRows.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < filteredRows.length; i += CHUNK_SIZE) {
+        const chunk = filteredRows.slice(i, i + CHUNK_SIZE);
 
+        // Using insert instead of upsert since we already filtered duplicates
+        // but keeping STT as conflict target just in case there are internal duplicates in the batch
         const { error } = await supabase
             .from('Masterdata')
             .upsert(chunk, { onConflict: 'STT' });
@@ -107,11 +150,11 @@ async function uploadToMasterdata() {
             console.error('Details:', error.details || error.hint);
         } else {
             totalSuccess += chunk.length;
-            process.stdout.write(`\rProgress: ${totalSuccess}/${cleanRows.length} rows processed...`);
+            process.stdout.write(`\rProgress: ${totalSuccess}/${filteredRows.length} rows processed...`);
         }
     }
 
-    console.log(`\n\n✅ Done! Successfully processed ${totalSuccess} rows.`);
+    console.log(`\n\n✅ Done! Successfully processed ${totalSuccess} new rows.`);
 }
 
 uploadToMasterdata().catch(err => {
