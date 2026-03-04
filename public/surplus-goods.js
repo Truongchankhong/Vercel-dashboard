@@ -551,26 +551,31 @@ async function handleScan(text) {
         }
 
         // Tầng 1: Tìm kiếm trong cả powerapp và Masterdata
+        // TỐI ƯU HÓA: Chỉ select các cột cần thiết để tránh lỗi 500 (Timeout/Statement Cancellation) do bảng Masterdata quá rộng và lớn.
+        const essentialFields = ['STT', 'PRO ODER', 'SO', 'Brand Code', '#MOLD', 'BOM', 'PU DESCRIPTION', 'FB DESCRIPTION', 'PU', 'FB'];
+        const sizeFields = STANDARD_SIZES.map(s => s.toString());
+        const selectCols = [...essentialFields, ...sizeFields].map(f => `"${f}"`).join(',');
+
         let paOrder = null;
         let mdOrder = null;
 
         if (currentRproType === 'pu') {
-            paOrder = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-            mdOrder = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            paOrder = await supabase.from('powerapp').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
         } else if (currentRproType === 'fabric') {
-            paOrder = await supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-            mdOrder = await supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            paOrder = await supabase.from('powerapp').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
         } else {
-            paOrder = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
-            mdOrder = await supabase.from('Masterdata').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
+            paOrder = await supabase.from('powerapp').select(selectCols).eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
+            mdOrder = await supabase.from('Masterdata').select(selectCols).eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
 
             // Nếu tìm theo RPRO không ra, thử tìm theo PU/Fabric (dành cho RPRO nhập sai định dạng)
             if (!paOrder && !mdOrder) {
-                paOrder = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-                if (!paOrder) paOrder = await supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                paOrder = await supabase.from('powerapp').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                if (!paOrder) paOrder = await supabase.from('powerapp').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
 
-                mdOrder = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-                if (!mdOrder) mdOrder = await supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                if (!mdOrder) mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
             }
         }
 
