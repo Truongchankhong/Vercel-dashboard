@@ -567,33 +567,39 @@ async function handleScan(text) {
             mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
         } else {
             // TÌM KIẾM THEO RPRO: Dùng .eq để tận dụng Index, cực nhanh và không bị lỗi 500
+            const searchRpro = rpro.trim(); // Đảm bảo lọc sạch khoảng trắng trước khi search
+
             // 1. Tìm trong powerapp trước
-            let paRes = await supabase.from('powerapp').select(selectCols).eq('PRO ODER', rpro).maybeSingle();
-            paOrder = paRes.data;
+            let paRes = await supabase.from('powerapp').select(selectCols).eq('PRO ODER', searchRpro).limit(1);
+            paOrder = (paRes.data && paRes.data.length > 0) ? paRes.data[0] : null;
 
             // 2. Tìm trong Masterdata bằng .eq (Tuyệt đối không dùng ilike % mặc định ở đây nếu không có index)
-            let mdRes = await supabase.from('Masterdata').select(selectCols).eq('PRO ODER', rpro).maybeSingle();
-            mdOrder = mdRes.data;
+            // Dùng .limit(1) thay vì .maybeSingle() để tránh lỗi PostgREST (PGRST116) nếu trùng mã RPRO
+            if (!paOrder) {
+                let mdRes = await supabase.from('Masterdata').select(selectCols).eq('PRO ODER', searchRpro).limit(1);
+                mdOrder = (mdRes.data && mdRes.data.length > 0) ? mdRes.data[0] : null;
 
-            if (mdRes.error) {
-                console.warn("MD Index Search failed, trying safe ilike...", mdRes.error);
-                // Chỉ thử ilike nếu eq thất bại và mã ngắn (đề phòng khoảng trắng dư trong DB)
-                let mdResIlike = await supabase.from('Masterdata').select(selectCols).ilike('PRO ODER', `${rpro}%`).limit(1).maybeSingle();
-                mdOrder = mdResIlike.data;
+                // Nếu không thấy mã chính xác, mới thử tìm mờ đề phòng DB bị dư khoảng trắng
+                if (!mdOrder) {
+                    console.log("No exact match in MD, trying safe ilike...");
+                    let mdResIlike = await supabase.from('Masterdata').select(selectCols).ilike('PRO ODER', `${searchRpro}%`).limit(1);
+                    mdOrder = (mdResIlike.data && mdResIlike.data.length > 0) ? mdResIlike.data[0] : null;
+                }
             }
 
             // CHỈ FALLBACK tìm theo nội dung mô tả nếu input KHÔNG phải là mã RPRO chuẩn và không tìm thấy kết quả
-            const isLikelyRpro = rpro.startsWith('RPRO-') || /^\d+$/.test(rpro.replace(/-/g, ''));
+            const isLikelyRpro = searchRpro.startsWith('RPRO-') || /^\d+$/.test(searchRpro.replace(/-/g, ''));
 
             if (!paOrder && !mdOrder && !isLikelyRpro) {
                 console.log("Fallback search by descriptions on powerapp...");
-                paOrder = await supabase.from('powerapp').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-                if (!paOrder) paOrder = await supabase.from('powerapp').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                paOrder = await supabase.from('powerapp').select(selectCols).ilike('PU DESCRIPTION', `%${searchRpro}%`).limit(1).then(r => (r.data && r.data.length > 0) ? r.data[0] : null);
+
+                if (!paOrder) paOrder = await supabase.from('powerapp').select(selectCols).ilike('FB DESCRIPTION', `%${searchRpro}%`).limit(1).then(r => (r.data && r.data.length > 0) ? r.data[0] : null);
 
                 // Hạn chế tối đa search Masterdata bằng ilike string dài trên description
                 if (!paOrder && rpro.length > 5) {
                     console.log("Final fallback search on Masterdata...");
-                    mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                    mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('PU DESCRIPTION', `%${searchRpro}%`).limit(1).then(r => (r.data && r.data.length > 0) ? r.data[0] : null);
                 }
             }
         }
