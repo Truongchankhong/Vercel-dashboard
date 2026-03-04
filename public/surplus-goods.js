@@ -278,18 +278,20 @@ async function updateSuggestions(column, value, inputId, datalistId) {
             const isPu = column === 'PU DESCRIPTION';
             const val = value.trim();
 
-            // surplusgoods table uses 'pu' and 'fabric'
+            // surplusgoods table uses 'pu' and 'fabric' - OPTIMIZED: Select only needed column
             promises.push(supabase.from('surplusgoods')
                 .select(isPu ? 'pu' : 'fabric')
                 .ilike(isPu ? 'pu' : 'fabric', `%${val}%`)
                 .limit(5));
 
             if (isPu) {
-                promises.push(supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
+                // OPTIMIZED: Select only PU DESCRIPTION
+                promises.push(supabase.from('powerapp').select('PU DESCRIPTION').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('PU DESCRIPTION').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
             } else {
-                promises.push(supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
+                // OPTIMIZED: Select only FB DESCRIPTION
+                promises.push(supabase.from('powerapp').select('FB DESCRIPTION').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('FB DESCRIPTION').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
             }
 
             const results = await Promise.all(promises);
@@ -368,13 +370,15 @@ async function updateRPROSuggestions(value) {
         const safeValue = value.trim();
 
         if (currentRproType === 'pu' || currentRproType === 'rpro') {
-            promises.push(supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
-            promises.push(supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
+            // OPTIMIZED: select PU DESCRIPTION, FB DESCRIPTION instead of *
+            promises.push(supabase.from('powerapp').select('PU DESCRIPTION, "FB DESCRIPTION"').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
+            promises.push(supabase.from('Masterdata').select('PU DESCRIPTION, "FB DESCRIPTION"').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
         }
 
         if (currentRproType === 'fabric' || currentRproType === 'rpro') {
-            promises.push(supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
-            promises.push(supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
+            // OPTIMIZED: select PU DESCRIPTION, FB DESCRIPTION instead of *
+            promises.push(supabase.from('powerapp').select('PU DESCRIPTION, "FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
+            promises.push(supabase.from('Masterdata').select('PU DESCRIPTION, "FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
         }
 
         const results = await Promise.all(promises);
@@ -1063,7 +1067,9 @@ async function loadHistory() {
     const rproMatches = q.match(/RPRO-[\d-]+/g);
     const cleanMatches = rproMatches ? rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase()) : [];
 
-    let query = supabase.from('surplusgoods').select('*').order('created_at', { ascending: false });
+    // OPTIMIZED: Select only needed columns for history list
+    const historyColumns = 'id,rpro,section,created_at,bom,mold,dynamic_sizes,size_3,size_3_5,size_4,size_4_5,size_5,size_5_5,size_6,size_6_5,size_7,size_7_5,size_8,size_8_5,size_9,size_9_5,size_10,size_10_5,size_11,size_11_5,size_12,size_12_5,size_13,size_13_5,size_14,size_14_5,size_15';
+    let query = supabase.from('surplusgoods').select(historyColumns).order('created_at', { ascending: false });
 
     if (activeSection && !isSearchAll) {
         query = query.eq('section', activeSection);

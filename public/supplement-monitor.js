@@ -138,9 +138,10 @@ async function fetchProgressData() {
 
     try {
         updateLoading(10, 'Đang truy vấn lịch sử quét (Tracking)...');
+        // OPTIMIZED: Select only needed columns for monitoring
         const { data, error } = await supabase
             .from('supplement_tracking')
-            .select('*')
+            .select('id, rpro, section, action, quantity, note, created_at')
             .gte('created_at', new Date(fromDateTime).toISOString())
             .lte('created_at', new Date(toDateTime).toISOString())
             .order('created_at', { ascending: false })

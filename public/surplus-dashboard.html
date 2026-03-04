@@ -217,8 +217,11 @@
             tbody.innerHTML = '';
 
             try {
-                // Get surplus goods within date range
-                let query = supabase.from('surplusgoods').select('*');
+                // Get surplus goods within date range - OPTIMIZED: Select only needed columns
+                const neededColumns = 'id,rpro,pu,fabric,bom,mold,pu_code,fb_code,section,created_at,dynamic_sizes,' +
+                    'size_3,size_3_5,size_4,size_4_5,size_5,size_5_5,size_6,size_6_5,size_7,size_7_5,size_8,size_8_5,size_9,size_9_5,size_10,size_10_5,size_11,size_11_5,size_12,size_12_5,size_13,size_13_5,size_14,size_14_5,size_15';
+
+                let query = supabase.from('surplusgoods').select(neededColumns);
 
                 const startVal = startDateInput.value;
                 const endVal = endDateInput.value;
@@ -227,7 +230,7 @@
 
                 const { data, error } = await query;
                 if (error) throw error;
-
+                // ... (Logic regrouping stays same)
                 // Group by RPRO, PU, FABRIC (using rpro as primary key since manual rpros are unique per mat combination)
                 const groupings = {};
 
@@ -456,8 +459,8 @@
         // Init Dates
         document.addEventListener('DOMContentLoaded', () => {
             const now = new Date();
-            const lastMonth = new Date(now);
-            lastMonth.setMonth(now.getMonth() - 1);
+            const lastWeek = new Date(now);
+            lastWeek.setDate(now.getDate() - 7); // OPTIMIZED: Reduce from 30 days to 7 days
 
             // Format to YYYY-MM-DDTHH:mm
             const formatDT = (d) => {
@@ -465,11 +468,12 @@
                 return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
             };
 
-            startDateInput.value = formatDT(lastMonth);
+            startDateInput.value = formatDT(lastWeek);
             endDateInput.value = formatDT(now);
 
             loadDashboardData();
         });
+
 
     </script>
 </body>
