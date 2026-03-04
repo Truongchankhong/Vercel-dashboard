@@ -550,29 +550,41 @@ async function handleScan(text) {
             return;
         }
 
-        // Tầng 1: Powerapp
-        let order;
+        // Tầng 1: Tìm kiếm trong cả powerapp và Masterdata
+        let paOrder = null;
+        let mdOrder = null;
+
         if (currentRproType === 'pu') {
-            order = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            paOrder = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            mdOrder = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
         } else if (currentRproType === 'fabric') {
-            order = await supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            paOrder = await supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            mdOrder = await supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
         } else {
-            order = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
-            if (!order) order = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-            if (!order) order = await supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            paOrder = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
+            mdOrder = await supabase.from('Masterdata').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
+
+            // Nếu tìm theo RPRO không ra, thử tìm theo PU/Fabric (dành cho RPRO nhập sai định dạng)
+            if (!paOrder && !mdOrder) {
+                paOrder = await supabase.from('powerapp').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                if (!paOrder) paOrder = await supabase.from('powerapp').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+
+                mdOrder = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                if (!mdOrder) mdOrder = await supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            }
         }
 
-        // Tầng 2: Masterdata
-        if (!order) {
-            if (currentRproType === 'pu') {
-                order = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-            } else if (currentRproType === 'fabric') {
-                order = await supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-            } else {
-                order = await supabase.from('Masterdata').select('*').eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
-                if (!order) order = await supabase.from('Masterdata').select('*').ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-                if (!order) order = await supabase.from('Masterdata').select('*').ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-            }
+        // Ưu tiên Masterdata nếu có (vì data thường đầy đủ hơn), nhưng merge thông tin từ powerapp nếu Masterdata bị thiếu
+        let order = mdOrder || paOrder;
+
+        if (mdOrder && paOrder) {
+            // Merge các field quan trọng nếu mdOrder bị null hoặc trống
+            const fieldsToMerge = ['PU DESCRIPTION', 'FB DESCRIPTION', 'Brand Code', '#MOLD', 'BOM'];
+            fieldsToMerge.forEach(field => {
+                if (!order[field] || order[field] === '-' || order[field] === '') {
+                    order[field] = paOrder[field];
+                }
+            });
         }
 
         if (!order) {
