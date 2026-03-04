@@ -286,12 +286,12 @@ async function updateSuggestions(column, value, inputId, datalistId) {
 
             if (isPu) {
                 // OPTIMIZED: Select only PU DESCRIPTION
-                promises.push(supabase.from('powerapp').select('PU DESCRIPTION').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('Masterdata').select('PU DESCRIPTION').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('powerapp').select('"PU DESCRIPTION"').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('"PU DESCRIPTION"').ilike('PU DESCRIPTION', `%${val}%`).limit(5));
             } else {
                 // OPTIMIZED: Select only FB DESCRIPTION
-                promises.push(supabase.from('powerapp').select('FB DESCRIPTION').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
-                promises.push(supabase.from('Masterdata').select('FB DESCRIPTION').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('powerapp').select('"FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
+                promises.push(supabase.from('Masterdata').select('"FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${val}%`).limit(5));
             }
 
             const results = await Promise.all(promises);
@@ -363,7 +363,7 @@ async function updateRPROSuggestions(value) {
         return;
     }
 
-    if (currentRproType === 'rpro' && value.toUpperCase().startsWith('RPRO-')) return;
+    if (value.length > 100) return; // Prevent searching for massive strings (like accidentally pasted SQL)
 
     try {
         const promises = [];
@@ -371,14 +371,14 @@ async function updateRPROSuggestions(value) {
 
         if (currentRproType === 'pu' || currentRproType === 'rpro') {
             // OPTIMIZED: select PU DESCRIPTION, FB DESCRIPTION instead of *
-            promises.push(supabase.from('powerapp').select('PU DESCRIPTION, "FB DESCRIPTION"').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
-            promises.push(supabase.from('Masterdata').select('PU DESCRIPTION, "FB DESCRIPTION"').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
+            promises.push(supabase.from('powerapp').select('"PU DESCRIPTION", "FB DESCRIPTION"').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
+            promises.push(supabase.from('Masterdata').select('"PU DESCRIPTION", "FB DESCRIPTION"').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
         }
 
         if (currentRproType === 'fabric' || currentRproType === 'rpro') {
             // OPTIMIZED: select PU DESCRIPTION, FB DESCRIPTION instead of *
-            promises.push(supabase.from('powerapp').select('PU DESCRIPTION, "FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
-            promises.push(supabase.from('Masterdata').select('PU DESCRIPTION, "FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
+            promises.push(supabase.from('powerapp').select('"PU DESCRIPTION", "FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
+            promises.push(supabase.from('Masterdata').select('"PU DESCRIPTION", "FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
         }
 
         const results = await Promise.all(promises);
