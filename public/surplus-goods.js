@@ -370,18 +370,18 @@ async function updateRPROSuggestions(value) {
         const safeValue = value.trim();
 
         if (currentRproType === 'pu' || currentRproType === 'rpro') {
-            // OPTIMIZED: select PU DESCRIPTION, FB DESCRIPTION instead of *
+            // TỐI ƯU: Chỉ search powerapp, không search Masterdata cho suggestions để tránh treo DB
             promises.push(supabase.from('powerapp').select('"PU DESCRIPTION", "FB DESCRIPTION"').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
-            promises.push(supabase.from('Masterdata').select('"PU DESCRIPTION", "FB DESCRIPTION"').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
+            // promises.push(supabase.from('Masterdata').select('"PU DESCRIPTION", "FB DESCRIPTION"').ilike('PU DESCRIPTION', `%${safeValue}%`).limit(10));
         }
 
         if (currentRproType === 'fabric' || currentRproType === 'rpro') {
-            // OPTIMIZED: select PU DESCRIPTION, FB DESCRIPTION instead of *
             promises.push(supabase.from('powerapp').select('"PU DESCRIPTION", "FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
-            promises.push(supabase.from('Masterdata').select('"PU DESCRIPTION", "FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
+            // promises.push(supabase.from('Masterdata').select('"PU DESCRIPTION", "FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
         }
 
         const results = await Promise.all(promises);
+        // ... (Phần xử lý kết quả giữ nguyên)
 
         // Abort rendering if user typed more or selected an item while the network request was in-flight
         const rproInputEl = document.getElementById('rpro-input');
@@ -566,30 +566,35 @@ async function handleScan(text) {
             paOrder = await supabase.from('powerapp').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
             mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
         } else {
-            // TÌM KIẾM THEO RPRO: Sử dụng ILIKE % để bắt được các dòng có khoảng trắng dư thừa ở cuối trong DB
-            const rproQuery = `${rpro}%`;
-
-            const [paRes, mdRes] = await Promise.all([
-                supabase.from('powerapp').select(selectCols).ilike('PRO ODER', rproQuery).limit(1).maybeSingle(),
-                supabase.from('Masterdata').select(selectCols).ilike('PRO ODER', rproQuery).limit(1).maybeSingle()
-            ]);
-
+            // TÌM KIẾM THEO RPRO: Dùng .eq để tận dụng Index, cực nhanh và không bị lỗi 500
+            // 1. Tìm trong powerapp trước
+            let paRes = await supabase.from('powerapp').select(selectCols).eq('PRO ODER', rpro).maybeSingle();
             paOrder = paRes.data;
+
+            // 2. Tìm trong Masterdata bằng .eq (Tuyệt đối không dùng ilike % mặc định ở đây nếu không có index)
+            let mdRes = await supabase.from('Masterdata').select(selectCols).eq('PRO ODER', rpro).maybeSingle();
             mdOrder = mdRes.data;
 
-            if (paRes.error) console.warn("PA Search Error:", paRes.error);
-            if (mdRes.error) console.warn("MD Search Error:", mdRes.error);
+            if (mdRes.error) {
+                console.warn("MD Index Search failed, trying safe ilike...", mdRes.error);
+                // Chỉ thử ilike nếu eq thất bại và mã ngắn (đề phòng khoảng trắng dư trong DB)
+                let mdResIlike = await supabase.from('Masterdata').select(selectCols).ilike('PRO ODER', `${rpro}%`).limit(1).maybeSingle();
+                mdOrder = mdResIlike.data;
+            }
 
             // CHỈ FALLBACK tìm theo nội dung mô tả nếu input KHÔNG phải là mã RPRO chuẩn và không tìm thấy kết quả
             const isLikelyRpro = rpro.startsWith('RPRO-') || /^\d+$/.test(rpro.replace(/-/g, ''));
 
             if (!paOrder && !mdOrder && !isLikelyRpro) {
-                console.log("Fallback search by descriptions...");
+                console.log("Fallback search by descriptions on powerapp...");
                 paOrder = await supabase.from('powerapp').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
                 if (!paOrder) paOrder = await supabase.from('powerapp').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
 
-                mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-                if (!mdOrder) mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                // Hạn chế tối đa search Masterdata bằng ilike string dài trên description
+                if (!paOrder && rpro.length > 5) {
+                    console.log("Final fallback search on Masterdata...");
+                    mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+                }
             }
         }
 
