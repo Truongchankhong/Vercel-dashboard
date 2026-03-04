@@ -566,11 +566,25 @@ async function handleScan(text) {
             paOrder = await supabase.from('powerapp').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
             mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
         } else {
-            paOrder = await supabase.from('powerapp').select(selectCols).eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
-            mdOrder = await supabase.from('Masterdata').select(selectCols).eq('PRO ODER', rpro).maybeSingle().then(r => r.data);
+            // TÌM KIẾM THEO RPRO: Sử dụng ILIKE % để bắt được các dòng có khoảng trắng dư thừa ở cuối trong DB
+            const rproQuery = `${rpro}%`;
 
-            // Nếu tìm theo RPRO không ra, thử tìm theo PU/Fabric (dành cho RPRO nhập sai định dạng)
-            if (!paOrder && !mdOrder) {
+            const [paRes, mdRes] = await Promise.all([
+                supabase.from('powerapp').select(selectCols).ilike('PRO ODER', rproQuery).limit(1).maybeSingle(),
+                supabase.from('Masterdata').select(selectCols).ilike('PRO ODER', rproQuery).limit(1).maybeSingle()
+            ]);
+
+            paOrder = paRes.data;
+            mdOrder = mdRes.data;
+
+            if (paRes.error) console.warn("PA Search Error:", paRes.error);
+            if (mdRes.error) console.warn("MD Search Error:", mdRes.error);
+
+            // CHỈ FALLBACK tìm theo nội dung mô tả nếu input KHÔNG phải là mã RPRO chuẩn và không tìm thấy kết quả
+            const isLikelyRpro = rpro.startsWith('RPRO-') || /^\d+$/.test(rpro.replace(/-/g, ''));
+
+            if (!paOrder && !mdOrder && !isLikelyRpro) {
+                console.log("Fallback search by descriptions...");
                 paOrder = await supabase.from('powerapp').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
                 if (!paOrder) paOrder = await supabase.from('powerapp').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
 
