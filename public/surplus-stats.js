@@ -73,7 +73,7 @@ function clearStats() {
 }
 
 function processAndRender(data) {
-    const statsByDay = {};
+    const dailyIncrease = {};
     const statsByBrand = {};
     const topOrders = [];
 
@@ -94,9 +94,14 @@ function processAndRender(data) {
 
         totalQty += itemTotal;
 
-        // Group by Day
-        const dateStr = new Date(item.created_at).toLocaleDateString('en-GB'); // DD/MM/YYYY
-        statsByDay[dateStr] = (statsByDay[dateStr] || 0) + itemTotal;
+        // Group by Day (Lưu lượng tăng từng ngày)
+        const dateObj = new Date(item.created_at);
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`; // Định dạng YYYY-MM-DD để dễ sort
+
+        dailyIncrease[dateStr] = (dailyIncrease[dateStr] || 0) + itemTotal;
 
         // Group by Brand
         const brand = item.brand_code || 'N/A';
@@ -110,6 +115,18 @@ function processAndRender(data) {
             brand: brand,
             total: itemTotal
         });
+    });
+
+    // Tính tổng tích lũy (Cumulative sum) để xem xu hướng lượng dư tổng cộng
+    const statsByDay = {};
+    let cumulative = 0;
+
+    // Sort các ngày để cộng dồn đúng thứ tự lịch sử
+    Object.keys(dailyIncrease).sort().forEach(dateStr => {
+        cumulative += dailyIncrease[dateStr];
+        // Format lại thành DD/MM/YYYY cho đẹp khi hiển thị trên biểu đồ
+        const [y, m, d] = dateStr.split('-');
+        statsByDay[`${d}/${m}/${y}`] = cumulative;
     });
 
     // Update Summary Cards
