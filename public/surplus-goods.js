@@ -913,8 +913,8 @@ function displayOrderInfo(order) {
         infoMold.textContent = order['#MOLD'] || order['Mã Khuôn'] || order['mold'] || '-';
         infoBom.textContent = order['BOM'] || order['bom'] || '-';
 
-        const puFull = order['PU DESCRIPTION'] || order['Mã dao'] || order['pu'] || '';
-        const fbFull = order['FB DESCRIPTION'] || order['Tên vải'] || order['fabric'] || '';
+        const puFull = order['PU DESCRIPTION'] || order['Mã dao'] || order['PU'] || order['pu_code'] || order['pu'] || '';
+        const fbFull = order['FB DESCRIPTION'] || order['Tên vải'] || order['FB'] || order['fb_code'] || order['fabric'] || '';
 
         infoPu.value = puFull;
         infoFabric.value = fbFull;
@@ -1429,8 +1429,14 @@ async function loadHistory() {
             query = query.ilike('rpro', `%${mrpro}%`);
         } else if (mmold || mpu || mfb) {
             if (mmold) query = query.ilike('mold', `%${mmold}%`);
-            if (mpu) query = query.ilike('pu', `%${mpu}%`);
-            if (mfb) query = query.ilike('fabric', `%${mfb}%`);
+            if (mpu) {
+                // Search both description and code columns
+                query = query.or(`pu.ilike.%${mpu}%,pu_code.ilike.%${mpu}%`);
+            }
+            if (mfb) {
+                // Search both description and code columns
+                query = query.or(`fabric.ilike.%${mfb}%,fb_code.ilike.%${mfb}%`);
+            }
         }
         query = query.limit(20);
     } else if (cleanMatches.length > 0 && currentSearchType === 'rpro') {
@@ -1534,17 +1540,7 @@ window.previewEntry = async (id) => {
     activeOrderData = data; // Ensure saving from preview also works
     rproInput.value = data.rpro;
     entryNote.value = data.note || '';
-    infoBrand.textContent = data.brand_code || '-';
-    infoMold.textContent = data.mold || '-';
-    infoBom.textContent = data.bom || '-';
-
-    const puFull = data.pu || '';
-    const fbFull = data.fabric || '';
-
-    infoPu.value = puFull;
-    infoFabric.value = fbFull;
-    infoPu.title = puFull;
-    infoFabric.title = fbFull;
+    displayOrderInfo(data);
 
     // Highlight UI
     enableInput();
@@ -1564,7 +1560,9 @@ window.previewEntry = async (id) => {
 
     // Check for dynamic sizes from this record
     const dyn = data.dynamic_sizes || {};
-    const dynKeys = Object.keys(dyn).map(k => parseFloat(k));
+    const dynKeys = Object.keys(dyn)
+        .filter(k => !isNaN(parseFloat(k)))
+        .map(k => parseFloat(k));
 
     if (dynKeys.length > 0) {
         extraSizes = dynKeys;
