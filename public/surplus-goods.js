@@ -44,6 +44,15 @@ const btnExportExcel = document.getElementById('btn-export-excel');
 const exportStartDate = document.getElementById('export-start-date');
 const exportEndDate = document.getElementById('export-end-date');
 
+// Specialized History Search (Molding)
+const moldingHistorySearchContainer = document.getElementById('molding-history-search-container');
+const defaultHistorySearchContainer = document.getElementById('default-history-search-container');
+const moldingHistoryRpro = document.getElementById('molding-history-rpro');
+const moldingHistoryMold = document.getElementById('molding-history-mold');
+const moldingHistoryPu = document.getElementById('molding-history-pu');
+const moldingHistoryFb = document.getElementById('molding-history-fb');
+const btnSearchHistoryMolding = document.getElementById('btn-search-history-molding');
+
 // Info Display
 const infoBrand = document.getElementById('info-brand');
 const infoMold = document.getElementById('info-mold');
@@ -153,6 +162,9 @@ function setupEventListeners() {
     const chkSearchAllSections = document.getElementById('search-all-sections');
     if (chkSearchAllSections) {
         chkSearchAllSections.addEventListener('change', loadHistory);
+    }
+    if (btnSearchHistoryMolding) {
+        btnSearchHistoryMolding.onclick = loadHistory;
     }
 
     // RPRO Input suggestions (for PU/Fabric)
@@ -532,6 +544,17 @@ function updateActiveSection(section) {
         } else {
             defaultSearch.classList.remove('hidden');
             moldingSearch.classList.add('hidden'); moldingSearch.classList.remove('flex');
+        }
+    }
+
+    // Toggle History Search Containers
+    if (moldingHistorySearchContainer && defaultHistorySearchContainer) {
+        if (isMolding) {
+            defaultHistorySearchContainer.classList.add('hidden');
+            moldingHistorySearchContainer.classList.remove('hidden'); moldingHistorySearchContainer.classList.add('flex');
+        } else {
+            defaultHistorySearchContainer.classList.remove('hidden');
+            moldingHistorySearchContainer.classList.add('hidden'); moldingHistorySearchContainer.classList.remove('flex');
         }
     }
 
@@ -1326,6 +1349,14 @@ function clearFormFields() {
     [infoBrand, infoMold, infoBom].forEach(el => el.textContent = '-');
     [infoPu, infoFabric].forEach(el => el.value = '');
 
+    // Reset Molding Search Inputs
+    const mMoldInput = document.getElementById('molding-mold-input');
+    const mPuInput = document.getElementById('molding-pu-input');
+    const mFbInput = document.getElementById('molding-fb-input');
+    if (mMoldInput) mMoldInput.value = '';
+    if (mPuInput) mPuInput.value = '';
+    if (mFbInput) mFbInput.value = '';
+
     updateSizeHighlights();
 }
 
@@ -1370,23 +1401,39 @@ function updateSizeHighlights() {
 // ==================== HISTORY & SEARCH ====================
 
 async function loadHistory() {
-    const q = historySearch.value.trim().toUpperCase();
+    const q = historySearch ? historySearch.value.trim().toUpperCase() : "";
     const chkAll = document.getElementById('search-all-sections');
     const isSearchAll = chkAll ? chkAll.checked : false;
+    const isMolding = activeSection === 'MOLDING';
 
     // Detect multi-RPRO
     const rproMatches = q.match(/RPRO-[\d-]+/g);
     const cleanMatches = rproMatches ? rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase()) : [];
 
     // OPTIMIZED: Select only needed columns for history list
-    const historyColumns = 'id,rpro,section,created_at,bom,mold,dynamic_sizes,size_3,size_3_5,size_4,size_4_5,size_5,size_5_5,size_6,size_6_5,size_7,size_7_5,size_8,size_8_5,size_9,size_9_5,size_10,size_10_5,size_11,size_11_5,size_12,size_12_5,size_13,size_13_5,size_14,size_14_5,size_15';
+    const historyColumns = 'id,rpro,section,created_at,bom,mold,pu,fabric,dynamic_sizes,size_3,size_3_5,size_4,size_4_5,size_5,size_5_5,size_6,size_6_5,size_7,size_7_5,size_8,size_8_5,size_9,size_9_5,size_10,size_10_5,size_11,size_11_5,size_12,size_12_5,size_13,size_13_5,size_14,size_14_5,size_15';
     let query = supabase.from('surplusgoods').select(historyColumns).order('created_at', { ascending: false });
 
     if (activeSection && !isSearchAll) {
         query = query.eq('section', activeSection);
     }
 
-    if (cleanMatches.length > 0 && currentSearchType === 'rpro') {
+    if (isMolding && !isSearchAll) {
+        // PREFER specialized Molding history inputs
+        const mrpro = moldingHistoryRpro ? moldingHistoryRpro.value.trim().toUpperCase() : "";
+        const mmold = moldingHistoryMold ? moldingHistoryMold.value.trim().toUpperCase() : "";
+        const mpu = moldingHistoryPu ? moldingHistoryPu.value.trim().toUpperCase() : "";
+        const mfb = moldingHistoryFb ? moldingHistoryFb.value.trim().toUpperCase() : "";
+
+        if (mrpro) {
+            query = query.ilike('rpro', `%${mrpro}%`);
+        } else if (mmold || mpu || mfb) {
+            if (mmold) query = query.ilike('mold', `%${mmold}%`);
+            if (mpu) query = query.ilike('pu', `%${mpu}%`);
+            if (mfb) query = query.ilike('fabric', `%${mfb}%`);
+        }
+        query = query.limit(20);
+    } else if (cleanMatches.length > 0 && currentSearchType === 'rpro') {
         // Fetch more rows to ensure we find all requested RPROs if they exist
         query = query.limit(200);
     } else if (q) {
