@@ -1463,7 +1463,103 @@ async function loadHistory() {
         const mfb = moldingHistoryFb ? moldingHistoryFb.value.trim().toUpperCase() : "";
 
         if (mrpro) {
+            // First try direct rpro search
             query = query.ilike('rpro', `%${mrpro}%`);
+
+            // If RPRO looks like a standard RPRO code (RPRO-XXXXXX-XXXX), also search via powerapp/Masterdata
+            // because Molding records store combo format (MOLD_PU_FB) in rpro column
+            if (/RPRO/i.test(mrpro)) {
+                // Format RPRO properly for lookup
+                let searchRpro = mrpro;
+                const pureId = mrpro.replace(/[^0-9]/g, '');
+                if (pureId.length >= 7) {
+                    searchRpro = `RPRO-${pureId.substring(0, 6)}-${pureId.substring(6)}`;
+                }
+
+                // Lookup in powerapp/Masterdata to get mold/pu/fb
+                try {
+                    const lookupFields = ['"#MOLD"', '"PU"', '"FB"'];
+                    let paRes = await supabase.from('powerapp').select(lookupFields.join(',')).eq('"PRO ODER"', searchRpro).limit(1);
+                    let paOrder = (paRes.data && paRes.data.length > 0) ? paRes.data[0] : null;
+
+                    if (!paOrder) {
+                        let mdRes = await supabase.from('Masterdata').select(lookupFields.join(',')).eq('"PRO ODER"', searchRpro).limit(1);
+                        paOrder = (mdRes.data && mdRes.data.length > 0) ? mdRes.data[0] : null;
+                    }
+
+                    if (paOrder) {
+                        const moldV = paOrder['#MOLD'] || '';
+                        const puV = paOrder['PU'] || '';
+                        const fbV = paOrder['FB'] || '';
+
+                        if (moldV || puV || fbV) {
+                            // Build a secondary query to find by mold/pu/fb combo
+                            let comboQuery = supabase.from('surplusgoods').select(historyColumns)
+                                .eq('section', 'MOLDING')
+                                .order('created_at', { ascending: false })
+                                .limit(20);
+
+                            if (moldV) comboQuery = comboQuery.ilike('mold', `%${moldV}%`);
+                            if (puV) comboQuery = comboQuery.or(`pu.ilike.%${puV}%,pu_code.ilike.%${puV}%`);
+                            if (fbV) comboQuery = comboQuery.or(`fabric.ilike.%${fbV}%,fb_code.ilike.%${fbV}%`);
+
+                            const { data: comboData } = await comboQuery;
+
+                            // Execute original query too
+                            const { data: directData, error: directError } = await query;
+                            if (directError) { console.error(directError); }
+
+                            // Merge results, removing duplicates by id
+                            const allResults = [...(directData || []), ...(comboData || [])];
+                            const uniqueMap = new Map();
+                            allResults.forEach(item => uniqueMap.set(item.id, item));
+                            const merged = Array.from(uniqueMap.values());
+                            merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                            // Short-circuit: render results directly and return
+                            if (merged.length === 0) {
+                                historyList.innerHTML = `<div class="p-8 text-center text-slate-300 italic text-sm">Không tìm thấy dữ liệu phù hợp.</div>`;
+                                return;
+                            }
+
+                            historyList.innerHTML = merged.map(item => {
+                                let total = 0;
+                                Object.keys(item).forEach(k => {
+                                    if (k.startsWith('size_') && !isNaN(item[k])) total += item[k];
+                                });
+                                Object.values(item.dynamic_sizes || {}).forEach(v => {
+                                    if (!isNaN(v)) total += v;
+                                });
+                                return `
+                                    <div onclick="previewEntry('${item.id}')" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-200 transition-all cursor-pointer group">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div class="flex gap-2 items-center">
+                                                <span class="text-xs font-black text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">${item.rpro}</span>
+                                                <span class="text-[9px] font-bold text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded uppercase">${item.section || '?'}</span>
+                                            </div>
+                                            <span class="text-[10px] font-bold text-slate-400">${new Date(item.created_at).toLocaleDateString('vi-VN')}</span>
+                                        </div>
+                                        <div class="flex justify-between items-end">
+                                            <div>
+                                                <p class="text-xs font-bold text-slate-700">BOM: ${item.bom || '-'}</p>
+                                                <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="text-lg font-black text-slate-800">${total}</span>
+                                                <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">đôi dôi</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+                            return;
+                        }
+                    }
+                } catch (lookupErr) {
+                    console.warn("RPRO lookup in powerapp/Masterdata failed, falling back to direct search:", lookupErr);
+                    // Continue with direct query below
+                }
+            }
         } else if (mmold || mpu || mfb) {
             if (mmold) query = query.ilike('mold', `%${mmold}%`);
             if (mpu) {
