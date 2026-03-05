@@ -779,15 +779,18 @@ async function handleScan(text) {
         // [MOLDING COMBO TRACE] - If in Molding, check if this combo mold/pu/fb already exists in surplus database
         if (activeSection === 'MOLDING' && !existingSurplus) {
             const moldV = order['#MOLD'] || order['mold'] || '';
-            const puV = order['PU DESCRIPTION'] || order['PU'] || order['pu_code'] || order['pu'] || '';
-            const fbV = order['FB DESCRIPTION'] || order['FB'] || order['fb_code'] || order['fabric'] || '';
+            // For matching, prioritize CODE columns (PU, FB) over LONG DESCRIPTIONS
+            const puV = order['PU'] || order['pu_code'] || order['PU DESCRIPTION'] || order['pu'] || '';
+            const fbV = order['FB'] || order['fb_code'] || order['FB DESCRIPTION'] || order['fabric'] || '';
 
             if (moldV && puV && fbV) {
                 // Try searching for exact combo match in surplusgoods
-                const rproCombo = `${moldV}_${puV}_${fbV}`;
+                // We check both the composite rpro field and the individual columns
                 const { data: comboCheck } = await supabase.from('surplusgoods')
                     .select('*')
-                    .or(`rpro.eq."${rproCombo}",and(mold.eq."${moldV}",pu.eq."${puV}",fabric.eq."${fbV}")`)
+                    .eq('mold', moldV)
+                    .or(`pu.eq."${puV}",pu_code.eq."${puV}"`)
+                    .or(`fabric.eq."${fbV}",fb_code.eq."${fbV}"`)
                     .eq('section', 'MOLDING')
                     .limit(1);
 
