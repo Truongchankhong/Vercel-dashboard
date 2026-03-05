@@ -690,10 +690,14 @@ async function handleScan(text) {
 
         if (currentRproType === 'pu') {
             paOrder = await supabase.from('powerapp').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-            mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            if (!paOrder) {
+                mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            }
         } else if (currentRproType === 'fabric') {
             paOrder = await supabase.from('powerapp').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
-            mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            if (!paOrder) {
+                mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            }
         } else {
             // TÌM KIẾM THEO RPRO: Dùng .eq để tận dụng Index, cực nhanh và không bị lỗi 500
             const searchRpro = rpro.trim(); // Đảm bảo lọc sạch khoảng trắng trước khi search
@@ -772,7 +776,37 @@ async function handleScan(text) {
         detectExtraSizes(order);
         enableInput();
 
-        // Immediately trigger check right after auto-populating PU/Fabric from system database
+        // [MOLDING COMBO TRACE] - If in Molding, check if this combo mold/pu/fb already exists in surplus database
+        if (activeSection === 'MOLDING' && !existingSurplus) {
+            const moldV = order['#MOLD'] || order['mold'] || '';
+            const puV = order['PU DESCRIPTION'] || order['PU'] || order['pu_code'] || order['pu'] || '';
+            const fbV = order['FB DESCRIPTION'] || order['FB'] || order['fb_code'] || order['fabric'] || '';
+
+            if (moldV && puV && fbV) {
+                // Try searching for exact combo match in surplusgoods
+                const rproCombo = `${moldV}_${puV}_${fbV}`;
+                const { data: comboCheck } = await supabase.from('surplusgoods')
+                    .select('*')
+                    .or(`rpro.eq."${rproCombo}",and(mold.eq."${moldV}",pu.eq."${puV}",fabric.eq."${fbV}")`)
+                    .eq('section', 'MOLDING')
+                    .limit(1);
+
+                if (comboCheck && comboCheck.length > 0) {
+                    const match = comboCheck[0];
+                    editingId = match.id;
+                    activeOrderData = match;
+                    clearFormFields();
+                    displayOrderInfo(match);
+                    loadSurplusDataToUI(match);
+                    enableInput();
+                    updateSizeHighlights();
+                    if (btnDeleteSurplus) btnDeleteSurplus.classList.remove('hidden');
+                    showToast("🔍 Đã tìm thấy đơn hàng dôi khớp với #Mold/PU/Vải của RPRO này!", "orange");
+                    return;
+                }
+            }
+        }
+
         showToast("✅ Tìm thấy dữ liệu. Mời nhập số lượng dôi!", "success");
         if ((currentRproType === 'pu' || currentRproType === 'fabric') && infoPu.value.trim() && infoFabric.value.trim()) {
             await checkExistingManualEntry();
