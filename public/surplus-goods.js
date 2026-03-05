@@ -827,10 +827,16 @@ async function handleScanMolding() {
 
         let paRes = await supabase.from('powerapp')
             .select(selectCols)
-            .ilike('#MOLD', `%${mold}%`)
-            .ilike('PU', `%${pu}%`)
-            .ilike('FB', `%${fb}%`)
+            .ilike('"#MOLD"', `%${mold}%`)
+            .ilike('"PU"', `%${pu}%`)
+            .ilike('"FB"', `%${fb}%`)
             .limit(1);
+
+        if (paRes.error) {
+            console.error("Powerapp query error:", paRes.error);
+            // Don't throw if it's just a missing record, but throw if it's a 400/500 code error
+            if (paRes.status >= 400) throw paRes.error;
+        }
 
         let paOrder = (paRes.data && paRes.data.length > 0) ? paRes.data[0] : { 'Brand Code': '-', 'BOM': '-' };
 
@@ -851,7 +857,9 @@ async function handleScanMolding() {
         showToast("✅ Sẵn sàng nhập liệu lưu trữ mới!", "success");
 
     } catch (error) {
-        console.error("Scan Error:", error);
+        console.error("Scan Error Details:", error);
+        if (error.code) console.error("Error Code:", error.code);
+        if (error.message) console.error("Error Message:", error.message);
         showToast(`❌ Lỗi hệ thống: ${error.message || 'Không thể lấy dữ liệu'}`, "error");
     }
 }
@@ -1243,7 +1251,9 @@ function loadSurplusDataToUI(data) {
     extraSizesContainer.classList.add('hidden');
 
     const dyn = data.dynamic_sizes || {};
-    const dynKeys = Object.keys(dyn).map(k => parseFloat(k));
+    const dynKeys = Object.keys(dyn)
+        .filter(k => !isNaN(parseFloat(k)))
+        .map(k => parseFloat(k));
 
     if (dynKeys.length > 0) {
         extraSizes = dynKeys;
