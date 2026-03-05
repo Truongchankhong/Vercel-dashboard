@@ -100,240 +100,306 @@
                         <div class="flex-1 relative">
                             <label class="block text-xs font-black text-slate-400 uppercase mb-2 ml-1">Tìm kiếm đơn
                                 hàng:</label>
-                            <div class="flex gap-2 mb-3">
-                                <button type="button"
-                                    class="rpro-type-btn px-4 py-2 rounded-xl text-[11px] font-bold border-2 transition-all active:scale-95 bg-slate-800 text-white border-slate-800 shadow-sm"
-                                    data-type="rpro">RPRO</button>
-                                <button type="button"
-                                    class="rpro-type-btn px-4 py-2 rounded-xl text-[11px] font-bold border-2 border-slate-100 text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
-                                    data-type="pu">PU DESCRIPTION</button>
-                                <button type="button"
-                                    class="rpro-type-btn px-4 py-2 rounded-xl text-[11px] font-bold border-2 border-slate-100 text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
-                                    data-type="fabric">FABRIC</button>
-                            </div>
-                            <div class="flex flex-col gap-3">
-                                <div class="relative w-full">
-                                    <input type="text" id="rpro-input" autofocus autocomplete="off"
-                                        class="w-full bg-slate-50 border-2 border-slate-200 p-4 rounded-2xl text-base sm:text-lg font-mono font-bold focus:border-teal-500 focus:ring-4 focus:ring-teal-100 outline-none transition-all placeholder:text-sm"
-                                        placeholder="RPRO hoặc Tên PU, Fabric...">
-                                    <div id="rpro-suggestions"
-                                        class="absolute z-50 left-0 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden">
+
+                            <!-- Default Search Container (LPS, LEANLINE) -->
+                            <div id="default-search-container">
+                                <div class="flex gap-2 mb-3">
+                                    <button type="button"
+                                        class="rpro-type-btn px-4 py-2 rounded-xl text-[11px] font-bold border-2 transition-all active:scale-95 bg-slate-800 text-white border-slate-800 shadow-sm"
+                                        data-type="rpro">RPRO</button>
+                                    <button type="button"
+                                        class="rpro-type-btn px-4 py-2 rounded-xl text-[11px] font-bold border-2 border-slate-100 text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
+                                        data-type="pu">PU DESCRIPTION</button>
+                                    <button type="button"
+                                        class="rpro-type-btn px-4 py-2 rounded-xl text-[11px] font-bold border-2 border-slate-100 text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
+                                        data-type="fabric">FABRIC</button>
+                                </div>
+                                <div class="flex flex-col gap-3">
+                                    <div class="relative w-full">
+                                        <input type="text" id="rpro-input" autofocus autocomplete="off"
+                                            class="w-full bg-slate-50 border-2 border-slate-200 p-4 rounded-2xl text-base sm:text-lg font-mono font-bold focus:border-teal-500 focus:ring-4 focus:ring-teal-100 outline-none transition-all placeholder:text-sm"
+                                            placeholder="RPRO hoặc Tên PU, Fabric...">
+                                        <div id="rpro-suggestions"
+                                            class="absolute z-50 left-0 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden">
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button id="btn-search-manual"
+                                            class="flex-1 py-3 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-700 shadow-lg transition active:scale-95">
+                                            🔍 Tìm
+                                        </button>
+                                        <button id="btn-scan-camera"
+                                            class="px-6 py-3 bg-teal-100 text-teal-700 rounded-2xl border-2 border-teal-200 hover:bg-teal-200 transition">
+                                            📷 Quét Mã
+                                        </button>
                                     </div>
                                 </div>
+                            </div>
+
+                            <!-- MOLDING Search Container -->
+                            <div id="molding-search-container" class="hidden flex-col gap-3">
+                                <p class="text-[10px] font-bold text-orange-600 mb-1 italic">*Nhập đầy đủ 3 thông
+                                    tin để tìm kiếm tự động</p>
+                                <div class="flex gap-2 mb-3">
+                                    <input type="text" id="molding-mold-input" placeholder="Mã Khuôn (#Mold)"
+                                        class="w-1/3 bg-slate-50 border-2 border-slate-200 p-4 rounded-xl text-sm font-bold focus:border-orange-500 outline-none uppercase">
+                                    <input type="text" id="molding-pu-input" placeholder="Mã PU"
+                                        class="w-1/3 bg-slate-50 border-2 border-slate-200 p-4 rounded-xl text-sm font-bold focus:border-orange-500 outline-none uppercase">
+                                    <input type="text" id="molding-fb-input" placeholder="Mã Vải (FB)"
+                                        class="w-1/3 bg-slate-50 border-2 border-slate-200 p-4 rounded-xl text-sm font-bold focus:border-orange-500 outline-none uppercase">
+                                </div>
                                 <div class="flex gap-2">
-                                    <button id="btn-search-manual"
-                                        class="flex-1 py-3 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-700 shadow-lg transition active:scale-95">
-                                        🔍 Tìm
-                                    </button>
-                                    <button id="btn-scan-camera"
-                                        class="px-6 py-3 bg-teal-100 text-teal-700 rounded-2xl border-2 border-teal-200 hover:bg-teal-200 transition">
-                                        📷 Quét Mã
+                                    <button id="btn-search-molding"
+                                        class="flex-1 py-3 bg-orange-600 text-white rounded-2xl font-bold hover:bg-orange-700 shadow-lg transition active:scale-95">
+                                        🔍 Tìm Khớp Nối
                                     </button>
                                 </div>
                             </div>
                             <div id="qr-reader"
                                 class="hidden mt-4 overflow-hidden rounded-2xl border-2 border-teal-500"></div>
                         </div>
-                    </div>
 
-                    <!-- Auto-fetched Info Grid -->
-                    <div id="order-info-container"
-                        class="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 opacity-50 pointer-events-none transition-all duration-500">
-                        <div class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Brand Code</span>
-                            <span id="info-brand" class="text-sm font-black text-slate-700">-</span>
-                        </div>
-                        <div class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase block">#MOLD</span>
-                            <span id="info-mold" class="text-sm font-black text-slate-700">-</span>
-                        </div>
-                        <div class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase block">BOM</span>
-                            <span id="info-bom" class="text-sm font-black text-slate-700">-</span>
-                        </div>
-                        <div
-                            class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300 col-span-1 min-h-[65px] relative">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">PU
-                                Description</span>
-                            <input autocomplete="off" id="info-pu" readonly
-                                class="w-full bg-transparent text-[11px] font-black text-teal-700 outline-none border-none p-0 focus:ring-0 placeholder:text-slate-300"
-                                placeholder="...">
-                            <div id="pu-suggestions"
-                                class="absolute z-50 left-0 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden">
+                        <!-- Auto-fetched Info Grid -->
+                        <div id="order-info-container"
+                            class="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 opacity-50 pointer-events-none transition-all duration-500">
+                            <div class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase block">Brand Code</span>
+                                <span id="info-brand" class="text-sm font-black text-slate-700">-</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase block">#MOLD</span>
+                                <span id="info-mold" class="text-sm font-black text-slate-700">-</span>
+                            </div>
+                            <div class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase block">BOM</span>
+                                <span id="info-bom" class="text-sm font-black text-slate-700">-</span>
+                            </div>
+                            <div
+                                class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300 col-span-1 min-h-[65px] relative">
+                                <span id="label-info-pu"
+                                    class="text-[10px] font-bold text-slate-400 uppercase block mb-1">PU
+                                    Description</span>
+                                <input autocomplete="off" id="info-pu" readonly
+                                    class="w-full bg-transparent text-[11px] font-black text-teal-700 outline-none border-none p-0 focus:ring-0 placeholder:text-slate-300"
+                                    placeholder="...">
+                                <div id="pu-suggestions"
+                                    class="absolute z-50 left-0 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden">
+                                </div>
+                            </div>
+                            <div
+                                class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300 col-span-1 min-h-[65px] relative">
+                                <span id="label-info-fb"
+                                    class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Fabric
+                                    Description</span>
+                                <input autocomplete="off" id="info-fabric" readonly
+                                    class="w-full bg-transparent text-[11px] font-black text-indigo-700 outline-none border-none p-0 focus:ring-0 placeholder:text-slate-300"
+                                    placeholder="...">
+                                <div id="fb-suggestions"
+                                    class="absolute z-50 left-0 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden">
+                                </div>
                             </div>
                         </div>
-                        <div
-                            class="bg-slate-50 p-3 rounded-2xl border border-dashed border-slate-300 col-span-1 min-h-[65px] relative">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Fabric
-                                Description</span>
-                            <input autocomplete="off" id="info-fabric" readonly
-                                class="w-full bg-transparent text-[11px] font-black text-indigo-700 outline-none border-none p-0 focus:ring-0 placeholder:text-slate-300"
-                                placeholder="...">
-                            <div id="fb-suggestions"
-                                class="absolute z-50 left-0 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden">
-                            </div>
-                        </div>
                     </div>
-                </div>
 
-                <!-- Section Selection -->
-                <div id="section-selector"
-                    class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 opacity-50 pointer-events-none transition-all duration-500">
-                    <h3 class="text-sm font-black text-slate-400 uppercase mb-4 flex items-center gap-2">
-                        <span class="w-1.5 h-4 bg-slate-300 rounded-full"></span>
-                        CHỌN SECTION
-                    </h3>
-                    <div class="grid grid-cols-3 gap-3">
-                        <button type="button" data-section="LPS"
-                            class="section-btn py-3 px-4 rounded-2xl border-2 border-slate-100 font-bold text-slate-600 hover:bg-slate-50 transition-all flex flex-col items-center gap-1">
-                            <span class="text-xs uppercase opacity-60">Section</span>
-                            LPS
-                        </button>
-                        <button type="button" data-section="MOLDING"
-                            class="section-btn py-3 px-4 rounded-2xl border-2 border-slate-100 font-bold text-slate-600 hover:bg-slate-50 transition-all flex flex-col items-center gap-1">
-                            <span class="text-xs uppercase opacity-60">Section</span>
-                            MOLDING
-                        </button>
-                        <button type="button" data-section="LEANLINE"
-                            class="section-btn py-3 px-4 rounded-2xl border-2 border-slate-100 font-bold text-slate-600 hover:bg-slate-50 transition-all flex flex-col items-center gap-1">
-                            <span class="text-xs uppercase opacity-60">Section</span>
-                            LEANLINE
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Size Matrix Input -->
-                <div id="size-input-panel"
-                    class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 opacity-50 pointer-events-none transition-all duration-500 group">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
-                            <span class="w-2 h-8 bg-teal-500 rounded-full"></span>
-                            NHẬP SỐ LƯỢNG THEO SIZE
+                    <!-- Section Selection -->
+                    <div id="section-selector"
+                        class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 opacity-50 pointer-events-none transition-all duration-500">
+                        <h3 class="text-sm font-black text-slate-400 uppercase mb-4 flex items-center gap-2">
+                            <span class="w-1.5 h-4 bg-slate-300 rounded-full"></span>
+                            CHỌN SECTION
                         </h3>
-                        <div class="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full italic">
-                            Số lượng hàng dư thực tế
+                        <div class="grid grid-cols-3 gap-3">
+                            <button type="button" data-section="LPS"
+                                class="section-btn py-3 px-4 rounded-2xl border-2 border-slate-100 font-bold text-slate-600 hover:bg-slate-50 transition-all flex flex-col items-center gap-1">
+                                <span class="text-xs uppercase opacity-60">Section</span>
+                                LPS
+                            </button>
+                            <button type="button" data-section="MOLDING"
+                                class="section-btn py-3 px-4 rounded-2xl border-2 border-slate-100 font-bold text-slate-600 hover:bg-slate-50 transition-all flex flex-col items-center gap-1">
+                                <span class="text-xs uppercase opacity-60">Section</span>
+                                MOLDING
+                            </button>
+                            <button type="button" data-section="LEANLINE"
+                                class="section-btn py-3 px-4 rounded-2xl border-2 border-slate-100 font-bold text-slate-600 hover:bg-slate-50 transition-all flex flex-col items-center gap-1">
+                                <span class="text-xs uppercase opacity-60">Section</span>
+                                LEANLINE
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Size Grid Container -->
-                    <div id="size-grid"
-                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
-                        <!-- Standard sizes #3 to #15 loaded via JS -->
-                    </div>
+                    <!-- Size Matrix Input -->
+                    <div id="size-input-panel"
+                        class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 opacity-50 pointer-events-none transition-all duration-500 group">
+                        <div
+                            class="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center mb-6 gap-4">
+                            <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                                <span class="w-2 h-8 bg-teal-500 rounded-full"></span>
+                                SỐ LƯỢNG HÀNG DƯ
+                            </h3>
+                            <div class="flex items-center gap-3">
+                                <label class="font-bold text-slate-600">Tổng SL:</label>
+                                <input type="number" id="total-qty-override"
+                                    class="w-32 bg-slate-50 border-2 border-slate-300 p-2 rounded-xl text-lg font-black text-center text-teal-700 focus:border-teal-500 outline-none"
+                                    min="0" placeholder="0">
+                            </div>
+                        </div>
 
-                    <!-- Dynamic Extra Sizes -->
-                    <div id="extra-sizes-container" class="mt-6 pt-6 border-t border-dashed border-slate-200 hidden">
-                        <p class="text-[10px] font-bold text-orange-500 uppercase mb-3">⚠️ Các size đặc biệt phát hiện
-                            thêm:</p>
-                        <div id="extra-size-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3"></div>
-                    </div>
+                        <!-- Size Grid Container -->
+                        <div id="size-grid"
+                            class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
+                            <!-- Standard sizes #3 to #15 loaded via JS -->
+                        </div>
 
-                    <div class="mt-8 flex flex-col md:flex-row gap-4 border-t border-slate-100 pt-6">
-                        <textarea id="entry-note" rows="2" placeholder="Ghi chú thêm về lô hàng dư này..."
-                            class="flex-1 bg-slate-50 border-2 border-slate-200 p-3 rounded-2xl focus:border-teal-500 outline-none transition-all text-sm"></textarea>
-                        <button id="btn-split-surplus"
-                            class="hidden px-6 py-4 bg-amber-100 text-amber-700 rounded-2xl font-black border-2 border-amber-200 hover:bg-amber-600 hover:text-white transition shadow-lg active:scale-95 uppercase">
-                            ✂️ Tách Đơn
-                        </button>
-                        <button id="btn-delete-surplus"
-                            class="hidden px-6 py-4 bg-rose-100 text-rose-600 rounded-2xl font-black border-2 border-rose-200 hover:bg-rose-600 hover:text-white transition shadow-lg active:scale-95 uppercase">
-                            🗑️ Xóa đơn
-                        </button>
-                        <button id="btn-save-surplus"
-                            class="px-12 py-4 bg-teal-600 text-white rounded-2xl font-black text-lg hover:bg-teal-700 shadow-xl transition transform active:scale-95 disabled:bg-slate-300 disabled:shadow-none uppercase">
-                            💾 LƯU DỮ LIỆU
-                        </button>
+                        <!-- Dynamic Extra Sizes -->
+                        <div id="extra-sizes-container"
+                            class="mt-6 pt-6 border-t border-dashed border-slate-200 hidden">
+                            <p class="text-[10px] font-bold text-orange-500 uppercase mb-3">⚠️ Các size đặc biệt phát
+                                hiện
+                                thêm:</p>
+                            <div id="extra-size-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                            </div>
+                        </div>
+
+                        <div class="mt-8 flex flex-col md:flex-row gap-4 border-t border-slate-100 pt-6">
+                            <textarea id="entry-note" rows="2" placeholder="Ghi chú thêm về lô hàng dư này..."
+                                class="flex-1 bg-slate-50 border-2 border-slate-200 p-3 rounded-2xl focus:border-teal-500 outline-none transition-all text-sm"></textarea>
+                            <button id="btn-split-surplus"
+                                class="hidden px-6 py-4 bg-amber-100 text-amber-700 rounded-2xl font-black border-2 border-amber-200 hover:bg-amber-600 hover:text-white transition shadow-lg active:scale-95 uppercase">
+                                ✂️ Tách Đơn
+                            </button>
+                            <button id="btn-delete-surplus"
+                                class="hidden px-6 py-4 bg-rose-100 text-rose-600 rounded-2xl font-black border-2 border-rose-200 hover:bg-rose-600 hover:text-white transition shadow-lg active:scale-95 uppercase">
+                                🗑️ Xóa đơn
+                            </button>
+                            <button id="btn-save-surplus"
+                                class="px-12 py-4 bg-teal-600 text-white rounded-2xl font-black text-lg hover:bg-teal-700 shadow-xl transition transform active:scale-95 disabled:bg-slate-300 disabled:shadow-none uppercase">
+                                💾 LƯU DỮ LIỆU
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Search & History Panel (Right) -->
-            <div class="lg:col-span-4 space-y-6">
-                <div class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 h-full flex flex-col">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 m-0 leading-none">
-                            <span class="w-1 h-6 bg-slate-800 rounded-full"></span>
-                            LỊCH SỬ NHẬP <span id="current-section-display"
-                                class="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded-lg ml-1 hidden"></span>
-                        </h3>
-                        <label
-                            class="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-colors">
-                            <input type="checkbox" id="search-all-sections"
-                                class="w-3.5 h-3.5 text-teal-600 rounded bg-slate-100 border-slate-300 focus:ring-teal-500">
-                            <span class="text-[10px] font-bold text-slate-600 mt-0.5 tracking-wide uppercase">Tìm All
-                                Section</span>
-                        </label>
-                    </div>
-
-                    <!-- Search Type Filters -->
-                    <div class="flex flex-wrap gap-2 mb-4">
-                        <button type="button" data-type="rpro"
-                            class="search-type-btn px-3 py-1.5 rounded-xl border-2 border-slate-100 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all active-search-type">
-                            RPRO
-                        </button>
-                        <button type="button" data-type="bom"
-                            class="search-type-btn px-3 py-1.5 rounded-xl border-2 border-slate-100 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all">
-                            BOM
-                        </button>
-                        <button type="button" data-type="pu"
-                            class="search-type-btn px-3 py-1.5 rounded-xl border-2 border-slate-100 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all">
-                            PU
-                        </button>
-                        <button type="button" data-type="fabric"
-                            class="search-type-btn px-3 py-1.5 rounded-xl border-2 border-slate-100 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all">
-                            Vải
-                        </button>
-                    </div>
-
-                    <div class="relative mb-6">
-                        <input type="text" id="history-search" placeholder="Tìm RPRO, BOM hoặc Tên Vải..."
-                            class="w-full bg-slate-50 border-2 border-slate-200 p-3 pr-10 rounded-2xl focus:border-teal-500 outline-none transition-all font-bold text-sm">
-                        <span class="absolute right-3 top-3.5 text-slate-400">🔍</span>
-                    </div>
-
-                    <!-- Export Section -->
-                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6">
-                        <h4 class="text-[10px] font-black text-slate-400 uppercase mb-3 flex items-center gap-1">
-                            📊 Xuất báo cáo Excel
-                        </h4>
-                        <div class="grid grid-cols-2 gap-2 mb-3">
-                            <div>
-                                <label class="text-[9px] font-bold text-slate-500 uppercase ml-1">Từ ngày:</label>
-                                <input type="date" id="export-start-date"
-                                    class="w-full bg-white border border-slate-200 p-2 rounded-xl text-xs font-bold outline-none focus:border-teal-500 transition-all">
-                            </div>
-                            <div>
-                                <label class="text-[9px] font-bold text-slate-500 uppercase ml-1">Đến ngày:</label>
-                                <input type="date" id="export-end-date"
-                                    class="w-full bg-white border border-slate-200 p-2 rounded-xl text-xs font-bold outline-none focus:border-teal-500 transition-all">
-                            </div>
+                <!-- Search & History Panel (Right) -->
+                <div class="lg:col-span-4 space-y-6">
+                    <div class="bg-white p-6 rounded-3xl shadow-lg border border-slate-200 h-full flex flex-col">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-black text-slate-800 flex items-center gap-2 m-0 leading-none">
+                                <span class="w-1 h-6 bg-slate-800 rounded-full"></span>
+                                LỊCH SỬ NHẬP <span id="current-section-display"
+                                    class="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded-lg ml-1 hidden"></span>
+                            </h3>
+                            <label
+                                class="flex items-center gap-2 cursor-pointer bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-colors">
+                                <input type="checkbox" id="search-all-sections"
+                                    class="w-3.5 h-3.5 text-teal-600 rounded bg-slate-100 border-slate-300 focus:ring-teal-500">
+                                <span class="text-[10px] font-bold text-slate-600 mt-0.5 tracking-wide uppercase">Tìm
+                                    All
+                                    Section</span>
+                            </label>
                         </div>
-                        <button id="btn-export-excel"
-                            class="w-full py-3 bg-white text-teal-600 border-2 border-teal-100 rounded-xl font-black text-xs hover:bg-teal-600 hover:text-white hover:border-teal-600 shadow-sm transition-all active:scale-95 uppercase tracking-wider flex items-center justify-center gap-2">
-                            📥 Tải File Excel
-                        </button>
-                    </div>
-                    <p class="text-[10px] text-slate-400 italic mb-6 ml-1 text-center"># Danh sách 20 đơn mới nhất</p>
 
-                    <div id="history-list" class="flex-1 space-y-3 overflow-y-auto pr-1 no-scrollbar max-h-[600px]">
-                        <!-- History items -->
-                        <div class="p-8 text-center text-slate-300 italic text-sm">Nhập thông tin tìm kiếm hoặc load dữ
-                            liệu...</div>
+                        <!-- Search Type Filters -->
+                        <div id="default-history-filters" class="flex flex-wrap gap-2 mb-4">
+                            <button type="button" data-type="rpro"
+                                class="search-type-btn px-3 py-1.5 rounded-xl border-2 border-slate-100 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all active-search-type">
+                                RPRO
+                            </button>
+                            <button type="button" data-type="bom"
+                                class="search-type-btn px-3 py-1.5 rounded-xl border-2 border-slate-100 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all">
+                                BOM
+                            </button>
+                            <button type="button" data-type="pu"
+                                class="search-type-btn px-3 py-1.5 rounded-xl border-2 border-slate-100 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all">
+                                PU
+                            </button>
+                            <button type="button" data-type="fabric"
+                                class="search-type-btn px-3 py-1.5 rounded-xl border-2 border-slate-100 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all">
+                                Vải
+                            </button>
+                        </div>
+
+                        <div id="molding-history-filters" class="hidden flex-wrap gap-2 mb-4">
+                            <button type="button" data-type="rpro"
+                                class="search-type-btn px-3 py-1.5 rounded-xl border-2 border-slate-100 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all active-search-type">
+                                RPRO
+                            </button>
+                            <button type="button" data-type="molding_combo"
+                                class="search-type-btn px-3 py-1.5 rounded-xl border-2 border-slate-100 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all">
+                                Mã (Mold, PU, Vải)
+                            </button>
+                        </div>
+
+                        <div class="relative mb-6">
+                            <input type="text" id="history-search" placeholder="Tìm RPRO, BOM hoặc Tên Vải..."
+                                class="w-full bg-slate-50 border-2 border-slate-200 p-3 pr-10 rounded-2xl focus:border-teal-500 outline-none transition-all font-bold text-sm">
+                            <span class="absolute right-3 top-3.5 text-slate-400">🔍</span>
+                        </div>
+
+                        <!-- Export Section -->
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6">
+                            <h4 class="text-[10px] font-black text-slate-400 uppercase mb-3 flex items-center gap-1">
+                                📊 Xuất báo cáo Excel
+                            </h4>
+                            <div class="grid grid-cols-2 gap-2 mb-3">
+                                <div>
+                                    <label class="text-[9px] font-bold text-slate-500 uppercase ml-1">Từ ngày:</label>
+                                    <input type="date" id="export-start-date"
+                                        class="w-full bg-white border border-slate-200 p-2 rounded-xl text-xs font-bold outline-none focus:border-teal-500 transition-all">
+                                </div>
+                                <div>
+                                    <label class="text-[9px] font-bold text-slate-500 uppercase ml-1">Đến ngày:</label>
+                                    <input type="date" id="export-end-date"
+                                        class="w-full bg-white border border-slate-200 p-2 rounded-xl text-xs font-bold outline-none focus:border-teal-500 transition-all">
+                                </div>
+                            </div>
+                            <button id="btn-export-excel"
+                                class="w-full py-3 bg-white text-teal-600 border-2 border-teal-100 rounded-xl font-black text-xs hover:bg-teal-600 hover:text-white hover:border-teal-600 shadow-sm transition-all active:scale-95 uppercase tracking-wider flex items-center justify-center gap-2">
+                                📥 Tải File Excel
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-slate-400 italic mb-6 ml-1 text-center"># Danh sách 20 đơn mới nhất
+                        </p>
+
+                        <div id="history-list" class="flex-1 space-y-3 overflow-y-auto pr-1 no-scrollbar max-h-[600px]">
+                            <!-- History items -->
+                            <div class="p-8 text-center text-slate-300 italic text-sm">Nhập thông tin tìm kiếm hoặc load
+                                dữ
+                                liệu...</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Feedback Toast -->
-    <div id="toast"
-        class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 rounded-2xl shadow-2xl text-white font-bold opacity-0 transition-all pointer-events-none">
-    </div>
+        <!-- Feedback Toast -->
+        <div id="toast"
+            class="fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 rounded-2xl shadow-2xl text-white font-bold opacity-0 transition-all pointer-events-none">
+        </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
-    <script type="module" src="./surplus-goods.js"></script>
+        <!-- MSNV Modal Overlay -->
+        <div id="msnv-modal"
+            class="fixed inset-0 z-[1000] hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden p-6 transform transition-all scale-95 opacity-0 duration-300"
+                id="msnv-modal-content">
+                <h2 class="text-xl font-black text-slate-800 uppercase mb-2">Đăng Nhập MSNV</h2>
+                <p class="text-slate-500 text-sm mb-6">Bạn cần nhập Mã số nhân viên để vào khu vực MOLDING.</p>
+                <input type="text" id="msnv-input"
+                    class="w-full bg-slate-50 border-2 border-slate-200 p-3 rounded-xl text-lg font-bold focus:border-orange-500 outline-none uppercase mb-4"
+                    placeholder="VD: 04126">
+                <div class="flex gap-2">
+                    <button id="btn-msnv-cancel"
+                        class="w-1/3 py-3 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 transition focus:outline-none">Hủy</button>
+                    <button id="btn-msnv-ok"
+                        class="w-2/3 py-3 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 transition focus:outline-none">Xác
+                        nhận</button>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+        <script type="module" src="./surplus-goods.js"></script>
 </body>
 
 </html>

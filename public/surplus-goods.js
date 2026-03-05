@@ -14,6 +14,7 @@ let activeSection = null; // LPS, MOLDING, LEANLINE
 let currentSearchType = 'rpro'; // Default search type (History)
 let currentRproType = 'rpro'; // Default search type (Scanning/Search)
 let isSplittingOrder = false; // Flag for splitting a manual record
+let currentMSNV = null; // Store MSNV for MOLDING
 
 // ==================== DOM ELEMENTS ====================
 const rproInput = document.getElementById('rpro-input');
@@ -68,6 +69,20 @@ function init() {
             sectionDisplay.textContent = urlSection.toUpperCase();
             sectionDisplay.classList.remove('hidden');
         }
+
+        if (urlSection.toUpperCase() === 'MOLDING') {
+            const modal = document.getElementById('msnv-modal');
+            const content = document.getElementById('msnv-modal-content');
+            if (modal && content) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                setTimeout(() => {
+                    content.classList.remove('scale-95', 'opacity-0');
+                    content.classList.add('scale-100', 'opacity-100');
+                }, 10);
+                document.getElementById('msnv-input').focus();
+            }
+        }
     }
 
     // Set default dates for export (last 7 days)
@@ -111,6 +126,12 @@ function setupEventListeners() {
     // Manual Search Button
     if (btnSearchManual) {
         btnSearchManual.onclick = () => handleScan(rproInput.value.trim());
+    }
+
+    // Molding Manual Search Button
+    const btnSearchMolding = document.getElementById('btn-search-molding');
+    if (btnSearchMolding) {
+        btnSearchMolding.onclick = () => handleScanMolding();
     }
 
     // Camera Scan
@@ -203,6 +224,46 @@ function setupEventListeners() {
         input.addEventListener('input', checkDuplicateDebounced);
         input.addEventListener('blur', checkDuplicateDebounced);
     });
+
+    // MSNV Modal Events
+    const btnMsnvOk = document.getElementById('btn-msnv-ok');
+    const btnMsnvCancel = document.getElementById('btn-msnv-cancel');
+    const msnvInput = document.getElementById('msnv-input');
+    const msnvModal = document.getElementById('msnv-modal');
+
+    if (btnMsnvOk && msnvInput) {
+        btnMsnvOk.onclick = () => {
+            const val = msnvInput.value.trim();
+            if (!val) {
+                alert("Vui lòng nhập Mã số nhân viên!");
+                msnvInput.focus();
+                return;
+            }
+            currentMSNV = val;
+            if (msnvModal) {
+                msnvModal.classList.remove('flex'); msnvModal.classList.add('hidden');
+            }
+        };
+    }
+    if (btnMsnvCancel) {
+        btnMsnvCancel.onclick = () => {
+            if (msnvModal) {
+                msnvModal.classList.remove('flex'); msnvModal.classList.add('hidden');
+            }
+            // MOLDING requires MSNV, maybe redirect to home if canceled?
+            window.location.href = 'surplus-landing.html';
+        };
+    }
+
+    // Total Qty Override Sync
+    const totalQtyOverride = document.getElementById('total-qty-override');
+    if (totalQtyOverride) {
+        // If user manually types into total-qty-override, we don't automatically clear sizing grid.
+        // But when sizes are edited, the total-qty-override could be updated automatically if we want,
+        // or we just leave them independent.
+        // In the requirement: "người dùng có quyền nhập theo size, số tổng tự nhảy hoặc không cần nhập theo size, nhập luôn số tổng cũng ok."
+        // We will update totalQtyOverride whenever updateSizeHighlights() runs.
+    }
 
     // Tutorial
     if (btnTutorial) {
@@ -446,7 +507,8 @@ function updateSearchTypeUI() {
         rpro: "Tìm theo mã RPRO...",
         bom: "Tìm theo mã BOM...",
         pu: "Tìm theo mã PU / PU Description...",
-        fabric: "Tìm theo tên Vải / Fabric..."
+        fabric: "Tìm theo tên Vải / Fabric...",
+        molding_combo: "Tìm theo mã combo (Mold_PU_Fabric)..."
     };
     if (historySearch) historySearch.placeholder = placeholders[currentSearchType] || "Tìm kiếm...";
 }
@@ -456,6 +518,46 @@ function updateActiveSection(section) {
     const mainTitle = document.getElementById('main-title');
     if (mainTitle) {
         mainTitle.textContent = "Quản Lý Hàng Dư - " + (section ? section.toUpperCase() : "");
+    }
+
+    const isMolding = section && section.toUpperCase() === 'MOLDING';
+
+    // Toggle Search Containers
+    const defaultSearch = document.getElementById('default-search-container');
+    const moldingSearch = document.getElementById('molding-search-container');
+    if (defaultSearch && moldingSearch) {
+        if (isMolding) {
+            defaultSearch.classList.add('hidden');
+            moldingSearch.classList.remove('hidden'); moldingSearch.classList.add('flex');
+        } else {
+            defaultSearch.classList.remove('hidden');
+            moldingSearch.classList.add('hidden'); moldingSearch.classList.remove('flex');
+        }
+    }
+
+    // Toggle Labels
+    const puLabel = document.getElementById('label-info-pu');
+    const fbLabel = document.getElementById('label-info-fb');
+    if (puLabel) puLabel.textContent = isMolding ? 'PU Code' : 'PU Description';
+    if (fbLabel) fbLabel.textContent = isMolding ? 'FB Code' : 'Fabric Description';
+
+    // Toggle History Filters
+    const dFilters = document.getElementById('default-history-filters');
+    const mFilters = document.getElementById('molding-history-filters');
+    if (dFilters && mFilters) {
+        if (isMolding) {
+            dFilters.classList.add('hidden'); dFilters.classList.remove('flex');
+            mFilters.classList.remove('hidden'); mFilters.classList.add('flex');
+            // reset search type
+            currentSearchType = 'rpro';
+            document.querySelectorAll('#molding-history-filters .search-type-btn').forEach(b => {
+                if (b.dataset.type === 'rpro') b.classList.add('active-search-type');
+                else b.classList.remove('active-search-type');
+            });
+        } else {
+            dFilters.classList.remove('hidden'); dFilters.classList.add('flex');
+            mFilters.classList.add('hidden'); mFilters.classList.remove('flex');
+        }
     }
 
     sectionBtns.forEach(b => {
@@ -656,6 +758,101 @@ async function handleScan(text) {
     } catch (err) {
         console.error(err);
         showToast("❌ Lỗi hệ thống khi tìm dữ liệu", "error");
+    }
+}
+
+async function handleScanMolding() {
+    if (!currentMSNV) {
+        alert("Vui lòng nhập Mã số nhân viên!");
+        const modal = document.getElementById('msnv-modal');
+        if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+        return;
+    }
+    const mold = document.getElementById('molding-mold-input').value.trim().toUpperCase();
+    const pu = document.getElementById('molding-pu-input').value.trim().toUpperCase();
+    const fb = document.getElementById('molding-fb-input').value.trim().toUpperCase();
+
+    if (!mold || !pu || !fb) {
+        showToast("⚠️ Vui lòng nhập đầy đủ Mã Khuôn, Mã PU, và Mã Vải!", "error");
+        return;
+    }
+
+    const rproCombo = `${mold}_${pu}_${fb}`;
+    rproInput.value = rproCombo; // set proxy value
+
+    showToast("🔍 Đang tìm khớp nối MOLDING...", "info");
+
+    try {
+        const sizeFields = STANDARD_SIZES.map(s => `"size_${s.toString().replace('.', '_')}"`);
+        const surplusSelectCols = ['id', 'rpro', 'brand_code', 'mold', 'bom', 'pu', 'fabric', 'note', 'dynamic_sizes', 'msnv', 'section', ...sizeFields].join(',');
+
+        let query = supabase.from('surplusgoods')
+            .select(surplusSelectCols)
+            .eq('rpro', rproCombo)
+            .eq('section', 'MOLDING')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        const { data } = await query;
+        let existingSurplus = data && data.length > 0 ? data[0] : null;
+
+        if (existingSurplus) {
+            editingId = existingSurplus.id;
+            activeOrderData = existingSurplus;
+            clearFormFields();
+
+            const mappedData = {
+                'PRO ODER': existingSurplus.rpro,
+                'Brand Code': existingSurplus.brand_code,
+                '#MOLD': existingSurplus.mold,
+                'BOM': existingSurplus.bom,
+                'PU': existingSurplus.pu,
+                'FB': existingSurplus.fabric,
+                'note': existingSurplus.note,
+                ...existingSurplus
+            };
+
+            displayOrderInfo(mappedData);
+            loadSurplusDataToUI(existingSurplus);
+            enableInput();
+            updateSizeHighlights();
+            if (btnDeleteSurplus) btnDeleteSurplus.classList.remove('hidden');
+            showToast("📝 Đã tìm thấy đơn hàng MOLDING. Bạn có thể cập nhật!", "orange");
+            return;
+        }
+
+        // Nếu chưa có trong surplusgoods, query powerapp để lấy Brand và BOM
+        const essentialFields = ['Brand Code', 'BOM'];
+        const selectCols = essentialFields.map(f => `"${f}"`).join(',');
+
+        let paRes = await supabase.from('powerapp')
+            .select(selectCols)
+            .ilike('#MOLD', `%${mold}%`)
+            .ilike('PU', `%${pu}%`)
+            .ilike('FB', `%${fb}%`)
+            .limit(1);
+
+        let paOrder = (paRes.data && paRes.data.length > 0) ? paRes.data[0] : { 'Brand Code': '-', 'BOM': '-' };
+
+        activeOrderData = {
+            'PRO ODER': rproCombo,
+            'Brand Code': paOrder['Brand Code'],
+            'BOM': paOrder['BOM'],
+            '#MOLD': mold,
+            'PU': pu,
+            'FB': fb
+        };
+
+        editingId = null;
+        clearFormFields();
+        displayOrderInfo(activeOrderData);
+        enableInput();
+        if (btnDeleteSurplus) btnDeleteSurplus.classList.add('hidden');
+        showToast("✅ Sẵn sàng nhập liệu lưu trữ mới!", "success");
+
+    } catch (error) {
+        console.error("Scan Error:", error);
+        showToast(`❌ Lỗi hệ thống: ${error.message || 'Không thể lấy dữ liệu'}`, "error");
     }
 }
 
@@ -863,6 +1060,20 @@ async function saveSurplus() {
         return;
     }
 
+    // MOLDING requires MSNV
+    let submitMsnv = null;
+    if (activeSection === 'MOLDING') {
+        if (!currentMSNV) {
+            alert("Vui lòng nhập Mã số nhân viên!");
+            const modal = document.getElementById('msnv-modal');
+            if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+            btnSaveSurplus.disabled = false;
+            btnSaveSurplus.textContent = "💾 LƯU DỮ LIỆU";
+            return;
+        }
+        submitMsnv = currentMSNV;
+    }
+
     const payload = {
         rpro: rpro,
         so: activeOrderData['SO'] || activeOrderData['so'] || activeOrderData['Sales Order'] || '',
@@ -878,13 +1089,19 @@ async function saveSurplus() {
         dynamic_sizes: {}
     };
 
+    if (submitMsnv) {
+        payload.msnv = submitMsnv;
+    }
+
     let hasAnyQty = false;
+    let totalGridSizingVal = 0;
 
     // Collect standard sizes
     STANDARD_SIZES.forEach(size => {
         const id = `size_${size.toString().replace('.', '_')}`;
         const val = parseFloat(document.getElementById(id)?.value) || 0;
         payload[`size_${size.toString().replace('.', '_')}`] = val;
+        totalGridSizingVal += val;
         if (val > 0) hasAnyQty = true;
     });
 
@@ -893,11 +1110,29 @@ async function saveSurplus() {
         const id = `size_${size.toString().replace('.', '_')}`;
         const val = parseFloat(document.getElementById(id)?.value) || 0;
         payload.dynamic_sizes[size] = val;
+        totalGridSizingVal += val;
         if (val > 0) hasAnyQty = true;
     });
 
+    // Handle Total Qty Override feature
+    const tOverrideObj = document.getElementById('total-qty-override');
+    if (tOverrideObj) {
+        const manualTotal = parseFloat(tOverrideObj.value) || 0;
+        if (manualTotal > 0 && manualTotal !== totalGridSizingVal) {
+            // User manually overrode the total and it doesnt match grid. Store it purely in dynamicSizes, zero out the rest
+            hasAnyQty = true;
+            payload.dynamic_sizes['Tổng SL (Không rõ size)'] = manualTotal;
+            STANDARD_SIZES.forEach(size => {
+                payload[`size_${size.toString().replace('.', '_')}`] = 0;
+            });
+            Object.keys(payload.dynamic_sizes).forEach(k => {
+                if (k !== 'Tổng SL (Không rõ size)') delete payload.dynamic_sizes[k];
+            });
+        }
+    }
+
     if (!hasAnyQty) {
-        showToast("⚠️ Vui lòng nhập số lượng cho ít nhất một size!", "error");
+        showToast("⚠️ Vui lòng nhập số lượng cho ít nhất một size hoặc nhập Tổng số lượng!", "error");
         btnSaveSurplus.disabled = false;
         btnSaveSurplus.textContent = "💾 LƯU DỮ LIỆU";
         return;
@@ -1072,6 +1307,11 @@ function clearFormFields() {
         });
     }
 
+
+    // Clear totally override if exists
+    const tOverride = document.getElementById('total-qty-override');
+    if (tOverride) tOverride.value = '';
+
     // Reset info text
     [infoBrand, infoMold, infoBom].forEach(el => el.textContent = '-');
     [infoPu, infoFabric].forEach(el => el.value = '');
@@ -1080,9 +1320,11 @@ function clearFormFields() {
 }
 
 function updateSizeHighlights() {
+    let total = 0;
     document.querySelectorAll('.size-input').forEach(input => {
         const val = parseFloat(input.value) || 0;
         const isExtra = input.closest('#extra-size-grid');
+        total += val;
 
         if (val > 0) {
             // Highlighted state: Soft color, dark font, readable selection
@@ -1100,6 +1342,19 @@ function updateSizeHighlights() {
             }
         }
     });
+
+    const totalQtyOverride = document.getElementById('total-qty-override');
+    // If it's a focus update, maybe we just set the placeholder, but if total > 0, we can also set value if we want to sync
+    if (totalQtyOverride && total > 0) {
+        // Only auto update if it doesn't have focus to avoid interrupting user typing
+        if (document.activeElement !== totalQtyOverride) {
+            totalQtyOverride.value = total;
+        }
+    } else if (totalQtyOverride && total === 0) {
+        if (document.activeElement !== totalQtyOverride) {
+            totalQtyOverride.value = '';
+        }
+    }
 }
 
 // ==================== HISTORY & SEARCH ====================
@@ -1329,6 +1584,7 @@ async function exportSurplusExcel() {
         const exportData = data.map(item => {
             const row = {
                 'Ngày nhập': new Date(item.created_at).toLocaleString('vi-VN'),
+                'MSNV Tác Động': item.msnv || '',
                 'Mã RPRO': item.rpro,
                 'Sales Order': item.so || '',
                 'Brand': item.brand_code || '',

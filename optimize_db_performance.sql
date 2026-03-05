@@ -18,3 +18,6 @@ CREATE INDEX IF NOT EXISTS idx_powerapp_fb_description ON "powerapp" ("FB DESCRI
 CREATE INDEX IF NOT EXISTS idx_surplusgoods_rpro ON "surplusgoods" ("rpro");
 CREATE INDEX IF NOT EXISTS idx_surplusgoods_pu ON "surplusgoods" ("pu");
 CREATE INDEX IF NOT EXISTS idx_surplusgoods_fabric ON "surplusgoods" ("fabric");
+
+-- 4. Thêm cột msnv cho tính năng lưu MSNV phân xưởng MOLDING
+ALTER TABLE surplusgoods ADD COLUMN IF NOT EXISTS msnv TEXT;
