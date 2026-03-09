@@ -1015,9 +1015,9 @@ async function loadDailySectionChart() {
         }
     });
 
-    // Sum quantities into dayMap
+    // Sum quantities into dayMap (Now counting UNIQUE RPROs per day/section)
     Object.values(dedup).forEach(entry => {
-        dayMap[entry.label][entry.section] += entry.qty;
+        dayMap[entry.label][entry.section] += 1; // Count +1 per unique RPRO
     });
 
     // Destroy old chart
@@ -1055,7 +1055,7 @@ async function loadDailySectionChart() {
                 tooltip: {
                     callbacks: {
                         label: function (ctx) {
-                            return `${ctx.dataset.label}: ${ctx.raw} đôi`;
+                            return `${ctx.dataset.label}: ${ctx.raw} đơn`;
                         }
                     }
                 }
@@ -1063,7 +1063,8 @@ async function loadDailySectionChart() {
             scales: {
                 y: {
                     beginAtZero: true,
-                    title: { display: true, text: 'Số đôi', font: { weight: 'bold' } }
+                    title: { display: true, text: 'Số lượng đơn (RPRO)', font: { weight: 'bold' } },
+                    ticks: { stepSize: 1 }
                 },
                 x: {
                     title: { display: true, text: 'Ngày', font: { weight: 'bold' } }
