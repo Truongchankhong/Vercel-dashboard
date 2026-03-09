@@ -971,6 +971,17 @@ async function saveBatchScans() {
     btnSaveAllBatch.classList.add('hidden');
     batchRproTextarea.value = '';
 
+    // Auto-uncheck both checkboxes to prevent accidental HBKD on next orders
+    if (importListCheckbox) {
+        importListCheckbox.checked = false;
+        batchInputContainer.classList.add('hidden');
+    }
+    if (hbkdListCheckbox) {
+        hbkdListCheckbox.checked = false;
+        isHbkdMode = false;
+    }
+    if (manualNoteInput) manualNoteInput.value = '';
+
     // Refresh history list to show real records from DB (or just leave as is)
     // For simplicity, let's just clear the "PREVIEW" tags
 }
