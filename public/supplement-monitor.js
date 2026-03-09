@@ -982,38 +982,6 @@ async function loadDailySectionChart() {
 
     const data = allData;
 
-    // 1. GATHER ALL UNIQUE RPROs to fetch their "Official Supplement Quantity" (matches Excel logic)
-    const rproList = [...new Set(data.map(r => r.rpro))];
-    const rproQtyMap = {}; // rpro -> official_qty
-
-    if (rproList.length > 0) {
-        // Fetch from supplement_confirm
-        const { data: confirmData } = await supabase
-            .from('supplement_confirm')
-            .select('rpro, total, available_supplement')
-            .in('rpro', rproList);
-
-        if (confirmData) {
-            confirmData.forEach(item => {
-                rproQtyMap[item.rpro] = (item.available_supplement !== null) ? item.available_supplement : item.total;
-            });
-        }
-
-        // Fallback to supplement table for missing ones
-        const missingRpros = rproList.filter(r => rproQtyMap[r] === undefined);
-        if (missingRpros.length > 0) {
-            const { data: suppData } = await supabase
-                .from('supplement')
-                .select('rpro, total')
-                .in('rpro', missingRpros);
-            if (suppData) {
-                suppData.forEach(item => {
-                    rproQtyMap[item.rpro] = item.total;
-                });
-            }
-        }
-    }
-
     // Build day labels and group by date + section
     const dayLabels = [];
     const dayMap = {};
@@ -1040,15 +1008,14 @@ async function loadDailySectionChart() {
 
         const key = `${label}|${row.section}|${row.rpro}`;
         const existing = dedup[key];
-        // Keep latest scan (highest created_at)
+
+        // Use the quantity directly from the scan record
         if (!existing || d > existing.time) {
-            // STRIP FALLBACK: Only use official Qty_Sup. If missing, use 0 (matches Excel)
-            const qty = rproQtyMap[row.rpro] || 0;
-            dedup[key] = { qty: qty, time: d, label, section: row.section };
+            dedup[key] = { qty: row.quantity || 0, time: d, label, section: row.section };
         }
     });
 
-    // Sum deduplicated official quantities into dayMap
+    // Sum quantities into dayMap
     Object.values(dedup).forEach(entry => {
         dayMap[entry.label][entry.section] += entry.qty;
     });
