@@ -947,21 +947,40 @@ async function loadDailySectionChart() {
     const fromDate = fromInput.value;
     const toDate = toInput.value;
 
-    // Fetch data from Supabase (optimized: only needed columns)
+    // Fetch ALL data via pagination (Supabase max 1000 rows per request)
     // Use Scan OUT for all sections (Dán, Cắt only have OUT)
-    const { data, error } = await supabase
-        .from('supplement_tracking')
-        .select('section, quantity, action, created_at')
-        .gte('created_at', `${fromDate}T00:00:00`)
-        .lte('created_at', `${toDate}T23:59:59`)
-        .eq('action', 'OUT')
-        .order('created_at', { ascending: true })
-        .limit(10000);
+    let allData = [];
+    let page = 0;
+    const PAGE_SIZE = 1000;
+    let hasMore = true;
 
-    if (error) {
-        console.error('Error fetching line chart data:', error);
-        return;
+    while (hasMore) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        const { data: batch, error } = await supabase
+            .from('supplement_tracking')
+            .select('section, quantity, created_at')
+            .gte('created_at', `${fromDate}T00:00:00`)
+            .lte('created_at', `${toDate}T23:59:59`)
+            .eq('action', 'OUT')
+            .order('created_at', { ascending: true })
+            .range(from, to);
+
+        if (error) {
+            console.error('Error fetching line chart data:', error);
+            return;
+        }
+
+        if (batch && batch.length > 0) {
+            allData = allData.concat(batch);
+            hasMore = batch.length === PAGE_SIZE; // If < 1000, no more data
+            page++;
+        } else {
+            hasMore = false;
+        }
     }
+
+    const data = allData;
 
     // Build day labels and group by date + section
     const dayLabels = [];
