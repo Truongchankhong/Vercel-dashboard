@@ -628,7 +628,7 @@ async function fetchStatsData() {
 
   const { data, error } = await supabase
     .from('supplement_confirm')
-    .select('*')
+    .select('created_at, confirm, available_supplement, total')
     .gte('created_at', startOfMonth.toISOString());
 
   if (error) {

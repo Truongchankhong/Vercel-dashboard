@@ -819,7 +819,7 @@ window.openDetailModal = async (rpro) => {
         // 2. Get Realtime Scan History
         const { data: historyList, error: historyError } = await supabase
             .from('supplement_tracking')
-            .select('*')
+            .select('id, action, section, created_at, quantity')
             .eq('rpro', rpro)
             .order('created_at', { ascending: false });
 

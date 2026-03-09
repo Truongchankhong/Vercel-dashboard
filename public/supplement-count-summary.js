@@ -26,7 +26,7 @@ async function loadSummary() {
 
     const { data, error } = await supabase
         .from('supplement_tracking')
-        .select('*')
+        .select('rpro, section')
         .gte('scan_date', from)
         .lte('scan_date', to)
         // Only count unique RPROs per session, effectively we can filter by IN action to represent "arrival"
