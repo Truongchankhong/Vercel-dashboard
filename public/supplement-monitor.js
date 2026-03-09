@@ -919,6 +919,133 @@ function setupRealtimeSubscription() {
         )
         .subscribe();
 }
+// ==================== DAILY SECTION LINE CHART (Independent) ====================
+async function loadDailySectionChart() {
+    const sections = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
+    const sectionDisplayNames = { 'Dán': 'Dán', 'Cắt': 'Cắt', 'Molding': 'Molding', 'DC': 'Leanline DC', 'Molded': 'Leanline Molded' };
+    const sectionColors = {
+        'Dán': { border: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
+        'Cắt': { border: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+        'Molding': { border: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+        'DC': { border: '#a855f7', bg: 'rgba(168,85,247,0.1)' },
+        'Molded': { border: '#ec4899', bg: 'rgba(236,72,153,0.1)' }
+    };
+
+    const fromInput = document.getElementById('chart-line-date-from');
+    const toInput = document.getElementById('chart-line-date-to');
+
+    // Set defaults: 1 month ago → today
+    if (!fromInput.value) {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+        fromInput.value = oneMonthAgo.toISOString().split('T')[0];
+    }
+    if (!toInput.value) {
+        toInput.value = new Date().toISOString().split('T')[0];
+    }
+
+    const fromDate = fromInput.value;
+    const toDate = toInput.value;
+
+    // Fetch data from Supabase (optimized: only needed columns)
+    const { data, error } = await supabase
+        .from('supplement_tracking')
+        .select('section, quantity, action, created_at')
+        .gte('created_at', `${fromDate}T00:00:00`)
+        .lte('created_at', `${toDate}T23:59:59`)
+        .eq('action', 'IN')
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching line chart data:', error);
+        return;
+    }
+
+    // Build day labels and group by date + section
+    const dayLabels = [];
+    const dayMap = {};
+
+    const start = new Date(fromDate);
+    const end = new Date(toDate);
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+        if (!dayMap[label]) {
+            dayLabels.push(label);
+            dayMap[label] = {};
+            sections.forEach(s => dayMap[label][s] = 0);
+        }
+    }
+
+    // Accumulate quantities
+    (data || []).forEach(row => {
+        const d = new Date(row.created_at);
+        const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+        if (dayMap[label] && sections.includes(row.section)) {
+            dayMap[label][row.section] += (row.quantity || 0);
+        }
+    });
+
+    // Destroy old chart
+    if (monitorCharts.dailySectionQty) {
+        monitorCharts.dailySectionQty.destroy();
+    }
+
+    // Build datasets
+    const lineDatasets = sections.map(s => ({
+        label: sectionDisplayNames[s],
+        data: dayLabels.map(label => dayMap[label][s] || 0),
+        borderColor: sectionColors[s].border,
+        backgroundColor: sectionColors[s].bg,
+        tension: 0.3,
+        fill: true,
+        pointRadius: 4,
+        pointHoverRadius: 7,
+        pointBackgroundColor: sectionColors[s].border,
+        borderWidth: 2.5
+    }));
+
+    monitorCharts.dailySectionQty = new Chart(document.getElementById('chart-daily-section-qty'), {
+        type: 'line',
+        data: {
+            labels: dayLabels,
+            datasets: lineDatasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { weight: 'bold', size: 11 }, usePointStyle: true, pointStyle: 'circle' } },
+                datalabels: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function (ctx) {
+                            return `${ctx.dataset.label}: ${ctx.raw} đôi`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Số đôi', font: { weight: 'bold' } }
+                },
+                x: {
+                    title: { display: true, text: 'Ngày', font: { weight: 'bold' } }
+                }
+            }
+        }
+    });
+}
+
+// Event: Refresh Line Chart Button
+const btnRefreshLineChart = document.getElementById('btn-refresh-line-chart');
+if (btnRefreshLineChart) {
+    btnRefreshLineChart.addEventListener('click', () => {
+        btnRefreshLineChart.textContent = '⏳ ...';
+        loadDailySectionChart().finally(() => btnRefreshLineChart.textContent = '🔄 Xem');
+    });
+}
 
 // ==================== STATS LOGIC ====================
 function initStatsCharts(statsData) {
@@ -933,6 +1060,9 @@ function initStatsCharts(statsData) {
 
     const sections = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
     const sectionLabels = ['Dán', 'Cắt', 'Molding', 'Leanline DC', 'Leanline Molded'];
+
+    // 0. Line Chart: loaded independently via loadDailySectionChart()
+    loadDailySectionChart();
 
     // 1. Stacked Bar Chart: Completed vs Processing
     monitorCharts.statusStacked = new Chart(document.getElementById('chart-status-stacked'), {
