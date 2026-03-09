@@ -948,13 +948,15 @@ async function loadDailySectionChart() {
     const toDate = toInput.value;
 
     // Fetch data from Supabase (optimized: only needed columns)
+    // Use Scan OUT for all sections (Dán, Cắt only have OUT)
     const { data, error } = await supabase
         .from('supplement_tracking')
         .select('section, quantity, action, created_at')
         .gte('created_at', `${fromDate}T00:00:00`)
         .lte('created_at', `${toDate}T23:59:59`)
-        .eq('action', 'IN')
-        .order('created_at', { ascending: true });
+        .eq('action', 'OUT')
+        .order('created_at', { ascending: true })
+        .limit(10000);
 
     if (error) {
         console.error('Error fetching line chart data:', error);
