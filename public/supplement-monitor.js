@@ -1042,8 +1042,8 @@ async function loadDailySectionChart() {
         const existing = dedup[key];
         // Keep latest scan (highest created_at)
         if (!existing || d > existing.time) {
-            // Use OFFICIAL Quantity (rproQtyMap) instead of row.quantity to match Excel
-            const qty = rproQtyMap[row.rpro] || row.quantity || 0;
+            // STRIP FALLBACK: Only use official Qty_Sup. If missing, use 0 (matches Excel)
+            const qty = rproQtyMap[row.rpro] || 0;
             dedup[key] = { qty: qty, time: d, label, section: row.section };
         }
     });
