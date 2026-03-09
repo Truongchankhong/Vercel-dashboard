@@ -959,7 +959,7 @@ async function loadDailySectionChart() {
         const to = from + PAGE_SIZE - 1;
         const { data: batch, error } = await supabase
             .from('supplement_tracking')
-            .select('section, quantity, created_at')
+            .select('rpro, section, quantity, created_at')
             .gte('created_at', `${fromDate}T00:00:00`)
             .lte('created_at', `${toDate}T23:59:59`)
             .eq('action', 'OUT')
@@ -973,7 +973,7 @@ async function loadDailySectionChart() {
 
         if (batch && batch.length > 0) {
             allData = allData.concat(batch);
-            hasMore = batch.length === PAGE_SIZE; // If < 1000, no more data
+            hasMore = batch.length === PAGE_SIZE;
             page++;
         } else {
             hasMore = false;
@@ -997,13 +997,26 @@ async function loadDailySectionChart() {
         }
     }
 
-    // Accumulate quantities
+    // Deduplicate: for each day+section, only keep the LATEST scan OUT per RPRO
+    // This prevents counting the same RPRO multiple times if scanned OUT repeatedly
+    const dedup = {}; // key: "dateLabel|section|rpro" → { qty, time }
+
     (data || []).forEach(row => {
         const d = new Date(row.created_at);
         const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-        if (dayMap[label] && sections.includes(row.section)) {
-            dayMap[label][row.section] += (row.quantity || 0);
+        if (!dayMap[label] || !sections.includes(row.section)) return;
+
+        const key = `${label}|${row.section}|${row.rpro}`;
+        const existing = dedup[key];
+        // Keep latest scan (highest created_at)
+        if (!existing || d > existing.time) {
+            dedup[key] = { qty: row.quantity || 0, time: d, label, section: row.section };
         }
+    });
+
+    // Sum deduplicated quantities into dayMap
+    Object.values(dedup).forEach(entry => {
+        dayMap[entry.label][entry.section] += entry.qty;
     });
 
     // Destroy old chart
