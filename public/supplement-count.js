@@ -43,6 +43,7 @@ const batchInputContainer = document.getElementById('batch-input-container');
 const batchRproTextarea = document.getElementById('batch-rpro-textarea');
 const btnProcessBatch = document.getElementById('btn-process-batch');
 const btnSaveAllBatch = document.getElementById('btn-save-all-batch');
+const hbkdListCheckbox = document.getElementById('hbkd-list-checkbox');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -54,6 +55,7 @@ let lastRecordId = null;
 let scanCountTotalVal = 0;
 let scanCountErrorVal = 0;
 let pendingBatchScans = [];
+let isHbkdMode = false; // HBKD list scan mode
 const scanCountTotalElem = document.getElementById('scan-count-total');
 const scanCountErrorElem = document.getElementById('scan-count-error');
 
@@ -160,8 +162,11 @@ async function onCameraScanSuccess(decodedText) {
         playAudioFeedback(status === 'found');
 
         // 🚀 TỰ ĐỘNG LƯU (Cả trường hợp có hay không có dữ liệu đều lưu)
-        if (autoSaveCheckbox?.checked) {
-            console.log(`🚀 Tự động lưu đang bật (${status === 'found' ? 'Có data' : 'Không data'})...`);
+        if (autoSaveCheckbox?.checked || isHbkdMode) {
+            if (isHbkdMode && manualNoteInput && !manualNoteInput.value.includes('HBKD')) {
+                manualNoteInput.value = manualNoteInput.value ? 'HBKD ' + manualNoteInput.value : 'HBKD';
+            }
+            console.log(`🚀 Tự động lưu đang bật (${status === 'found' ? 'Có data' : 'Không data'})${isHbkdMode ? ' [HBKD]' : ''}...`);
             setTimeout(() => handleManualSave(), 800);
         }
     }
@@ -586,6 +591,12 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
 
         console.log("💾 Inserting new record...");
         // 3. Save to Supabase
+        // Determine note - HBKD mode forces HBKD note
+        let finalNote = note || (manualNoteInput ? manualNoteInput.value.trim() : '');
+        if (isHbkdMode && !finalNote.includes('HBKD')) {
+            finalNote = finalNote ? 'HBKD ' + finalNote : 'HBKD';
+        }
+
         // Build insert record
         const insertRecord = {
             rpro,
@@ -593,8 +604,8 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
             action: activeAction,
             operator: 'User',
             quantity: quantity,
-            note: note || (manualNoteInput ? manualNoteInput.value.trim() : ''),
-            scan_date: new Date().toISOString().split('T')[0]
+            note: finalNote,
+            scan_date: isHbkdMode ? null : new Date().toISOString().split('T')[0]
         };
 
         // Add pu_sheets for Dán section (OUT only now)
@@ -620,7 +631,7 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
         showFeedback(successMsg, "text-green-600 font-black");
         showToast(successMsg, "success");
         playAudioFeedback(true);
-        addScanHistoryEntry(rpro, quantity, "SUCCESS", true);
+        addScanHistoryEntry(rpro, quantity, "SUCCESS", true, '', finalNote);
 
         // if (mode === 'CAMERA') alert(`✅ Scan thành công:\n${rpro}`); // Alert is redundant now with Toast
         undoContainer.classList.remove('hidden');
@@ -669,9 +680,10 @@ async function processQueue() {
 
         playAudioFeedback(status === 'found');
 
-        // Auto Save if enabled
-        if (autoSaveCheckbox?.checked) {
-            await processRPRO(code, mode, "", false);
+        // Auto Save if enabled OR HBKD mode is on (auto-save for HBKD)
+        if (autoSaveCheckbox?.checked || isHbkdMode) {
+            const hbkdNote = isHbkdMode ? 'HBKD' : '';
+            await processRPRO(code, mode, hbkdNote, false);
         }
 
         // Small delay between rows to allow DB to breathe
@@ -722,7 +734,7 @@ function showToast(message, type = "success") {
 }
 
 // ==================== SCAN HISTORY HANDLER ====================
-function addScanHistoryEntry(rpro, qty, status, isSuccess, errorReason = '') {
+function addScanHistoryEntry(rpro, qty, status, isSuccess, errorReason = '', noteText = '') {
     if (!scanHistoryContainer || !scanHistoryList) return;
 
     // Increment counters
@@ -741,12 +753,15 @@ function addScanHistoryEntry(rpro, qty, status, isSuccess, errorReason = '') {
 
     const time = new Date().toLocaleTimeString('vi-VN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const actionSymbol = activeAction === 'IN' ? '⬇️' : '⬆️';
+    const hasHbkd = noteText && noteText.includes('HBKD');
+    const hbkdBadge = hasHbkd ? `<span class="bg-amber-600 text-white px-1.5 rounded text-[9px] font-black">🆘 HBKD</span>` : '';
 
     entry.innerHTML = `
         <div class="flex flex-col flex-1 min-w-0">
             <div class="flex items-center gap-1.5">
                 <span class="text-[9px] opacity-60 shrink-0">${time}</span>
                 <span class="font-bold truncate text-sm leading-none">${rpro}</span>
+                ${hbkdBadge}
             </div>
             <div class="flex items-center gap-2 text-[10px] mt-0.5 opacity-80">
                 <span>${actionSymbol} ${activeSection}</span>
@@ -850,12 +865,19 @@ async function handleBatchImport() {
         // We need to capture these values for each item
         const status = await fetchDetails(code);
 
+        // If HBKD mode is on, force HBKD note for each item
+        let itemNote = manualNoteInput.value.trim();
+        if (isHbkdMode && !itemNote.includes('HBKD')) {
+            itemNote = itemNote ? 'HBKD ' + itemNote : 'HBKD';
+        }
+
         const item = {
             rpro: code,
             quantity: parseInt(inputQty.value) || 1,
-            note: manualNoteInput.value.trim(),
+            note: itemNote,
             pu_sheets: (activeSection === 'Dán' && inputPuSheets) ? parseInt(inputPuSheets.value) : null,
-            status: status
+            status: status,
+            isHbkd: isHbkdMode
         };
 
         pendingBatchScans.push(item);
@@ -879,15 +901,18 @@ function addBatchScanHistoryEntry(item) {
 
     const entry = document.createElement('div');
     const isSuccess = item.status === 'found';
-    entry.className = `flex justify-between items-center gap-2 p-1.5 rounded border bg-blue-900/20 border-blue-800/50 text-blue-300`;
+    const hasHbkd = item.note && item.note.includes('HBKD');
+    entry.className = `flex justify-between items-center gap-2 p-1.5 rounded border ${hasHbkd ? 'bg-amber-900/20 border-amber-800/50 text-amber-300' : 'bg-blue-900/20 border-blue-800/50 text-blue-300'}`;
 
     const actionSymbol = activeAction === 'IN' ? '⬇️' : '⬆️';
+    const hbkdBadge = hasHbkd ? `<span class="bg-amber-600 text-white px-1.5 rounded text-[9px] font-black">🆘 HBKD</span>` : '';
 
     entry.innerHTML = `
         <div class="flex flex-col flex-1 min-w-0">
             <div class="flex items-center gap-1.5">
                 <span class="text-[9px] opacity-60 shrink-0">CHỜ LƯU</span>
                 <span class="font-bold truncate text-sm leading-none">${item.rpro}</span>
+                ${hbkdBadge}
             </div>
             <div class="flex items-center gap-2 text-[10px] mt-0.5 opacity-80">
                 <span>${actionSymbol} ${activeSection}</span>
@@ -924,7 +949,7 @@ async function saveBatchScans() {
                 operator: 'User',
                 quantity: item.quantity,
                 note: item.note,
-                scan_date: new Date().toISOString().split('T')[0]
+                scan_date: item.isHbkd ? null : new Date().toISOString().split('T')[0]
             };
 
             if (item.pu_sheets) insertRecord.pu_sheets = item.pu_sheets;
@@ -1187,6 +1212,28 @@ if (importListCheckbox) {
             batchInputContainer.classList.remove('hidden');
         } else {
             batchInputContainer.classList.add('hidden');
+        }
+    });
+}
+
+// HBKD List Mode Checkbox
+if (hbkdListCheckbox) {
+    hbkdListCheckbox.addEventListener('change', (e) => {
+        isHbkdMode = e.target.checked;
+        if (isHbkdMode) {
+            // Auto-fill note with HBKD when mode is activated
+            if (manualNoteInput && !manualNoteInput.value.includes('HBKD')) {
+                manualNoteInput.value = manualNoteInput.value ? 'HBKD ' + manualNoteInput.value : 'HBKD';
+            }
+            showToast('🆘 Chế độ Scan HBKD đã BẬT - Mọi đơn sẽ tự ghi chú HBKD', 'success');
+            console.log('🆘 HBKD mode ON');
+        } else {
+            showToast('🆘 Chế độ Scan HBKD đã TẮT', 'success');
+            console.log('🆘 HBKD mode OFF');
+        }
+        // If both import-list and HBKD are checked, show batch input
+        if (isHbkdMode && importListCheckbox?.checked) {
+            batchInputContainer.classList.remove('hidden');
         }
     });
 }
