@@ -959,7 +959,7 @@ async function loadDailySectionChart() {
         const to = from + PAGE_SIZE - 1;
         const { data: batch, error } = await supabase
             .from('supplement_tracking')
-            .select('rpro, section, quantity, created_at')
+            .select('rpro, section, quantity, created_at, scan_date')
             .gte('created_at', `${fromDate}T00:00:00`)
             .lte('created_at', `${toDate}T23:59:59`)
             .eq('action', 'OUT')
@@ -1002,22 +1002,31 @@ async function loadDailySectionChart() {
     const dedup = {}; // key: "dateLabel|section|rpro" → { qty, time }
 
     (data || []).forEach(row => {
-        const d = new Date(row.created_at);
-        const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+        // Use scan_date if available (YYYY-MM-DD), otherwise fallback to created_at
+        let dateKey = row.scan_date;
+        if (!dateKey) {
+            dateKey = new Date(row.created_at).toISOString().split('T')[0];
+        }
+
+        // Format for display (DD/MM)
+        const dParts = dateKey.split('-');
+        const label = `${dParts[2]}/${dParts[1]}`;
+
         if (!dayMap[label] || !sections.includes(row.section)) return;
 
         const key = `${label}|${row.section}|${row.rpro}`;
         const existing = dedup[key];
 
-        // Use the quantity directly from the scan record
-        if (!existing || d > existing.time) {
-            dedup[key] = { qty: row.quantity || 0, time: d, label, section: row.section };
+        const dTime = new Date(row.created_at);
+        // Keep latest scan (highest created_at)
+        if (!existing || dTime > existing.time) {
+            dedup[key] = { qty: row.quantity || 0, time: dTime, label, section: row.section };
         }
     });
 
-    // Sum quantities into dayMap (Now counting UNIQUE RPROs per day/section)
+    // Sum quantities into dayMap (Back to summing PAIRS)
     Object.values(dedup).forEach(entry => {
-        dayMap[entry.label][entry.section] += 1; // Count +1 per unique RPRO
+        dayMap[entry.label][entry.section] += entry.qty;
     });
 
     // Destroy old chart
@@ -1055,7 +1064,7 @@ async function loadDailySectionChart() {
                 tooltip: {
                     callbacks: {
                         label: function (ctx) {
-                            return `${ctx.dataset.label}: ${ctx.raw} đơn`;
+                            return `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} đôi`;
                         }
                     }
                 }
@@ -1063,11 +1072,10 @@ async function loadDailySectionChart() {
             scales: {
                 y: {
                     beginAtZero: true,
-                    title: { display: true, text: 'Số lượng đơn (RPRO)', font: { weight: 'bold' } },
-                    ticks: { stepSize: 1 }
+                    title: { display: true, text: 'Số đôi (Quantity)', font: { weight: 'bold' } }
                 },
                 x: {
-                    title: { display: true, text: 'Ngày', font: { weight: 'bold' } }
+                    title: { display: true, text: 'Ngày quét (Scan Date)', font: { weight: 'bold' } }
                 }
             }
         }
