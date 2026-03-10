@@ -989,7 +989,9 @@ async function loadDailySectionChart() {
     const start = new Date(fromDate);
     const end = new Date(toDate);
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const label = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const label = `${day}-${month}`;
         if (!dayMap[label]) {
             dayLabels.push(label);
             dayMap[label] = {};
@@ -1008,9 +1010,9 @@ async function loadDailySectionChart() {
             dateKey = new Date(row.created_at).toISOString().split('T')[0];
         }
 
-        // Format for display (DD/MM)
-        const dParts = dateKey.split('-');
-        const label = `${dParts[2]}/${dParts[1]}`;
+        // Format for display (DD-MM) - MUST match the loop above
+        const dParts = dateKey.split('-'); // 2026-03-10 -> [2026, 03, 10]
+        const label = `${dParts[2]}-${dParts[1]}`;
 
         if (!dayMap[label] || !sections.includes(row.section)) return;
 
