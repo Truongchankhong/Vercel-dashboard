@@ -1296,21 +1296,30 @@ async function deleteSurplus() {
 
 // Function to load surplus record data back into the form
 function loadSurplusDataToUI(data) {
+    if (!data) return;
     entryNote.value = data.note || '';
 
     // Fill standard sizes
     STANDARD_SIZES.forEach(size => {
         const id = `size_${size.toString().replace('.', '_')}`;
         const input = document.getElementById(id);
-        if (input) input.value = data[id] || 0;
+        if (input) input.value = data[id] !== undefined && data[id] !== null ? data[id] : 0;
     });
 
-    // Handle extra sizes
+    // Handle extra sizes and manual total override
     extraSizes = [];
     extraSizeGrid.innerHTML = '';
     extraSizesContainer.classList.add('hidden');
 
     const dyn = data.dynamic_sizes || {};
+    
+    // Handle manual total override if it exists
+    const manualTotal = dyn['Tổng SL (Không rõ size)'];
+    const totalQtyOverride = document.getElementById('total-qty-override');
+    if (manualTotal !== undefined && manualTotal !== null && totalQtyOverride) {
+        totalQtyOverride.value = manualTotal;
+    }
+
     const dynKeys = Object.keys(dyn)
         .filter(k => !isNaN(parseFloat(k)))
         .map(k => parseFloat(k));
@@ -1323,12 +1332,13 @@ function loadSurplusDataToUI(data) {
             return `
                 <div class="flex flex-col gap-1">
                     <label class="text-[10px] font-black text-orange-600 text-center uppercase">Size ${size}</label>
-                    <input type="number" id="${id}" data-size="${size}" min="0" value="${dyn[size]}"
+                    <input type="number" id="${id}" data-size="${size}" min="0" value="${dyn[size] || 0}"
                         class="size-input w-full bg-orange-50 border border-orange-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-orange-100 outline-none transition-all">
                 </div>
             `;
         }).join('');
     }
+
     const params = new URLSearchParams(window.location.search);
     if (!params.get('section') && data.section) {
         updateActiveSection(data.section);
@@ -1422,15 +1432,21 @@ function updateSizeHighlights() {
     });
 
     const totalQtyOverride = document.getElementById('total-qty-override');
-    // If it's a focus update, maybe we just set the placeholder, but if total > 0, we can also set value if we want to sync
-    if (totalQtyOverride && total > 0) {
-        // Only auto update if it doesn't have focus to avoid interrupting user typing
-        if (document.activeElement !== totalQtyOverride) {
-            totalQtyOverride.value = total;
-        }
-    } else if (totalQtyOverride && total === 0) {
-        if (document.activeElement !== totalQtyOverride) {
-            totalQtyOverride.value = '';
+    if (totalQtyOverride) {
+        if (total > 0) {
+            // Auto-update if something is in the grid
+            if (document.activeElement !== totalQtyOverride) {
+                totalQtyOverride.value = total;
+            }
+        } else if (total === 0) {
+             // grid is empty. only clear if user is not currently focused on it
+             // AND only if it doesn't already have a manual value we might want to keep
+             // Actually, if we just loaded a record, we want to keep the value from loadSurplusDataToUI.
+             // But if user manually clears the grid, they might want it cleared.
+             // Simple compromise: if total is 0, don't auto-clear it unless it's empty
+             if (document.activeElement !== totalQtyOverride && totalQtyOverride.value === '0') {
+                 totalQtyOverride.value = '';
+             }
         }
     }
 }
@@ -1670,48 +1686,14 @@ window.previewEntry = async (id) => {
     resetEntry();
     editingId = data.id;
     if (btnDeleteSurplus) btnDeleteSurplus.classList.remove('hidden');
-    activeOrderData = data; // Ensure saving from preview also works
-    rproInput.value = data.rpro;
-    entryNote.value = data.note || '';
+    activeOrderData = data; 
+    
+    rproInput.value = data.rpro || '';
     displayOrderInfo(data);
-
-    // Highlight UI
     enableInput();
 
-    // Fill standard sizes
-    Object.keys(data).forEach(k => {
-        if (k.startsWith('size_')) {
-            const input = document.getElementById(k);
-            if (input) input.value = data[k];
-        }
-    });
-
-    // Load section if exists
-    if (data.section) {
-        updateActiveSection(data.section);
-    }
-
-    // Check for dynamic sizes from this record
-    const dyn = data.dynamic_sizes || {};
-    const dynKeys = Object.keys(dyn)
-        .filter(k => !isNaN(parseFloat(k)))
-        .map(k => parseFloat(k));
-
-    if (dynKeys.length > 0) {
-        extraSizes = dynKeys;
-        extraSizesContainer.classList.remove('hidden');
-        extraSizeGrid.innerHTML = dynKeys.sort((a, b) => a - b).map(size => {
-            const id = `size_${size.toString().replace('.', '_')}`;
-            return `
-                <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-black text-orange-600 text-center uppercase">Size ${size}</label>
-                    <input type="number" id="${id}" data-size="${size}" min="0" value="${dyn[size]}"
-                        class="size-input w-full bg-orange-50 border border-orange-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-orange-100 outline-none transition-all">
-                </div>
-            `;
-        }).join('');
-    }
-    updateSizeHighlights();
+    // Use the consolidated loader for sizes, note, and section
+    loadSurplusDataToUI(data);
 };
 
 // ==================== UI MISC ====================
