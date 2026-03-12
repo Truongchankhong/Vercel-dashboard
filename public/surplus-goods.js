@@ -1768,6 +1768,38 @@ async function exportSurplusExcel() {
             return;
         }
 
+        // NEW: Lookup PU and Fabric Descriptions based on codes (Requirement: load data dựa vào Code PU và Code FB)
+        const puCodes = [...new Set(data.map(i => i.pu_code).filter(c => c))];
+        const fbCodes = [...new Set(data.map(i => i.fb_code).filter(c => c))];
+        const puMap = {};
+        const fbMap = {};
+
+        if (puCodes.length > 0) {
+            // Priority 1: powerapp
+            const { data: paPu } = await supabase.from('powerapp').select('"PU", "PU DESCRIPTION"').in('PU', puCodes);
+            if (paPu) paPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
+            
+            // Priority 2: Masterdata for missing
+            const missingPu = puCodes.filter(c => !puMap[c]);
+            if (missingPu.length > 0) {
+                const { data: mdPu } = await supabase.from('Masterdata').select('"PU", "PU DESCRIPTION"').in('PU', missingPu);
+                if (mdPu) mdPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
+            }
+        }
+
+        if (fbCodes.length > 0) {
+            // Priority 1: powerapp
+            const { data: paFb } = await supabase.from('powerapp').select('"FB", "FB DESCRIPTION"').in('FB', fbCodes);
+            if (paFb) paFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
+            
+            // Priority 2: Masterdata for missing
+            const missingFb = fbCodes.filter(c => !fbMap[c]);
+            if (missingFb.length > 0) {
+                const { data: mdFb } = await supabase.from('Masterdata').select('"FB", "FB DESCRIPTION"').in('FB', missingFb);
+                if (mdFb) mdFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
+            }
+        }
+
         // Prepare data for XLSX
         const exportData = data.map(item => {
             const row = {
@@ -1778,8 +1810,8 @@ async function exportSurplusExcel() {
                 'Brand': item.brand_code || '',
                 'Mold': item.mold || '',
                 'BOM': item.bom || '',
-                'PU': item.pu || '',
-                'Fabric': item.fabric || '',
+                'PU': (item.pu_code && puMap[item.pu_code]) ? puMap[item.pu_code] : (item.pu || ''),
+                'Fabric': (item.fb_code && fbMap[item.fb_code]) ? fbMap[item.fb_code] : (item.fabric || ''),
                 'Code PU': item.pu_code || '',
                 'Code FB': item.fb_code || '',
                 'Section': item.section || '',
