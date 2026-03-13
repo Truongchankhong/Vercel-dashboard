@@ -372,16 +372,19 @@ function refreshTableData() {
 
 // ==================== PENDING COUNT LOGIC ====================
 function updatePendingCounts() {
-    const sequence = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
-    const pending = {};
-    sequence.forEach(s => pending[s] = []);
+    // Explicit connections [Current Stage]: [Previous Stage]
+    const connections = {
+        'Cắt': 'Dán',
+        'Molding': 'Cắt',
+        'Molded': 'Molding'
+        // 'DC': 'Molding' // User requested: No pending count display for DC
+    };
+
+    const pending = { 'Dán': [], 'Cắt': [], 'Molding': [], 'DC': [], 'Molded': [] };
 
     // Calculate pending for each order
     Object.values(progressMap).forEach(item => {
-        for (let i = 1; i < sequence.length; i++) {
-            const currStage = sequence[i];
-            const prevStage = sequence[i - 1];
-
+        for (const [currStage, prevStage] of Object.entries(connections)) {
             const prevData = item.stages[prevStage];
             const currData = item.stages[currStage];
 
@@ -400,11 +403,11 @@ function updatePendingCounts() {
     pendingListStore = pending;
 
     // Update UI headers
-    sequence.forEach(stage => {
+    ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'].forEach(stage => {
         const container = document.getElementById(`pending-${stage}`);
         if (!container) return;
 
-        const list = pending[stage];
+        const list = pending[stage] || [];
         if (list.length > 0) {
             container.innerHTML = `<div class="pending-badge" onclick="event.stopPropagation(); window.openPendingModal('${stage}')">⏳ ${list.length} đơn chờ</div>`;
             container.classList.remove('hidden');

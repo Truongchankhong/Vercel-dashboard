@@ -64,7 +64,7 @@ function getPreviousSection(section) {
     if (section === 'Cắt') return 'Dán';
     if (section === 'Molding') return 'Cắt';
     if (section === 'DC') return 'Molding';
-    if (section === 'Molded') return 'DC';
+    if (section === 'Molded') return 'Molding';
     return null;
 }
 
