@@ -20,9 +20,9 @@ async function fetchAllPowerAppData() {
     '"RECEIVED (MATERIAL)"', '"RECEIVED (LOGO)"', '"Laminating (Pro)"',
     '"Prefitting (Pro)"', '"Slipting (Pro)"', '"Bào (Pro)":"TachBao PPC"',
     '"IN lean Line (Pro)"', '"IN lean Line (MACHINE)"', '"Out lean Line (Pro)"',
-    '"STORED"', '"LAMINATION MACHINE (PLAN)"', '"LAMINATION MACHINE (REALTIME)"',
+    '"STORED"', '"PPC Confirm"', '"LAMINATION MACHINE (PLAN)"', '"LAMINATION MACHINE (REALTIME)"',
     '"LEANLINE PLAN"', '"LEANLINE (REALTIME)"', '"Check":"Check2"', '"CheckLL"',
-    '"Delay/Urgent":"Delay-Urgent"', '"Giới tính":"GENDER"', '"CUSTOMERS"'
+    '"Delay/Urgent":"Delay-Urgent"', '"Giới tính":"GENDER"', '"CUSTOMERS"', '"DL PU"'
   ].join(',');
 
   while (true) {
@@ -217,7 +217,7 @@ const headerDisplayMap = {
   'Brand Code': 'Brand',
   '#MOLD': 'Loại hàng',
   'Total Qty': 'PO Quantity (Pairs)',
-  'Delay/Urgent': 'Delay/Urgent',    // ← add this line
+  'Delay-Urgent': 'Delay/Urgent',
   'STATUS': 'Status – Trạng thái đơn',
   'PU': 'Mã PU',
   'FB': 'Mã Vải',
@@ -364,7 +364,7 @@ async function searchProgress() {
       'RECEIVED (MATERIAL)', 'RECEIVED (LOGO)', 'Laminating (Pro)',
       'Prefitting (Pro)', 'Slipting (Pro)', 'Bào (Pro)', 'IN lean Line (Pro)',
       'IN lean Line (MACHINE)', 'Out lean Line (Pro)',
-      'PACKING PRO', 'Packing date', 'STORED'
+      'PACKING PRO', 'Packing date', 'STORED', 'PPC Confirm'
     ];
 
     const dateFields = [
@@ -372,7 +372,7 @@ async function searchProgress() {
       'Prefitting (Pro)', 'Slipting (Pro)', 'Bào (Pro)', 'Molding (PPC)',
       'Molding Pro (IN)', 'Molding Pro', 'IN lean Line (Pro)',
       'IN lean Line (MACHINE)', 'Out lean Line (Pro)',
-      'PACKING PRO', 'Packing date', 'Finish date', 'STORED'
+      'PACKING PRO', 'Packing date', 'Finish date', 'STORED', 'PPC Confirm'
     ];
 
     const excelDateToString = (serial) => {
@@ -830,7 +830,7 @@ async function renderSummarySection() {
     const data = json.data;
     const planKey = selectedSection === 'LEANLINE_DC' ? 'LEANLINE PLAN' : 'LAMINATION MACHINE (PLAN)';
     const statusFilter = selectedSection === 'LEANLINE_DC' ? '6.WIP IN LEAN LINE' : '2.MATERIAL CHƯA DÁN';
-    const delayKey = 'Delay-Urgent';
+    const delayKey = 'Delay/Urgent';
 
     const machines = {};
     const delayCounts = {};
@@ -1017,7 +1017,7 @@ async function loadDelayUrgentData(type) {
     const cleanMatchesDelay = rproMatchesDelay ? rproMatchesDelay.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase()) : [];
 
     let filtered = data.filter(row => {
-      const delayVal = (row['Delay-Urgent'] || '').toUpperCase();
+      const delayVal = (row['Delay/Urgent'] || '').toUpperCase();
       if ((type === 'DELAY' && delayVal !== 'PRODUCTION DELAY') || (type === 'URGENT' && delayVal !== 'URGENT')) return false;
 
       let matchBasic = true;
