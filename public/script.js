@@ -133,11 +133,12 @@ async function fetchLastPushTime() {
 
     console.log("Metadata record (STT=-1):", pushData);
 
+    let syncDate = null;
     if (pushData && pushData.length > 0 && pushData[0]['Finish date']) {
       // This is a string in format "yyyy-MM-dd HH:mm:ss" from PowerShell
       const dateStr = pushData[0]['Finish date'];
-      const date = new Date(dateStr);
-      lastUpdatedEl.textContent = formatDateToString(date);
+      syncDate = new Date(dateStr);
+      lastUpdatedEl.textContent = formatDateToString(syncDate);
     } else {
       lastUpdatedEl.textContent = "Chưa có dữ liệu";
       console.warn("No metadata record found with STT=-1");
@@ -154,11 +155,27 @@ async function fetchLastPushTime() {
 
     if (lamError) throw lamError;
 
+    let lamDate = null;
     if (lamData && lamData.length > 0 && lamData[0]['Laminating (Pro)']) {
       const serial = Number(lamData[0]['Laminating (Pro)']);
-      lastLaminationEl.textContent = formatExcelDateTime(serial);
+      const base = new Date(1899, 11, 30);
+      lamDate = new Date(base.getTime() + serial * 86400000);
+      lastLaminationEl.textContent = formatDateToString(lamDate);
     } else {
       lastLaminationEl.textContent = "Chưa có dữ liệu";
+    }
+
+    // 3. Compare and Warn if diff >= 6 hours
+    if (syncDate && lamDate) {
+      const diffHrs = Math.abs(syncDate - lamDate) / (1000 * 60 * 60);
+      if (diffHrs >= 6) {
+        lastLaminationEl.parentElement.classList.add('bg-red-50', 'p-1', 'rounded', 'border', 'border-red-200');
+        lastLaminationEl.classList.add('text-red-600', 'font-bold');
+        lastLaminationEl.innerHTML += ' <span class="animate-pulse">⚠️ (Dữ liệu Dán đang bị lệch > 6h!)</span>';
+      } else {
+        lastLaminationEl.parentElement.classList.remove('bg-red-50', 'p-1', 'rounded', 'border', 'border-red-200');
+        lastLaminationEl.classList.remove('text-red-600', 'font-bold');
+      }
     }
 
   } catch (err) {
