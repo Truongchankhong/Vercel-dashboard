@@ -36,6 +36,8 @@ let currentPage = 1;
 const itemsPerPage = 100;
 let currentSort = { column: 'last_updated', direction: 'desc' }; // Default sort
 let moldFilter = ""; // State for Mold search
+const stageSequence = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
+let pendingListStore = {}; // Global store for pending RPROs per stage
 
 // Loading State Elements
 const loadingOverlay = document.getElementById('loading-overlay');
@@ -364,8 +366,94 @@ function refreshTableData() {
     });
 
     updateSortIcons();
+    updatePendingCounts();
     renderTable();
 }
+
+// ==================== PENDING COUNT LOGIC ====================
+function updatePendingCounts() {
+    const sequence = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
+    const pending = {};
+    sequence.forEach(s => pending[s] = []);
+
+    // Calculate pending for each order
+    Object.values(progressMap).forEach(item => {
+        for (let i = 1; i < sequence.length; i++) {
+            const currStage = sequence[i];
+            const prevStage = sequence[i - 1];
+
+            const prevData = item.stages[prevStage];
+            const currData = item.stages[currStage];
+
+            // PENDING IF: Previous stage has OUT, and Current stage NO IN
+            if (prevData && prevData.out && (!currData || !currData.in)) {
+                pending[currStage].push({
+                    rpro: item.rpro,
+                    mold: item.mold || '-',
+                    prevTime: prevData.out.time,
+                    qty: prevData.out.qty
+                });
+            }
+        }
+    });
+
+    pendingListStore = pending;
+
+    // Update UI headers
+    sequence.forEach(stage => {
+        const container = document.getElementById(`pending-${stage}`);
+        if (!container) return;
+
+        const list = pending[stage];
+        if (list.length > 0) {
+            container.innerHTML = `<div class="pending-badge" onclick="event.stopPropagation(); window.openPendingModal('${stage}')">⏳ ${list.length} đơn chờ</div>`;
+            container.classList.remove('hidden');
+        } else {
+            container.innerHTML = '';
+            container.classList.add('hidden');
+        }
+    });
+}
+
+window.openPendingModal = (stage) => {
+    const list = pendingListStore[stage] || [];
+    if (list.length === 0) return;
+
+    const modal = document.getElementById('pending-modal');
+    const title = document.getElementById('pending-modal-title');
+    const listContainer = document.getElementById('pending-modal-list');
+
+    title.textContent = stage;
+    
+    // Sort by previous stage out time (oldest first)
+    const sorted = [...list].sort((a, b) => new Date(a.prevTime) - new Date(b.prevTime));
+
+    listContainer.innerHTML = sorted.map(item => `
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 border border-gray-100 rounded-xl hover:bg-red-50 transition-colors">
+            <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                    <span class="font-mono font-black text-blue-600">${item.rpro}</span>
+                    <span class="text-[10px] px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full font-bold">Khuôn: ${item.mold}</span>
+                </div>
+                <div class="text-[11px] text-gray-500">
+                    Hoàn thành công đoạn trước: <span class="font-bold text-gray-700">${new Date(item.prevTime).toLocaleString('vi-VN')}</span>
+                </div>
+            </div>
+            <div class="mt-2 sm:mt-0 flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                <div class="text-right">
+                    <p class="text-[10px] text-gray-400 font-bold uppercase">Số lượng</p>
+                    <p class="font-black text-red-600">${item.qty} đôi</p>
+                </div>
+                <button onclick="window.location.href='supplement-count.html?rpro=${item.rpro}'" 
+                        class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-blue-700 active:scale-95 transition-all">
+                    Scan In
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    modal.classList.remove('hidden');
+};
 
 window.toggleSort = (column) => {
     if (currentSort.column === column) {

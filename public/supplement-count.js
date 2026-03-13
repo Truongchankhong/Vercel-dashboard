@@ -63,8 +63,8 @@ const scanCountErrorElem = document.getElementById('scan-count-error');
 function getPreviousSection(section) {
     if (section === 'Cắt') return 'Dán';
     if (section === 'Molding') return 'Cắt';
-    if (section === 'Molded') return 'Molding';
-    if (section === 'DC') return 'Dán';
+    if (section === 'DC') return 'Molding';
+    if (section === 'Molded') return 'DC';
     return null;
 }
 
@@ -1030,73 +1030,93 @@ function playAudioFeedback(success) {
     }
 }
 
-// ==================== EVENT LISTENERS ====================
+// ==================== INITIALIZATION & EVENT LISTENERS ====================
+window.addEventListener('DOMContentLoaded', () => {
+    // 1. Setup Section Buttons
+    sectionBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            sectionBtns.forEach(b => b.classList.remove('active', 'bg-blue-600', 'text-white'));
+            btn.classList.add('active');
 
-// Section Selection
-sectionBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        sectionBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+            activeSection = btn.dataset.section;
+            activeSectionLabel.innerText = btn.innerText;
 
-        activeSection = btn.dataset.section;
-        activeSectionLabel.innerText = btn.innerText;
+            // Hide PU info panel (will be shown on scan/fetch for Dán)
+            if (puInfoContainer) puInfoContainer.classList.add('hidden');
 
-        // Hide PU info panel (will be shown on scan/fetch for Dán)
-        if (puInfoContainer) puInfoContainer.classList.add('hidden');
+            // Reset note input
+            if (manualNoteInput) manualNoteInput.value = "";
 
-        // Reset note input
-        if (manualNoteInput) manualNoteInput.value = "";
+            // Dán & Cắt: only OUT, skip action selection
+            if (activeSection === 'Dán' || activeSection === 'Cắt') {
+                activeAction = 'OUT';
+                activeActionLabel.innerText = '⬆️ XUẤT ĐI (OUT)';
+                actionContainer.classList.add('hidden');
+                actionBtns.forEach(b => b.classList.remove('active'));
+                scannerContainer.classList.remove('hidden');
 
-        // Dán & Cắt: only OUT, skip action selection
-        if (activeSection === 'Dán' || activeSection === 'Cắt') {
-            activeAction = 'OUT';
-            activeActionLabel.innerText = '⬆️ XUẤT ĐI (OUT)';
-            actionContainer.classList.add('hidden');
+                // Focus scanner
+                if (scannerInputOverlay) {
+                    scannerInputOverlay.setAttribute('inputmode', 'none');
+                    scannerInputOverlay.focus();
+                }
+            } else {
+                // Other sections: show action selection (IN/OUT)
+                actionContainer.classList.remove('hidden');
+                activeAction = null;
+                actionBtns.forEach(b => b.classList.remove('active'));
+                scannerContainer.classList.add('hidden');
+            }
+
+            // Re-fetch if RPRO exists
+            const rpro = manualRproInput ? manualRproInput.value.trim() : "";
+            if (rpro) fetchDetails(rpro);
+        });
+    });
+
+    // 2. Setup Action Buttons
+    actionBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
             actionBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            activeAction = btn.dataset.action;
+            activeActionLabel.innerText = btn.innerText;
             scannerContainer.classList.remove('hidden');
 
-            // Focus scanner
+            // For Dán: PU sheets always editable (only OUT action available)
+            if (activeSection === 'Dán' && puSheetsEdit && puSheetsDisplay) {
+                puSheetsEdit.classList.remove('hidden');
+                puSheetsDisplay.classList.add('hidden');
+            }
+
+            // Focus on hidden input for handheld scanner
             if (scannerInputOverlay) {
                 scannerInputOverlay.setAttribute('inputmode', 'none');
                 scannerInputOverlay.focus();
             }
-        } else {
-            // Other sections: show action selection (IN/OUT)
-            actionContainer.classList.remove('hidden');
-            activeAction = null;
-            actionBtns.forEach(b => b.classList.remove('active'));
-            scannerContainer.classList.add('hidden');
-        }
-
-        // Re-fetch if RPRO exists
-        const rpro = manualRproInput ? manualRproInput.value.trim() : "";
-        if (rpro) fetchDetails(rpro);
+        });
     });
+
+    // 3. Handle URL Parameter ?rpro=
+    const params = new URLSearchParams(window.location.search);
+    const rproParam = params.get('rpro');
+    if (rproParam) {
+        manualRproInput.value = rproParam;
+        showFeedback(`📍 Đã load đơn: ${rproParam}. Chọn Công đoạn & Hành động.`, "text-blue-600 font-bold bg-blue-50 p-2 rounded-lg border border-blue-200");
+        
+        // Guidance animation
+        sectionBtns.forEach(btn => btn.classList.add('animate-pulse', 'border-2', 'border-blue-400'));
+        setTimeout(() => {
+            sectionBtns.forEach(btn => btn.classList.remove('animate-pulse', 'border-2', 'border-blue-400'));
+        }, 8000);
+    }
+
+    // 4. Initialize components
+    initAutoSave();
+    updateStatsUI();
 });
 
-// Action Selection (IN/OUT)
-actionBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        actionBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        activeAction = btn.dataset.action;
-        activeActionLabel.innerText = btn.innerText;
-        scannerContainer.classList.remove('hidden');
-
-        // For Dán: PU sheets always editable (only OUT action available)
-        if (activeSection === 'Dán' && puSheetsEdit && puSheetsDisplay) {
-            puSheetsEdit.classList.remove('hidden');
-            puSheetsDisplay.classList.add('hidden');
-        }
-
-        // Focus on hidden input for handheld scanner
-        if (scannerInputOverlay) {
-            scannerInputOverlay.setAttribute('inputmode', 'none');
-            scannerInputOverlay.focus();
-        }
-    });
-});
 
 // Camera Toggle
 if (btnToggleCamera) {
@@ -1257,5 +1277,5 @@ if (btnSaveAllBatch) {
     btnSaveAllBatch.addEventListener('click', saveBatchScans);
 }
 
-initAutoSave();
+
 console.log("✅ Supplement Count Tracking Loaded");

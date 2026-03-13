@@ -132,6 +132,27 @@
             cursor: not-allowed;
             filter: grayscale(1);
         }
+
+        .pending-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: 900;
+            padding: 2px 6px;
+            border-radius: 9999px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+            transition: all 0.2s;
+            margin-top: 4px;
+        }
+
+        .pending-badge:hover {
+            transform: scale(1.1);
+            background-color: #dc2626;
+        }
     </style>
 </head>
 
@@ -236,21 +257,41 @@
                                 class="p-3 text-center font-bold text-gray-700 border-b-2 border-r min-w-[100px] bg-gray-50 cursor-pointer hover:bg-gray-200 transition-colors"
                                 title="Click để tìm kiếm Mã Khuôn">
                                 #MOLD 🔍</th>
-                            <th onclick="toggleSort('Dán')"
+                            <th onclick="toggleSort('Dán')" id="th-Dán"
                                 class="p-3 text-center font-bold text-indigo-700 border-b-2 border-r min-w-[180px] bg-indigo-50 cursor-pointer hover:bg-indigo-100 transition-colors">
-                                🏷️ Dán <span id="sort-icon-Dán"></span></th>
-                            <th onclick="toggleSort('Cắt')"
+                                <div class="flex flex-col items-center">
+                                    <span>🏷️ Dán <span id="sort-icon-Dán"></span></span>
+                                    <div id="pending-Dán" class="hidden"></div>
+                                </div>
+                            </th>
+                            <th onclick="toggleSort('Cắt')" id="th-Cắt"
                                 class="p-3 text-center font-bold text-green-700 border-b-2 border-r min-w-[180px] bg-green-50 cursor-pointer hover:bg-green-100 transition-colors">
-                                ✂️ Cắt <span id="sort-icon-Cắt"></span></th>
-                            <th onclick="toggleSort('Molding')"
+                                <div class="flex flex-col items-center">
+                                    <span>✂️ Cắt <span id="sort-icon-Cắt"></span></span>
+                                    <div id="pending-Cắt" class="hidden"></div>
+                                </div>
+                            </th>
+                            <th onclick="toggleSort('Molding')" id="th-Molding"
                                 class="p-3 text-center font-bold text-blue-700 border-b-2 border-r min-w-[180px] bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors">
-                                🔨 Molding <span id="sort-icon-Molding"></span></th>
-                            <th onclick="toggleSort('DC')"
+                                <div class="flex flex-col items-center">
+                                    <span>🔨 Molding <span id="sort-icon-Molding"></span></span>
+                                    <div id="pending-Molding" class="hidden"></div>
+                                </div>
+                            </th>
+                            <th onclick="toggleSort('DC')" id="th-DC"
                                 class="p-3 text-center font-bold text-purple-700 border-b-2 border-r min-w-[180px] bg-purple-50 cursor-pointer hover:bg-purple-100 transition-colors">
-                                🏭 DC <span id="sort-icon-DC"></span></th>
-                            <th onclick="toggleSort('Molded')"
+                                <div class="flex flex-col items-center">
+                                    <span>🏭 DC <span id="sort-icon-DC"></span></span>
+                                    <div id="pending-DC" class="hidden"></div>
+                                </div>
+                            </th>
+                            <th onclick="toggleSort('Molded')" id="th-Molded"
                                 class="p-3 text-center font-bold text-pink-700 border-b-2 min-w-[180px] bg-pink-50 border-r cursor-pointer hover:bg-pink-100 transition-colors">
-                                🎯 Molded <span id="sort-icon-Molded"></span></th>
+                                <div class="flex flex-col items-center">
+                                    <span>🎯 Molded <span id="sort-icon-Molded"></span></span>
+                                    <div id="pending-Molded" class="hidden"></div>
+                                </div>
+                            </th>
                             <th class="p-3 text-center border-b-2 min-w-[140px] bg-gray-100 relative group/header overflow-hidden"
                                 id="th-finish-date">
                                 <div onclick="toggleSort('finish_date')"
@@ -360,6 +401,29 @@
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script type="module" src="./supabaseClient.js"></script>
     <script type="module" src="./supplement-monitor.js"></script>
+    <!-- Pending Orders Modal -->
+    <div id="pending-modal" class="fixed inset-0 bg-black/60 z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all">
+            <div class="bg-red-600 p-4 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <span>⏳ Danh Sách Đơn Cần Scan In</span>
+                    <span id="pending-modal-title" class="bg-white/20 px-2 py-0.5 rounded text-sm uppercase italic"></span>
+                </h3>
+                <button onclick="document.getElementById('pending-modal').classList.add('hidden')"
+                    class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
+            </div>
+            <div class="p-6">
+                <div id="pending-modal-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <!-- List items will be injected here -->
+                </div>
+            </div>
+            <div class="p-4 bg-gray-50 border-t flex justify-end">
+                <button onclick="document.getElementById('pending-modal').classList.add('hidden')"
+                    class="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl font-bold text-gray-700 transition">Đóng</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Stats Modal -->
     <div id="stats-modal" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-2 sm:p-4">
         <div
