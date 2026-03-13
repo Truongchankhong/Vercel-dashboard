@@ -93,12 +93,9 @@ const lastUpdatedEl = document.getElementById('lastPushTime');
 const lastLaminationEl = document.getElementById('lastLaminationTime');
 
 // --- Helper: Format Excel Serial Date to DD/MM/YYYY HH:mm:ss ---
-function formatExcelDateTime(serial) {
-  if (!serial || isNaN(serial) || serial <= 0) return "Chưa có dữ liệu";
-  const base = new Date(1899, 11, 30);
-  const msPerDay = 86400000;
-  const date = new Date(base.getTime() + serial * msPerDay);
-
+// --- Helper: Format Date object to DD/MM/YYYY HH:mm:ss ---
+function formatDateToString(date) {
+  if (!date || isNaN(date.getTime())) return "Chưa có dữ liệu";
   const pad = (n) => String(n).padStart(2, '0');
   const d = pad(date.getDate());
   const m = pad(date.getMonth() + 1);
@@ -106,8 +103,16 @@ function formatExcelDateTime(serial) {
   const h = pad(date.getHours());
   const min = pad(date.getMinutes());
   const s = pad(date.getSeconds());
-
   return `${d}/${m}/${y} ${h}:${min}:${s}`;
+}
+
+// --- Helper: Format Excel Serial Date to DD/MM/YYYY HH:mm:ss ---
+function formatExcelDateTime(serial) {
+  if (!serial || isNaN(serial) || serial <= 0) return "Chưa có dữ liệu";
+  const base = new Date(1899, 11, 30);
+  const msPerDay = 86400000;
+  const date = new Date(base.getTime() + serial * msPerDay);
+  return formatDateToString(date);
 }
 
 // --- Fetch Last Update Time ---
@@ -132,7 +137,7 @@ async function fetchLastPushTime() {
       // This is a string in format "yyyy-MM-dd HH:mm:ss" from PowerShell
       const dateStr = pushData[0]['Finish date'];
       const date = new Date(dateStr);
-      lastUpdatedEl.textContent = date.toLocaleString('vi-VN');
+      lastUpdatedEl.textContent = formatDateToString(date);
     } else {
       lastUpdatedEl.textContent = "Chưa có dữ liệu";
       console.warn("No metadata record found with STT=-1");
