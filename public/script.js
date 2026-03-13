@@ -7,11 +7,46 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 export const supabase = createClient(supabaseUrl, supabaseKey);
 window.supabaseClient = supabase;
 
+// --- Loading Helpers ---
+const loadingOverlay = document.getElementById('loading-overlay');
+const progressBarFill = document.getElementById('progress-bar-fill');
+const loadingPercentage = document.getElementById('loading-percentage');
+const loadingSubtext = document.getElementById('loading-subtext');
+
+function updateLoading(percent, text) {
+  if (progressBarFill) progressBarFill.style.width = `${percent}%`;
+  if (loadingPercentage) loadingPercentage.textContent = Math.round(percent);
+  if (loadingSubtext && text) loadingSubtext.textContent = text;
+}
+
+function showLoading(initialText = 'Đang chuẩn bị kết nối dữ liệu...') {
+  if (loadingOverlay) {
+    loadingOverlay.classList.remove('hidden');
+    updateLoading(0, initialText);
+  }
+}
+
+function hideLoading() {
+  updateLoading(100, 'Tải dữ liệu hoàn tất!');
+  setTimeout(() => {
+    if (loadingOverlay) loadingOverlay.classList.add('hidden');
+  }, 500);
+}
+
 // --- Helper: Fetch all data from Supabase (pagination) ---
 async function fetchAllPowerAppData() {
   let allRows = [];
   let from = 0;
   const step = 1000;
+  
+  // Get total count first for progress calculation
+  const { count, error: countError } = await supabase
+    .from('powerapp')
+    .select('*', { count: 'exact', head: true });
+  
+  if (countError) console.error('Count error:', countError);
+  const totalItems = count || 5000; // Fallback
+
   // OPTIMIZED: Select only needed columns for dashboard views (with Aliases for mismatched names)
   const selectCols = [
     '"STT"', '"PRO ODER"', '"Total Qty"', '"Finish date"',
@@ -38,10 +73,15 @@ async function fetchAllPowerAppData() {
     if (!data || data.length === 0) break;
 
     allRows = allRows.concat(data);
+    
+    // Update progress
+    const percent = Math.min(90, (allRows.length / totalItems) * 100);
+    updateLoading(percent, `Đang tải: ${allRows.length} / ${totalItems} dòng...`);
 
     if (data.length < step) break;
     from += step;
   }
+  updateLoading(95, 'Đang xử lý dữ liệu...');
   return { data: allRows };
 }
 
@@ -305,12 +345,14 @@ function hideProgressAdvancedFilter() {
 // --- SUMMARY VIEW (tổng hợp máy) ---
 // -----------------------------------
 async function loadSummary() {
+  showLoading('Đang tải dữ liệu Summary...');
   hideAllViews();
   selectedSection = 'LAMINATION';
   renderSectionButtons();
   await renderSummarySection();
   currentView = 'summary';
   currentMachine = null;
+  hideLoading();
 }
 
 
@@ -334,6 +376,7 @@ async function loadProgress() {
 }
 
 async function searchProgress() {
+  showLoading('Đang tìm kiếm tiến trình...');
   setBtnLoading(progressBtnSearch, true);
   container.innerHTML = '';
   hideDetails();
@@ -466,6 +509,7 @@ async function searchProgress() {
     container.innerHTML = `<div class="text-red-500 text-center py-4">Lỗi tìm tiến trình</div>`;
   } finally {
     setBtnLoading(progressBtnSearch, false);
+    hideLoading();
   }
 }
 
@@ -611,6 +655,7 @@ async function loadDetailsClient(
   rememberedField = 'ALL',
   rememberedKeyword = ''
 ) {
+  showLoading(`Đang tải chi tiết cho máy ${machine}...`);
   currentView = 'detail';
   currentMachine = machine;
 
@@ -759,9 +804,8 @@ async function loadDetailsClient(
       loadDetailsClient(machine, false, rememberedField, '');
     });
 
-  } catch (err) {
-    console.error('DETAILS LOAD ERROR:', err);
-    detailsContainer.innerHTML = `<div class="text-red-500 text-center py-4">Lỗi tải dữ liệu</div>`;
+  } finally {
+    hideLoading();
   }
 }
 
@@ -817,7 +861,7 @@ function getDelayUrgentQty(machine, data) {
 }
 
 async function renderSummarySection() {
-  setBtnLoading(btnSummary, true);
+  // loading is handled by loadSummary
   hideDetails();
   hideProgressSearchBar();
   container.innerHTML = '';
@@ -899,7 +943,7 @@ async function renderSummarySection() {
     console.error('[renderSummarySection error]', err);
     container.innerHTML = `<div class="text-red-500 py-4">⚠️ Lỗi tải dữ liệu section</div>`;
   } finally {
-    setBtnLoading(btnSummary, false);
+    // hideLoading is handled by loadSummary
   }
 }
 
@@ -991,6 +1035,7 @@ function formatExcelDate(serial) {
 }
 
 async function loadDelayUrgentData(type) {
+  showLoading(`Đang tải dữ liệu ${type === 'DELAY' ? 'Delay' : 'Xuất gấp'}...`);
   const btn = document.getElementById('delayBtnSearch');
   if (btn) setBtnLoading(btn, true);
   try {
@@ -1074,6 +1119,7 @@ async function loadDelayUrgentData(type) {
     document.getElementById('table-container').innerHTML = '<div class="text-red-500 p-4">Không tải được dữ liệu</div>';
   } finally {
     if (btn) setBtnLoading(btn, false);
+    hideLoading();
   }
 }
 
