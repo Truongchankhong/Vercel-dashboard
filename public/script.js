@@ -948,7 +948,7 @@ async function renderSummarySection() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  loadSummary();
+  showWelcome();
   fetchLastPushTime();
   btnSummary.addEventListener('click', loadSummary);
   btnProgress.addEventListener('click', loadProgress);
@@ -1025,6 +1025,28 @@ function hideAllViews() {
   document.getElementById('progress-search-bar').classList.add('hidden');
   document.getElementById('progress-advanced-filter').classList.add('hidden');
   document.querySelectorAll('#basic-search-title, #advanced-search-title, #delay-tabs, #delay-basic-search-title, #delay-advanced-search-title, #delay-search-bar, #delay-advanced-filter').forEach(el => el.classList.add('hidden'));
+}
+
+function showWelcome() {
+  hideAllViews();
+  currentView = 'welcome';
+  const container = document.getElementById('table-container');
+  if (container) {
+    container.innerHTML = `
+      <div class="flex flex-col items-center justify-center p-20 text-center space-y-4">
+        <div class="bg-blue-100 p-6 rounded-full inline-block mb-4">
+          <span class="text-6xl">👋</span>
+        </div>
+        <h1 class="text-4xl font-black text-gray-800 tracking-tight">Xin chào bạn!</h1>
+        <p class="text-xl text-gray-500 max-w-md">Chào mừng bạn quay lại hệ thống Dashboard. Vui lòng chọn một mục ở thanh menu phía trên để bắt đầu làm việc.</p>
+        <div class="flex gap-4 mt-8 opacity-50">
+          <div class="h-1 w-12 bg-blue-500 rounded-full"></div>
+          <div class="h-1 w-12 bg-purple-500 rounded-full"></div>
+          <div class="h-1 w-12 bg-red-500 rounded-full"></div>
+        </div>
+      </div>
+    `;
+  }
 }
 
 function formatExcelDate(serial) {
