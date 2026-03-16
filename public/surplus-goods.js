@@ -239,6 +239,12 @@ function setupEventListeners() {
 
     // Molding Auto-Suggest PU & Fabric based on Mold
     const moldingMoldInput = document.getElementById('molding-mold-input');
+    const moldingPuInput = document.getElementById('molding-pu-input');
+    const moldingFbInput = document.getElementById('molding-fb-input');
+    
+    let cachedMoldingPu = [];
+    let cachedMoldingFb = [];
+
     if (moldingMoldInput) {
         moldingMoldInput.addEventListener('input', debounce(async (e) => {
             const moldValue = e.target.value.trim();
@@ -256,18 +262,46 @@ function setupEventListeners() {
                     (paRes.data || []).forEach(d => { if (d.PU) puSet.add(d.PU); if (d.FB) fbSet.add(d.FB); });
                     (mdRes.data || []).forEach(d => { if (d.PU) puSet.add(d.PU); if (d.FB) fbSet.add(d.FB); });
 
-                    renderCustomDropdown('molding-pu-input', 'molding-pu-suggestions', Array.from(puSet));
-                    renderCustomDropdown('molding-fb-input', 'molding-fb-suggestions', Array.from(fbSet));
+                    cachedMoldingPu = Array.from(puSet);
+                    cachedMoldingFb = Array.from(fbSet);
 
                 } catch (err) {
                     console.error("Error fetching molding suggestions:", err);
                 }
             } else {
                 // Clear suggestions if too short
-                renderCustomDropdown('molding-pu-input', 'molding-pu-suggestions', []);
-                renderCustomDropdown('molding-fb-input', 'molding-fb-suggestions', []);
+                cachedMoldingPu = [];
+                cachedMoldingFb = [];
             }
         }, 500));
+    }
+    
+    if (moldingPuInput) {
+        moldingPuInput.addEventListener('focus', () => {
+             if (cachedMoldingPu.length > 0) {
+                 renderCustomDropdown('molding-pu-input', 'molding-pu-suggestions', cachedMoldingPu);
+             }
+        });
+        moldingPuInput.addEventListener('input', () => {
+             if (window._isSubmittingDropdown) return;
+             const val = moldingPuInput.value.trim().toLowerCase();
+             const filtered = cachedMoldingPu.filter(x => x.toLowerCase().includes(val));
+             renderCustomDropdown('molding-pu-input', 'molding-pu-suggestions', filtered);
+        });
+    }
+    
+    if (moldingFbInput) {
+        moldingFbInput.addEventListener('focus', () => {
+             if (cachedMoldingFb.length > 0) {
+                 renderCustomDropdown('molding-fb-input', 'molding-fb-suggestions', cachedMoldingFb);
+             }
+        });
+        moldingFbInput.addEventListener('input', () => {
+             if (window._isSubmittingDropdown) return;
+             const val = moldingFbInput.value.trim().toLowerCase();
+             const filtered = cachedMoldingFb.filter(x => x.toLowerCase().includes(val));
+             renderCustomDropdown('molding-fb-input', 'molding-fb-suggestions', filtered);
+        });
     }
 
     // MSNV Modal Events
