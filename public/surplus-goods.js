@@ -1556,11 +1556,13 @@ async function loadHistory() {
                                             <span class="text-[10px] font-bold text-slate-400">${new Date(item.created_at).toLocaleDateString('vi-VN')}</span>
                                         </div>
                                         <div class="flex justify-between items-end">
-                                            <div>
+                                            <div class="space-y-0.5 overflow-hidden pr-2">
                                                 <p class="text-xs font-bold text-slate-700">BOM: ${item.bom || '-'}</p>
+                                                <p class="text-[10px] text-teal-700 font-semibold truncate" title="${item.pu || '-'}">PU: ${item.pu || '-'}</p>
+                                                <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${item.fabric || '-'}">FB: ${item.fabric || '-'}</p>
                                                 <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
                                             </div>
-                                            <div class="text-right">
+                                            <div class="text-right flex-shrink-0">
                                                 <span class="text-lg font-black text-slate-800">${total}</span>
                                                 <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">đôi dôi</span>
                                             </div>
@@ -1663,11 +1665,15 @@ async function loadHistory() {
                     <span class="text-[10px] font-bold text-slate-400">${new Date(item.created_at).toLocaleDateString('vi-VN')}</span>
                 </div>
                 <div class="flex justify-between items-end">
-                    <div>
+                    <div class="space-y-0.5 overflow-hidden pr-2">
                         <p class="text-xs font-bold text-slate-700">BOM: ${item.bom || '-'}</p>
+                        ${item.section === 'MOLDING' || item.section === 'Molding' ? `
+                        <p class="text-[10px] text-teal-700 font-semibold truncate" title="${item.pu || '-'}">PU: ${item.pu || '-'}</p>
+                        <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${item.fabric || '-'}">FB: ${item.fabric || '-'}</p>
+                        ` : ''}
                         <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
                     </div>
-                    <div class="text-right">
+                    <div class="text-right flex-shrink-0">
                         <span class="text-lg font-black text-slate-800">${total}</span>
                         <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">đôi dôi</span>
                     </div>
