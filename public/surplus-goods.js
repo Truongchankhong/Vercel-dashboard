@@ -237,6 +237,39 @@ function setupEventListeners() {
         input.addEventListener('blur', checkDuplicateDebounced);
     });
 
+    // Molding Auto-Suggest PU & Fabric based on Mold
+    const moldingMoldInput = document.getElementById('molding-mold-input');
+    if (moldingMoldInput) {
+        moldingMoldInput.addEventListener('input', debounce(async (e) => {
+            const moldValue = e.target.value.trim();
+            if (moldValue.length >= 4) { // Trigger reasonable length
+                try {
+                    // Fetch from both sources
+                    const [paRes, mdRes] = await Promise.all([
+                        supabase.from('powerapp').select('"PU", "FB"').ilike('"#MOLD"', `%${moldValue}%`).limit(20),
+                        supabase.from('Masterdata').select('"PU", "FB"').ilike('"#MOLD"', `%${moldValue}%`).limit(20)
+                    ]);
+
+                    const puSet = new Set();
+                    const fbSet = new Set();
+
+                    (paRes.data || []).forEach(d => { if (d.PU) puSet.add(d.PU); if (d.FB) fbSet.add(d.FB); });
+                    (mdRes.data || []).forEach(d => { if (d.PU) puSet.add(d.PU); if (d.FB) fbSet.add(d.FB); });
+
+                    renderCustomDropdown('molding-pu-input', 'molding-pu-suggestions', Array.from(puSet));
+                    renderCustomDropdown('molding-fb-input', 'molding-fb-suggestions', Array.from(fbSet));
+
+                } catch (err) {
+                    console.error("Error fetching molding suggestions:", err);
+                }
+            } else {
+                // Clear suggestions if too short
+                renderCustomDropdown('molding-pu-input', 'molding-pu-suggestions', []);
+                renderCustomDropdown('molding-fb-input', 'molding-fb-suggestions', []);
+            }
+        }, 500));
+    }
+
     // MSNV Modal Events
     const btnMsnvOk = document.getElementById('btn-msnv-ok');
     const btnMsnvCancel = document.getElementById('btn-msnv-cancel');
@@ -322,13 +355,14 @@ window.selectDropdownItem = function (inputId, dropdownId, value) {
 
 // Hide dropdowns when clicking outside
 document.addEventListener('click', (e) => {
-    ['rpro-suggestions', 'pu-suggestions', 'fb-suggestions'].forEach(id => {
+    ['rpro-suggestions', 'pu-suggestions', 'fb-suggestions', 'molding-pu-suggestions', 'molding-fb-suggestions'].forEach(id => {
         const dd = document.getElementById(id);
-        const input = document.getElementById(id.replace('-suggestions', '-input').replace('pu-', 'info-pu').replace('fb-', 'info-fabric')); // Simplified mapping
         let relatedInput = null;
         if (id === 'rpro-suggestions') relatedInput = document.getElementById('rpro-input');
         if (id === 'pu-suggestions') relatedInput = document.getElementById('info-pu');
         if (id === 'fb-suggestions') relatedInput = document.getElementById('info-fabric');
+        if (id === 'molding-pu-suggestions') relatedInput = document.getElementById('molding-pu-input');
+        if (id === 'molding-fb-suggestions') relatedInput = document.getElementById('molding-fb-input');
 
         if (dd && !dd.contains(e.target) && relatedInput && !relatedInput.contains(e.target)) {
             dd.classList.add('hidden');
