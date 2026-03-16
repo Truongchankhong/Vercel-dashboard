@@ -1464,7 +1464,7 @@ async function loadHistory() {
     const cleanMatches = rproMatches ? rproMatches.map(m => m.replace(/[^A-Z0-9]/g, "").toUpperCase()) : [];
 
     // OPTIMIZED: Select only needed columns for history list
-    const historyColumns = 'id,rpro,section,created_at,bom,mold,pu,fabric,dynamic_sizes,size_3,size_3_5,size_4,size_4_5,size_5,size_5_5,size_6,size_6_5,size_7,size_7_5,size_8,size_8_5,size_9,size_9_5,size_10,size_10_5,size_11,size_11_5,size_12,size_12_5,size_13,size_13_5,size_14,size_14_5,size_15';
+    const historyColumns = 'id,rpro,section,created_at,bom,mold,pu,fabric,pu_code,fb_code,dynamic_sizes,size_3,size_3_5,size_4,size_4_5,size_5,size_5_5,size_6,size_6_5,size_7,size_7_5,size_8,size_8_5,size_9,size_9_5,size_10,size_10_5,size_11,size_11_5,size_12,size_12_5,size_13,size_13_5,size_14,size_14_5,size_15';
     let query = supabase.from('surplusgoods').select(historyColumns).order('created_at', { ascending: false });
 
     if (activeSection && !isSearchAll) {
@@ -1558,8 +1558,8 @@ async function loadHistory() {
                                         <div class="flex justify-between items-end">
                                             <div class="space-y-0.5 overflow-hidden pr-2">
                                                 <p class="text-xs font-bold text-slate-700">BOM: ${item.bom || '-'}</p>
-                                                <p class="text-[10px] text-teal-700 font-semibold truncate" title="${item.pu || '-'}">PU: ${item.pu || '-'}</p>
-                                                <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${item.fabric || '-'}">FB: ${item.fabric || '-'}</p>
+                                                <p class="text-[10px] text-teal-700 font-semibold truncate" title="${puMap[item.pu_code || item.pu] || item.pu || '-'}">PU: ${puMap[item.pu_code || item.pu] || item.pu || '-'}</p>
+                                                <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}">FB: ${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}</p>
                                                 <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
                                             </div>
                                             <div class="text-right flex-shrink-0">
@@ -1645,6 +1645,34 @@ async function loadHistory() {
         return;
     }
 
+    // Lookup PU and Fabric Descriptions based on codes for the current view
+    const puCodes = [...new Set(filtered.map(i => i.pu_code || i.pu).filter(c => c))];
+    const fbCodes = [...new Set(filtered.map(i => i.fb_code || i.fabric).filter(c => c))];
+    const puMap = {};
+    const fbMap = {};
+
+    if (puCodes.length > 0) {
+        const { data: paPu } = await supabase.from('powerapp').select('"PU", "PU DESCRIPTION"').in('PU', puCodes);
+        if (paPu) paPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
+        
+        const missingPu = puCodes.filter(c => !puMap[c]);
+        if (missingPu.length > 0) {
+            const { data: mdPu } = await supabase.from('Masterdata').select('"PU", "PU DESCRIPTION"').in('PU', missingPu);
+            if (mdPu) mdPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
+        }
+    }
+
+    if (fbCodes.length > 0) {
+        const { data: paFb } = await supabase.from('powerapp').select('"FB", "FB DESCRIPTION"').in('FB', fbCodes);
+        if (paFb) paFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
+        
+        const missingFb = fbCodes.filter(c => !fbMap[c]);
+        if (missingFb.length > 0) {
+            const { data: mdFb } = await supabase.from('Masterdata').select('"FB", "FB DESCRIPTION"').in('FB', missingFb);
+            if (mdFb) mdFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
+        }
+    }
+
     historyList.innerHTML = filtered.map(item => {
         // Calculate total qty
         let total = 0;
@@ -1668,8 +1696,8 @@ async function loadHistory() {
                     <div class="space-y-0.5 overflow-hidden pr-2">
                         <p class="text-xs font-bold text-slate-700">BOM: ${item.bom || '-'}</p>
                         ${item.section === 'MOLDING' || item.section === 'Molding' ? `
-                        <p class="text-[10px] text-teal-700 font-semibold truncate" title="${item.pu || '-'}">PU: ${item.pu || '-'}</p>
-                        <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${item.fabric || '-'}">FB: ${item.fabric || '-'}</p>
+                        <p class="text-[10px] text-teal-700 font-semibold truncate" title="${puMap[item.pu_code || item.pu] || item.pu || '-'}">PU: ${puMap[item.pu_code || item.pu] || item.pu || '-'}</p>
+                        <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}">FB: ${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}</p>
                         ` : ''}
                         <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
                     </div>
