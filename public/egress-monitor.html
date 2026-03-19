@@ -97,7 +97,7 @@
 
             <!-- Pages Tab -->
             <div id="content-pages" class="hidden">
-                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-8">
                     <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
                         🛡️ BẬT/TẮT TÍNH NĂNG HỆ THỐNG
                     </h3>
@@ -106,6 +106,22 @@
                         <div class="animate-pulse bg-slate-100 h-24 rounded-2xl"></div>
                         <div class="animate-pulse bg-slate-100 h-24 rounded-2xl"></div>
                         <div class="animate-pulse bg-slate-100 h-24 rounded-2xl"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+                    <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                        🔑 VÙNG ĐỔI MẬT KHẨU
+                    </h3>
+                    <div class="max-w-md">
+                        <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Mật khẩu mới</p>
+                        <div class="flex gap-2">
+                            <input type="password" id="new-admin-pass" class="flex-1 border-2 border-slate-100 p-3 rounded-xl focus:border-indigo-500 outline-none font-bold" placeholder="Nhập pass mới...">
+                            <button onclick="updatePassword()" class="px-6 py-2 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition active:scale-95 shadow-lg shadow-rose-100">
+                                CẬP NHẬT
+                            </button>
+                        </div>
+                        <p class="text-slate-400 text-[10px] mt-2 italic">⚠️ Lưu ý: Sau khi đổi, bạn sẽ phải đăng nhập lại với mật khẩu mới.</p>
                     </div>
                 </div>
             </div>
@@ -304,6 +320,29 @@
             else showToast(`Page ${id.replace('status_', '')} is now ${newValue}`);
         }
         window.togglePage = togglePage;
+
+        async function updatePassword() {
+            const newPass = document.getElementById('new-admin-pass').value;
+            if (!newPass || newPass.length < 4) {
+                alert("Mật khẩu phải dài ít nhất 4 ký tự!");
+                return;
+            }
+
+            if(!confirm("Bạn có chắc chắn muốn đổi mật khẩu? Bạn sẽ phải đăng nhập lại sau đó.")) return;
+
+            const { error } = await supabase
+                .from('system_config')
+                .update({ value: newPass })
+                .eq('id', 'admin_password');
+
+            if (error) {
+                alert("Lỗi khi cập nhật mật khẩu: " + error.message);
+            } else {
+                showToast("Đã đổi mật khẩu thành công!");
+                setTimeout(() => logout(), 1500);
+            }
+        }
+        window.updatePassword = updatePassword;
 
         function showToast(msg) {
             const toast = document.getElementById('toast');
