@@ -1298,27 +1298,43 @@ function initStatsCharts(statsData) {
         }
     });
 
-    // 4. Brand breakdown
-    const brandLabels = statsData.topBrands.map(b => b.brand || 'N/A');
-    monitorCharts.brandPie = new Chart(document.getElementById('chart-brand-pie'), {
-        type: 'doughnut',
+    // 5. Avg Transfer Speed Chart
+    const avgLatencyLabels = ['Dán → Cắt', 'Cắt → Molding', 'Molding → DC', 'Molding → Molded'];
+    const avgLatencyData = [
+        statsData.latencies['Cắt'].count > 0 ? (statsData.latencies['Cắt'].total / statsData.latencies['Cắt'].count).toFixed(1) : 0,
+        statsData.latencies['Molding'].count > 0 ? (statsData.latencies['Molding'].total / statsData.latencies['Molding'].count).toFixed(1) : 0,
+        statsData.latencies['DC'].count > 0 ? (statsData.latencies['DC'].total / statsData.latencies['DC'].count).toFixed(1) : 0,
+        statsData.latencies['Molded'].count > 0 ? (statsData.latencies['Molded'].total / statsData.latencies['Molded'].count).toFixed(1) : 0
+    ];
+
+    monitorCharts.avgTransfer = new Chart(document.getElementById('chart-avg-transfer'), {
+        type: 'bar',
         data: {
-            labels: brandLabels,
+            labels: avgLatencyLabels,
             datasets: [{
-                data: statsData.topBrands.map(b => b.count),
-                backgroundColor: ['#f87171', '#fbbf24', '#34d399', '#60a5fa', '#818cf8']
+                label: 'Trung bình Giờ',
+                data: avgLatencyData,
+                backgroundColor: ['#6366f1', '#22c55e', '#a855f7', '#ec4899'],
+                borderRadius: 8
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'bottom' }
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    formatter: (v) => v > 0 ? v + 'h' : '',
+                    font: { weight: 'bold' }
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: 'Số giờ trung bình' } }
             }
         }
     });
-}
-
 async function showStats() {
     statsModal.classList.remove('hidden');
 
@@ -1332,6 +1348,15 @@ async function showStats() {
     sections.forEach(s => {
         stats.sections[s] = { processing: 0, completed: 0 };
     });
+
+    const connections = {
+        'Cắt': 'Dán',
+        'Molding': 'Cắt',
+        'DC': 'Molding',
+        'Molded': 'Molding'
+    };
+    stats.latencies = {};
+    Object.keys(connections).forEach(k => stats.latencies[k] = { total: 0, count: 0 });
 
     progressData.forEach(item => {
         // 1. Basic counts
@@ -1349,22 +1374,26 @@ async function showStats() {
         stats.brands[b] = (stats.brands[b] || 0) + 1;
 
         // 3. Transfer Latency Calculation
-        let maxWait = 0;
-        for (let i = 0; i < sections.length - 1; i++) {
-            const currentStage = item.stages[sections[i]];
-            const nextStage = item.stages[sections[i + 1]];
+        let orderMaxWait = 0;
+        for (const [curr, prev] of Object.entries(connections)) {
+            const prevStage = item.stages[prev];
+            const currStage = item.stages[curr];
 
-            if (currentStage.out && nextStage.in) {
-                const outTime = new Date(currentStage.out.time);
-                const inTime = new Date(nextStage.in.time);
+            if (prevStage && prevStage.out && currStage && currStage.in) {
+                const outTime = new Date(prevStage.out.time);
+                const inTime = new Date(currStage.in.time);
                 const diffHours = (inTime - outTime) / (1000 * 60 * 60);
 
-                if (diffHours > maxWait) maxWait = diffHours;
+                if (diffHours > 0) {
+                    stats.latencies[curr].total += diffHours;
+                    stats.latencies[curr].count++;
+                    if (diffHours > orderMaxWait) orderMaxWait = diffHours;
+                }
             }
         }
 
-        if (maxWait > 0) {
-            stats.topLatencies.push({ rpro: item.rpro, maxWait: maxWait });
+        if (orderMaxWait > 0) {
+            stats.topLatencies.push({ rpro: item.rpro, maxWait: orderMaxWait });
         }
     });
 
