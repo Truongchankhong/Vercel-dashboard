@@ -1335,6 +1335,8 @@ function initStatsCharts(statsData) {
             }
         }
     });
+}
+
 async function showStats() {
     statsModal.classList.remove('hidden');
 
