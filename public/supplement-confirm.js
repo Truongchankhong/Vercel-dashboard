@@ -134,6 +134,7 @@ function renderTable() {
       <td class="px-4 py-2 border text-[12px]">${new Date(row.created_at).toLocaleString('vi-VN')}</td>
       <td class="px-4 py-2 border font-mono text-[12px] font-bold sticky left-0 z-10 drop-shadow-sm ${isSelected ? 'bg-blue-50' : 'bg-white'}">${row.rpro}</td>
       <td class="px-4 py-2 border text-[12px]">${row.pu || ''}</td>
+      <td class="px-4 py-2 border text-[12px]">${row.fb || ''}</td>
       <td class="px-4 py-2 border text-[12px]">${row.fabric || ''}</td>
       <td class="px-4 py-2 border">
         <input type="number" min="0" 
@@ -454,7 +455,8 @@ async function exportToExcel() {
       'Gender': r.gender || '',
       'Mold': r.mold || '',
       'PU': r.pu || '',
-      'Fabric': r.fabric || '',
+      'Mã Vải': r.fb || '',
+      'Tên Vải': r.fabric || '',
       'BOM': r.bom || '',
       'Qty': r.total,
       'Số tấm': r.so_tam || '',
@@ -603,6 +605,7 @@ function mapTableToSupplement(rec, remarkValue) {
     gender: (rec['Giới tính'] || rec['GENDER'] || '').trim(),
     mold: rec['Mã Khuôn'] || rec['#MOLD'] || '',
     pu: rec['Mã dao'] || rec['PU'] || '',
+    fb: rec['FB'] || '',
     fabric: rec['Tên vải'] || rec['FB DESCRIPTION'] || '',
     bom: rec['BOM'] || '',
     total: 0, // Default to 0 so user can enter manually

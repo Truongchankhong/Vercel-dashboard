@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS public.supplement_confirm (
     gender text,
     mold text,
     pu text,
+    fb text,
     fabric text,
     bom text,
     total numeric DEFAULT 0,
