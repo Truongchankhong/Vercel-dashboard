@@ -973,11 +973,32 @@ async function renderSummarySection() {
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   showWelcome();
   fetchLastPushTime();
-  btnSummary.addEventListener('click', loadSummary);
-  btnProgress.addEventListener('click', loadProgress);
+  
+  // Check if Summary View is enabled before loading it by default (if we wanted to load it)
+  // Currently it loads showWelcome() by default, which is safe.
+  // But let's verify if any button clicks should be blocked here too just in case.
+  
+  btnSummary.addEventListener('click', async () => {
+    const { data } = await supabase.from('system_config').select('value').eq('id', 'status_view_summary').single();
+    if (data && data.value === 'OFF') {
+      alert("Tính năng này đã bị khóa bởi Admin.");
+      return;
+    }
+    loadSummary();
+  });
+
+  btnProgress.addEventListener('click', async () => {
+    const { data } = await supabase.from('system_config').select('value').eq('id', 'status_view_progress').single();
+    if (data && data.value === 'OFF') {
+      alert("Tính năng này đã bị khóa bởi Admin.");
+      return;
+    }
+    loadProgress();
+  });
+
   btnRefresh.addEventListener('click', () => window.location.reload());
   progressBtnSearch.addEventListener('click', searchProgress);
   progressBtnClear.addEventListener('click', clearProgressSearch);
