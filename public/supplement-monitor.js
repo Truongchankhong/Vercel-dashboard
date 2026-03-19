@@ -38,6 +38,8 @@ let currentSort = { column: 'last_updated', direction: 'desc' }; // Default sort
 let moldFilter = ""; // State for Mold search
 const stageSequence = ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'];
 let pendingListStore = {}; // Global store for pending RPROs per stage
+let activePendingStage = null; // Currently viewed stage in pending modal
+const pendingSearchInput = document.getElementById('pending-search-input');
 
 // Loading State Elements
 const loadingOverlay = document.getElementById('loading-overlay');
@@ -420,19 +422,40 @@ function updatePendingCounts() {
 }
 
 window.openPendingModal = (stage) => {
-    const list = pendingListStore[stage] || [];
-    if (list.length === 0) return;
-
+    activePendingStage = stage;
     const modal = document.getElementById('pending-modal');
     const title = document.getElementById('pending-modal-title');
-    const listContainer = document.getElementById('pending-modal-list');
+    
+    // Reset search
+    if (pendingSearchInput) pendingSearchInput.value = '';
 
     title.textContent = stage;
-    
+    renderPendingList();
+    modal.classList.remove('hidden');
+    if (pendingSearchInput) pendingSearchInput.focus();
+};
+
+function renderPendingList() {
+    const listContainer = document.getElementById('pending-modal-list');
+    if (!listContainer || !activePendingStage) return;
+
+    const list = pendingListStore[activePendingStage] || [];
+    const filterText = (pendingSearchInput ? pendingSearchInput.value : '').toUpperCase().trim();
+
     // Sort by previous stage out time (oldest first)
     const sorted = [...list].sort((a, b) => new Date(a.prevTime) - new Date(b.prevTime));
+    
+    // Filter
+    const filtered = sorted.filter(item => 
+        item.rpro.toUpperCase().includes(filterText) || (item.mold && item.mold.toUpperCase().includes(filterText))
+    );
 
-    listContainer.innerHTML = sorted.map(item => `
+    if (filtered.length === 0) {
+        listContainer.innerHTML = `<div class="p-8 text-center text-gray-400 font-bold italic">Không tìm thấy đơn nào phù hợp...</div>`;
+        return;
+    }
+
+    listContainer.innerHTML = filtered.map(item => `
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 border border-gray-100 rounded-xl hover:bg-red-50 transition-colors">
             <div class="space-y-1">
                 <div class="flex items-center gap-2">
@@ -455,9 +478,12 @@ window.openPendingModal = (stage) => {
             </div>
         </div>
     `).join('');
+}
 
-    modal.classList.remove('hidden');
-};
+// Add search listener
+if (pendingSearchInput) {
+    pendingSearchInput.addEventListener('input', renderPendingList);
+}
 
 window.toggleSort = (column) => {
     if (currentSort.column === column) {
