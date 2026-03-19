@@ -405,14 +405,40 @@ function updatePendingCounts() {
 
     pendingListStore = pending;
 
+    // Calculate Average Latencies for UI speed display
+    const latencies = { 'Cắt': { total: 0, count: 0 }, 'Molding': { total: 0, count: 0 }, 'Molded': { total: 0, count: 0 } };
+    Object.values(progressMap).forEach(item => {
+        for (const [curr, prev] of Object.entries(connections)) {
+            if (!latencies[curr]) continue;
+            const prevStage = item.stages[prev];
+            const currStage = item.stages[curr];
+            if (prevStage && prevStage.out && currStage) {
+                const currTimeVal = currStage.in ? currStage.in.time : (currStage.out ? currStage.out.time : null);
+                if (currTimeVal) {
+                    const diff = (new Date(currTimeVal) - new Date(prevStage.out.time)) / (1000 * 60 * 60);
+                    if (diff > 0) {
+                        latencies[curr].total += diff;
+                        latencies[curr].count++;
+                    }
+                }
+            }
+        }
+    });
+
     // Update UI headers
     ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'].forEach(stage => {
         const container = document.getElementById(`pending-${stage}`);
         if (!container) return;
 
         const list = pending[stage] || [];
+        const stats = latencies[stage];
+        const avgText = (stats && stats.count > 0) ? `⚡ ${(stats.total / stats.count).toFixed(1)}h` : '';
+
         if (list.length > 0) {
-            container.innerHTML = `<div class="pending-badge" onclick="event.stopPropagation(); window.openPendingModal('${stage}')">⏳ ${list.length} đơn chờ</div>`;
+            container.innerHTML = `
+                <div class="pending-badge" onclick="event.stopPropagation(); window.openPendingModal('${stage}')">⏳ ${list.length} đơn chờ</div>
+                ${avgText ? `<div class="text-[10px] font-black text-blue-600 mt-1 animate-pulse" title="Tốc độ chuyển đổi trung bình">${avgText}</div>` : ''}
+            `;
             container.classList.remove('hidden');
         } else {
             container.innerHTML = '';
