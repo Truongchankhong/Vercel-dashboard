@@ -1381,15 +1381,20 @@ async function showStats() {
             const prevStage = item.stages[prev];
             const currStage = item.stages[curr];
 
-            if (prevStage && prevStage.out && currStage && currStage.in) {
-                const outTime = new Date(prevStage.out.time);
-                const inTime = new Date(currStage.in.time);
-                const diffHours = (inTime - outTime) / (1000 * 60 * 60);
+            if (prevStage && prevStage.out && currStage) {
+                // FALLBACK: If current stage misses Scan IN, use Scan OUT instead (common in Dán/Cắt)
+                const currTimeVal = currStage.in ? currStage.in.time : (currStage.out ? currStage.out.time : null);
+                
+                if (currTimeVal) {
+                    const outTime = new Date(prevStage.out.time);
+                    const inTime = new Date(currTimeVal);
+                    const diffHours = (inTime - outTime) / (1000 * 60 * 60);
 
-                if (diffHours > 0) {
-                    stats.latencies[curr].total += diffHours;
-                    stats.latencies[curr].count++;
-                    if (diffHours > orderMaxWait) orderMaxWait = diffHours;
+                    if (diffHours > 0) {
+                        stats.latencies[curr].total += diffHours;
+                        stats.latencies[curr].count++;
+                        if (diffHours > orderMaxWait) orderMaxWait = diffHours;
+                    }
                 }
             }
         }
