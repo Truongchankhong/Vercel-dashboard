@@ -388,8 +388,9 @@ function updatePendingCounts() {
             const prevData = item.stages[prevStage];
             const currData = item.stages[currStage];
 
-            // PENDING IF: Previous stage has OUT, and Current stage NO IN
-            if (prevData && prevData.out && (!currData || !currData.in)) {
+            // PENDING IF: Previous stage has OUT, and Current stage has NEITHER IN nor OUT
+            const isProcessed = currData && (currData.in || currData.out);
+            if (prevData && prevData.out && !isProcessed) {
                 pending[currStage].push({
                     rpro: item.rpro,
                     mold: item.mold || '-',
