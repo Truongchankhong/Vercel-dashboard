@@ -1,5 +1,9 @@
-// Lấy createClient từ global supabase (đã load bằng <script> trong index.html)
-const { createClient } = window.supabase;
+// Lấy createClient từ global supabase
+const supabaseLib = window.supabase;
+if (!supabaseLib || !supabaseLib.createClient) {
+    console.error("Supabase library not found! (script.js)");
+}
+const { createClient } = supabaseLib;
 
 // Khai báo Supabase (Phải khớp với dự án mới)
 const supabaseUrl = 'https://ixdtdrbytwdmnlqgunzu.supabase.co';
