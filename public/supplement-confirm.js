@@ -548,6 +548,25 @@ async function handleNewRproScan(rawText) {
 
     if (sError) throw sError;
 
+    // PATCH: Tự động vá lỗi thiếu chữ FB (Mã vải) đối với các đơn đã quét từ ngày trước (khi còn lỗi)
+    if (finalRecord && !finalRecord.fb) {
+      console.log(`Tiến hành backfill mã FB cho đơn cũ: ${rpro}...`);
+      let foundFb = '';
+      const { data: pRec } = await supabase.from('powerapp').select('FB').eq('PRO ODER', rpro).maybeSingle();
+      if (pRec && pRec['FB']) {
+        foundFb = pRec['FB'];
+      } else {
+        const { data: mRec } = await supabase.from('Masterdata').select('FB').eq('PRO ODER', rpro).maybeSingle();
+        if (mRec && mRec['FB']) foundFb = mRec['FB'];
+      }
+      
+      if (foundFb) {
+        finalRecord.fb = foundFb;
+        // Chữa cháy vĩnh viễn trong bảng supplement để không bị lỗi lại
+        supabase.from('supplement').update({ fb: foundFb }).eq('rpro', rpro).then();
+      }
+    }
+
     if (!finalRecord) {
       console.log(`🔍 Không thấy ${rpro} trong supplement, chuyển tầng 2: powerapp`);
 
