@@ -47,23 +47,36 @@ async function loadConfirmList() {
 
   if (!from || !to) return;
 
-  const { data, error } = await supabase
+  const searchTerm = (searchRproInput?.value || "").trim().toUpperCase();
+
+  let query = supabase
     .from('supplement_confirm')
     .select('*')
     .gte('created_at', new Date(from).toISOString())
     .lte('created_at', new Date(to).toISOString())
     .order('created_at', { ascending: false });
 
+  // Nếu người dùng có gõ tìm kiếm, dùng DB Query để tìm thẳng luôn thay vì load hết
+  if (searchTerm) {
+      const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, "");
+      query = query.ilike('rpro', `%${cleanSearch}%`);
+  } else {
+      // Chỉ giới hạn 1500 dòng nếu không tìm kiếm, để tránh tốn Egress
+      query = query.limit(1500);
+  }
+
+  const { data, error } = await query;
+
   if (error) {
     console.error('Error fetching confirm list:', error);
     return;
   }
 
-  currentData = data;
-  filteredData = data; // Initially same
+  currentData = data || [];
+  filteredData = [...currentData]; // Initially same
 
   // Calculate Pending Count (Not confirmed yet)
-  const pendingRows = data.filter(r => !r.confirm);
+  const pendingRows = currentData.filter(r => !r.confirm);
   const pendingEl = document.getElementById('pending-count');
   if (pendingEl) pendingEl.innerText = pendingRows.length;
 
@@ -116,6 +129,12 @@ function applySearchAndRender() {
 
 if (searchRproInput) {
   searchRproInput.addEventListener('input', applySearchAndRender);
+  searchRproInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      loadConfirmList();
+    }
+  });
 }
 
 function renderTable() {
@@ -629,16 +648,33 @@ async function fetchStatsData() {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const { data, error } = await supabase
-    .from('supplement_confirm')
-    .select('created_at, confirm, available_supplement, total')
-    .gte('created_at', startOfMonth.toISOString());
+  let allData = [];
+  let fromIndex = 0;
+  const pageSize = 1000;
 
-  if (error) {
-    console.error("Error fetching stats:", error);
-    return [];
+  while (true) {
+    const { data, error } = await supabase
+      .from('supplement_confirm')
+      .select('created_at, confirm, available_supplement, total')
+      .gte('created_at', startOfMonth.toISOString())
+      .range(fromIndex, fromIndex + pageSize - 1);
+
+    if (error) {
+      console.error("Error fetching stats:", error);
+      break;
+    }
+
+    if (data && data.length > 0) {
+      allData = allData.concat(data);
+    }
+
+    if (!data || data.length < pageSize) {
+      break;
+    }
+
+    fromIndex += pageSize;
   }
-  return data;
+  return allData;
 }
 
 function processStats(data) {
