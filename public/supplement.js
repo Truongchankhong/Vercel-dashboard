@@ -133,7 +133,7 @@ async function loadOrderInfo(rpro) {
     // OPTIMIZED: Select only needed columns for supplement entry (Removed non-existent fallback names to prevent 400 Error)
     const sizeKeys = [3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15]
       .map(s => `"${s.toString()}"`).join(',');
-    const orderSelectCols = `"PRO ODER","SO","CUSTOMERS","GENDER","#MOLD","PU","FB DESCRIPTION","BOM",${sizeKeys}`;
+    const orderSelectCols = `"PRO ODER","SO","CUSTOMERS","GENDER","#MOLD","PU","FB","FB DESCRIPTION","BOM",${sizeKeys}`;
 
     const { data: recs, error } = await supabase
       .from('powerapp')
@@ -240,6 +240,7 @@ function renderOrder(rec, existing = null) {
 
   document.getElementById("info-mold").textContent = rec["Mã Khuôn"] || rec["#MOLD"] || "";
   document.getElementById("info-pu").textContent = rec["Mã dao"] || rec["PU"] || "";
+  document.getElementById("info-fb").textContent = rec["FB"] || "";
   document.getElementById("info-fabric").textContent = rec["Tên vải"] || rec["FB DESCRIPTION"] || "";
   document.getElementById("info-bom").textContent = rec["BOM"] || "";
   document.getElementById("order-info").classList.remove("hidden");
@@ -545,6 +546,7 @@ window.addEventListener("DOMContentLoaded", () => {
         gender: genderVal,
         mold: document.getElementById("info-mold").textContent,
         pu: document.getElementById("info-pu").textContent,
+        fb: document.getElementById("info-fb").textContent,
         fabric: document.getElementById("info-fabric").textContent,
         bom: document.getElementById("info-bom").textContent,
         total: Number(document.getElementById("supp-total").textContent) || 0,
