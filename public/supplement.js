@@ -546,7 +546,6 @@ window.addEventListener("DOMContentLoaded", () => {
         gender: genderVal,
         mold: document.getElementById("info-mold").textContent,
         pu: document.getElementById("info-pu").textContent,
-        fb: document.getElementById("info-fb").textContent,
         fabric: document.getElementById("info-fabric").textContent,
         bom: document.getElementById("info-bom").textContent,
         total: Number(document.getElementById("supp-total").textContent) || 0,
