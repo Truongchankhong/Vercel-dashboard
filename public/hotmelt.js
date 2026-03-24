@@ -187,7 +187,7 @@ const TRANSLATIONS = {
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', () => {
-    ELEMENTS.rproInput.focus();
+    if (ELEMENTS.rproInput) ELEMENTS.rproInput.focus();
     setupEventListeners();
     updateSessionCount();
     
@@ -220,10 +220,10 @@ function setupEventListeners() {
     window.setScanMode = (mode) => {
         scanMode = mode;
         const isIN = mode === 'IN';
-        ELEMENTS.btnScanIn.className = `flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 ${isIN ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'text-slate-500 bg-slate-100 hover:bg-slate-200'}`;
-        ELEMENTS.btnScanOut.className = `flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 ${!isIN ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' : 'text-slate-500 bg-slate-100 hover:bg-slate-200'}`;
-        ELEMENTS.btnSaveText.textContent = isIN ? 'LƯU DỮ LIỆU (NHẬP)' : 'LƯU DỮ LIỆU (XUẤT)';
-        ELEMENTS.rproInput.focus();
+        if (ELEMENTS.btnScanIn) ELEMENTS.btnScanIn.className = `flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 ${isIN ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'text-slate-500 bg-slate-100 hover:bg-slate-200'}`;
+        if (ELEMENTS.btnScanOut) ELEMENTS.btnScanOut.className = `flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 ${!isIN ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' : 'text-slate-500 bg-slate-100 hover:bg-slate-200'}`;
+        if (ELEMENTS.btnSaveText) ELEMENTS.btnSaveText.textContent = isIN ? 'LƯU DỮ LIỆU (NHẬP)' : 'LƯU DỮ LIỆU (XUẤT)';
+        if (ELEMENTS.rproInput) ELEMENTS.rproInput.focus();
     };
 
     window.setStage = (stage) => {
@@ -236,46 +236,55 @@ function setupEventListeners() {
         // Toggle IN/OUT visibility based on Stage Config
         const config = UI_CONFIG[stage];
         if (config.hasIn) {
-            ELEMENTS.btnScanIn.classList.remove('hidden');
+            if (ELEMENTS.btnScanIn) ELEMENTS.btnScanIn.classList.remove('hidden');
         } else {
-            ELEMENTS.btnScanIn.classList.add('hidden');
+            if (ELEMENTS.btnScanIn) ELEMENTS.btnScanIn.classList.add('hidden');
             setScanMode('OUT');
         }
         
-        ELEMENTS.rproInput.focus();
+        if (ELEMENTS.rproInput) ELEMENTS.rproInput.focus();
     };
 
     // Manual Input Handler
     let typingTimer;
-    ELEMENTS.rproInput.addEventListener('input', (e) => {
-        const val = e.target.value.trim().toUpperCase();
-        clearTimeout(typingTimer);
-        
-        if (val.startsWith('RPRO-') && val.length >= 12) {
-            typingTimer = setTimeout(() => handleRproDetected(val), 300);
-        }
-    });
+    if (ELEMENTS.rproInput) {
+        ELEMENTS.rproInput.addEventListener('input', (e) => {
+            const val = e.target.value.trim().toUpperCase();
+            clearTimeout(typingTimer);
+            
+            if (val.startsWith('RPRO-') && val.length >= 12) {
+                typingTimer = setTimeout(() => handleRproDetected(val), 300);
+            }
+        });
+    }
 
     // Qty adjustments
     window.adjustQty = (delta) => {
+        if (!ELEMENTS.qtyInput) return;
         let val = parseInt(ELEMENTS.qtyInput.value) || 0;
         val = Math.max(1, val + delta);
         ELEMENTS.qtyInput.value = val;
     };
 
     // Save Button - MODIFIED: Now acts as a Refresh/Check button
-    ELEMENTS.btnSave.addEventListener('click', () => {
-        const rpro = ELEMENTS.rproInput.value.trim().toUpperCase();
-        if (rpro) handleRproDetected(rpro);
-    });
+    if (ELEMENTS.btnSave) {
+        ELEMENTS.btnSave.addEventListener('click', () => {
+            if (ELEMENTS.rproInput) {
+                const rpro = ELEMENTS.rproInput.value.trim().toUpperCase();
+                if (rpro) handleRproDetected(rpro);
+            }
+        });
+    }
 
     // Enter key support - Trigger check
-    ELEMENTS.rproInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const rpro = ELEMENTS.rproInput.value.trim().toUpperCase();
-            if (rpro) handleRproDetected(rpro);
-        }
-    });
+    if (ELEMENTS.rproInput) {
+        ELEMENTS.rproInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const rpro = ELEMENTS.rproInput.value.trim().toUpperCase();
+                if (rpro) handleRproDetected(rpro);
+            }
+        });
+    }
 
     // Dashboard Events
     window.addEventListener('dashboard-active', () => {
