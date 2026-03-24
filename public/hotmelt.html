@@ -118,6 +118,11 @@
                 </div>
             </div>
         </div>
+
+        <!-- Mode Indicator (Visible when linked directly) -->
+        <div id="mode-badge" class="hidden px-6 py-2 bg-slate-800 text-white text-[10px] font-black uppercase tracking-[0.2em] text-center">
+            Mode: <span id="current-mode-text">Viewer</span>
+        </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -435,12 +440,24 @@
             document.getElementById('content-dashboard').classList.toggle('hidden', tab !== 'dashboard');
             
             if (tab === 'scan') {
-                document.getElementById('rpro-input').focus();
+                document.getElementById('rpro-input')?.focus();
+                history.replaceState(null, null, "#scan");
             } else {
                 // Dashboard init will be handled in hotmelt.js
                 window.dispatchEvent(new CustomEvent('dashboard-active'));
+                history.replaceState(null, null, "#dashboard");
             }
         }
+
+        // Handle URL Hash on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash.substring(1);
+            if (hash === 'dashboard') {
+                switchTab('dashboard');
+            } else {
+                switchTab('scan');
+            }
+        });
     </script>
 </body>
 
