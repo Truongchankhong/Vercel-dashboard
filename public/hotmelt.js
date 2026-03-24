@@ -341,7 +341,7 @@ async function handleRproDetected(rawRpro) {
         const { data, error } = await supabase
             .from('powerapp')
             .select('*')
-            .eq('PRO ODER', rpro)
+            .eq('"PRO ODER"', rpro)
             .maybeSingle();
 
         if (error) throw error;
@@ -450,7 +450,7 @@ async function refreshDashboard() {
         let query = supabase
             .from('powerapp')
             .select('*')
-            .eq('LAMINATION MACHINE (REALTIME)', 'Hotmelt'); // EXCLUSIVE FILTER
+            .eq('"LAMINATION MACHINE (REALTIME)"', 'Hotmelt'); // QUOTED FOR SPACES/PARENS
         
         // Date filters from Flatpickr
         const picker = document.getElementById('date-range-picker')._flatpickr;
