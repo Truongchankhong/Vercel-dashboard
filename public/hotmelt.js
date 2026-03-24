@@ -49,6 +49,59 @@ let dashboardData = [];
 let brandChart = null;
 let html5QrScanner = null;
 let cameraActive = false;
+let currentLanguage = 'vi';
+let currentPage = 1;
+const pageSize = 15;
+let filteredData = [];
+
+const TRANSLATIONS = {
+    vi: {
+        back: "QUAY LẠI",
+        tab_scan: "QUÉT MÃ (SCAN)",
+        tab_dashboard: "BÁO CÁO (DASHBOARD)",
+        stat_wip: "Đang chạy (WIP)",
+        stat_in: "Nhập (BẮT ĐẦU)",
+        stat_out: "Xuất (HOÀN THÀNH)",
+        stat_rate: "Tỷ lệ hoàn thành",
+        order_unit: "ĐƠN HÀNG",
+        unit: "ĐÔI",
+        filter_time: "Thời gian",
+        filter_brand: "Brand (Khách hàng)",
+        all_brands: "Tất cả Brand",
+        filter_mold: "#Mold (Lọc khuôn)",
+        filter_finish_date: "Finish Date (Ngày ra hàng)",
+        table_title: "DANH SÁCH CHI TIẾT ĐƠN HÀNG HOTMELT",
+        search_placeholder: "Tìm kiến RPRO/Brand...",
+        col_rpro: "THÔNG TIN RPRO",
+        col_total: "TỔNG PO",
+        col_finish: "FINISH DATE",
+        showing: "Hiển thị",
+        of: "của"
+    },
+    en: {
+        back: "BACK",
+        tab_scan: "SCAN AREA",
+        tab_dashboard: "DASHBOARD",
+        stat_wip: "Work In Progress",
+        stat_in: "Total Entry",
+        stat_out: "Total Finished",
+        stat_rate: "Completion Rate",
+        order_unit: "ORDERS",
+        unit: "PAIRS",
+        filter_time: "Time Range",
+        filter_brand: "Brand Filter",
+        all_brands: "All Brands",
+        filter_mold: "Mold Filter",
+        filter_finish_date: "Finish Date",
+        table_title: "DETAILED PRODUCTION LOG",
+        search_placeholder: "Search RPRO/Brand...",
+        col_rpro: "RPRO INFO",
+        col_total: "TOTAL PO",
+        col_finish: "FINISH DATE",
+        showing: "Showing",
+        of: "of"
+    }
+};
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', () => {
@@ -56,8 +109,20 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     updateSessionCount();
     
+    // Initialize Date Range Picker (Default 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    flatpickr("#date-range-picker", {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        defaultDate: [sevenDaysAgo, new Date()],
+        onChange: () => refreshDashboard()
+    });
+
     // Auto-refresh history from DB
     fetchRecentHistory();
+    setLanguage('vi'); // Default language
 });
 
 function setupEventListeners() {
@@ -121,10 +186,27 @@ function setupEventListeners() {
 
     ELEMENTS.btnRefreshDashboard.addEventListener('click', refreshDashboard);
     ELEMENTS.btnExport.addEventListener('click', exportToExcel);
-    ELEMENTS.tableSearch.addEventListener('input', renderTable);
-    ELEMENTS.brandFilter.addEventListener('change', renderTable);
-    ELEMENTS.dateRange.addEventListener('change', refreshDashboard);
+    ELEMENTS.tableSearch.addEventListener('input', () => { currentPage = 1; renderTable(); });
+    ELEMENTS.brandFilter.addEventListener('change', () => { currentPage = 1; renderTable(); });
+    document.getElementById('mold-filter').addEventListener('input', () => { currentPage = 1; renderTable(); });
+    document.getElementById('finish-date-filter').addEventListener('change', () => { currentPage = 1; renderTable(); });
     ELEMENTS.btnToggleCamera?.addEventListener('click', toggleCamera);
+
+    window.setLanguage = (lang) => {
+        currentLanguage = lang;
+        document.getElementById('lang-vi').className = `px-3 py-1 rounded-lg text-[10px] font-black transition-all duration-300 ${lang === 'vi' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-400'}`;
+        document.getElementById('lang-en').className = `px-3 py-1 rounded-lg text-[10px] font-black transition-all duration-300 ${lang === 'en' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-400'}`;
+        
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (TRANSLATIONS[lang][key]) el.textContent = TRANSLATIONS[lang][key];
+        });
+        
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-i18n-placeholder');
+            if (TRANSLATIONS[lang][key]) el.placeholder = TRANSLATIONS[lang][key];
+        });
+    };
 
     // Handheld Scanner Support
     let scanBuffer = '';
@@ -284,30 +366,19 @@ async function refreshDashboard() {
     try {
         let query = supabase.from('hotmelt').select('*').order('updated_at', { ascending: false });
         
-        // Date filters
-        const range = ELEMENTS.dateRange.value;
-        const now = new Date();
-        if (range === 'today') {
-            const startOfDay = new Date(now.setHours(0,0,0,0)).toISOString();
-            query = query.gte('updated_at', startOfDay);
-        } else if (range === 'yesterday') {
-            const start = new Date(now.setDate(now.getDate() - 1));
-            start.setHours(0,0,0,0);
-            const end = new Date(start);
-            end.setHours(23,59,59,999);
-            query = query.gte('updated_at', start.toISOString()).lte('updated_at', end.toISOString());
-        } else if (range === '7days') {
-            const start = new Date(now.setDate(now.getDate() - 7)).toISOString();
-            query = query.gte('updated_at', start);
-        } else if (range === '30days') {
-            const start = new Date(now.setDate(now.getDate() - 30)).toISOString();
-            query = query.gte('updated_at', start);
+        // Date filters from Flatpickr
+        const picker = document.getElementById('date-range-picker')._flatpickr;
+        if (picker && picker.selectedDates.length === 2) {
+            const start = picker.selectedDates[0].toISOString();
+            const end = new Date(picker.selectedDates[1].setHours(23,59,59,999)).toISOString();
+            query = query.gte('updated_at', start).lte('updated_at', end);
         }
 
         const { data, error } = await query;
         if (error) throw error;
 
         dashboardData = data;
+        currentPage = 1; 
         updateStats();
         updateBrandFilter();
         renderTable();
@@ -350,17 +421,38 @@ function updateStats() {
 function renderTable() {
     const searchTerm = ELEMENTS.tableSearch.value.toLowerCase();
     const brandFilter = ELEMENTS.brandFilter.value;
+    const moldFilter = document.getElementById('mold-filter').value.toLowerCase();
+    const finishDateFilter = document.getElementById('finish-date-filter').value;
     
-    const filtered = dashboardData.filter(row => {
+    filteredData = dashboardData.filter(row => {
         const matchesRpro = row.rpro.toLowerCase().includes(searchTerm);
         const matchesBrand = brandFilter === 'all' || row.brand === brandFilter;
-        return matchesRpro && matchesBrand;
+        const matchesMold = !moldFilter || (row.mold && row.mold.toLowerCase().includes(moldFilter));
+        const matchesFinish = !finishDateFilter || (row.finish_date === finishDateFilter);
+        return matchesRpro && matchesBrand && matchesMold && matchesFinish;
     });
 
-    ELEMENTS.tableBody.innerHTML = filtered.map((row, idx) => {
+    const totalRecords = filteredData.length;
+    const totalPages = Math.ceil(totalRecords / pageSize);
+    const startIdx = (currentPage - 1) * pageSize;
+    const paginated = filteredData.slice(startIdx, startIdx + pageSize);
+
+    // Update pagination labels
+    document.getElementById('page-start').textContent = totalRecords > 0 ? startIdx + 1 : 0;
+    document.getElementById('page-end').textContent = Math.min(startIdx + pageSize, totalRecords);
+    document.getElementById('total-records').textContent = totalRecords;
+
+    renderPaginationControls(totalPages);
+
+    if (paginated.length === 0) {
+        ELEMENTS.tableBody.innerHTML = `<tr><td colspan="9" class="px-6 py-20 text-center text-slate-300 italic">No data matching filters...</td></tr>`;
+        return;
+    }
+
+    ELEMENTS.tableBody.innerHTML = paginated.map((row, idx) => {
         return `
             <tr class="hover:bg-slate-50 transition">
-                <td class="px-3 py-4 text-xs font-black text-slate-300 border-r">${String(idx + 1).padStart(3, '0')}</td>
+                <td class="px-3 py-4 text-xs font-black text-slate-300 border-r">${String(startIdx + idx + 1).padStart(3, '0')}</td>
                 <td class="px-4 py-4 border-r">
                     <div class="text-[12px] font-black text-slate-800">${row.rpro}</div>
                     <div class="text-[9px] text-slate-400 uppercase tracking-tighter">${row.brand || '---'} | ${row.pu || '---'}</div>
@@ -394,6 +486,33 @@ function renderTable() {
         `;
     }).join('');
 }
+
+function renderPaginationControls(totalPages) {
+    const container = document.getElementById('pagination-controls');
+    if (!container) return;
+    
+    let html = '';
+    
+    // Prev
+    html += `<button onclick="changePage(${currentPage - 1})" class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-black hover:bg-slate-50 transition ${currentPage === 1 ? 'opacity-30 pointer-events-none' : ''}">PREV</button>`;
+    
+    // Pages (Simplified)
+    for (let i = 1; i <= Math.min(5, totalPages); i++) {
+        html += `<button onclick="changePage(${i})" class="w-8 h-8 rounded-lg text-[10px] font-black transition ${currentPage === i ? 'bg-red-500 text-white shadow-lg' : 'bg-white border border-slate-200 text-slate-400 hover:bg-slate-50'}">${i}</button>`;
+    }
+    
+    if (totalPages > 5) html += `<span class="text-slate-300">...</span><button onclick="changePage(${totalPages})" class="w-8 h-8 rounded-lg text-[10px] font-black transition ${currentPage === totalPages ? 'bg-red-500 text-white shadow-lg' : 'bg-white border border-slate-200 text-slate-400 hover:bg-slate-50'}">${totalPages}</button>`;
+
+    // Next
+    html += `<button onclick="changePage(${currentPage + 1})" class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-black hover:bg-slate-50 transition ${currentPage === totalPages ? 'opacity-30 pointer-events-none' : ''}">NEXT</button>`;
+    
+    container.innerHTML = html;
+}
+
+window.changePage = (page) => {
+    currentPage = page;
+    renderTable();
+};
 
 function renderStageCell(row, stage) {
     const timeIn = row[`${stage}_in`];
