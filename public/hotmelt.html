@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotmelt Tracking - Dashboard & Scan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <style>
+        .sidebar-item.active {
+            background: linear-gradient(to right, #ef4444, #f97316);
+            color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        
+        .tab-btn.active {
+            border-bottom: 3px solid #ef4444;
+            color: #ef4444;
+            font-weight: 800;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Scan Mode Toggle Effect */
+        .scan-mode-toggle {
+            transition: all 0.4s ease;
+        }
+        .scan-mode-in {
+            background-color: #10b981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+        .scan-mode-out {
+            background-color: #f43f5e;
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
+        }
+
+        @keyframes pulse-border {
+            0% { border-color: rgba(239, 68, 68, 0.2); }
+            50% { border-color: rgba(239, 68, 68, 0.8); }
+            100% { border-color: rgba(239, 68, 68, 0.2); }
+        }
+        .scan-active {
+            animation: pulse-border 1s infinite;
+        }
+
+        #scanner-input-overlay {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            opacity: 0;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 min-h-screen font-sans">
+    <!-- Navbar/Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg text-white shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-tight text-slate-800">HOTMELT <span class="text-red-600">TRACKING</span></h1>
+                    <p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Realtime Production System</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <button onclick="window.location.href='index.html'" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    QUAY LẠI
+                </button>
+                <div id="connection-status" class="flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold border border-green-200">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    SUPABASE ONLINE
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Main Tabs -->
+        <div class="flex gap-4 mb-8 border-b border-slate-200 overflow-x-auto no-scrollbar">
+            <button id="tab-scan" class="tab-btn active px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap transition-all duration-300 transform" onclick="switchTab('scan')">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                QUÉT MÃ (SCAN)
+            </button>
+            <button id="tab-dashboard" class="tab-btn px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap transition-all duration-300 transform" onclick="switchTab('dashboard')">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                BÁO CÁO (DASHBOARD)
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div id="content-scan" class="animate__animated animate__fadeIn">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Left: Scan Input -->
+                <div class="space-y-6">
+                    <div class="glass-card rounded-3xl p-8 shadow-sm">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                            <h2 class="text-2xl font-black text-slate-800">TRẠM QUÉT HOTMELT</h2>
+                            <!-- IN/OUT Toggle -->
+                            <div class="flex p-1 bg-slate-100 rounded-2xl w-full sm:w-auto">
+                                <button id="btn-scan-in" class="flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 bg-emerald-500 text-white shadow-lg shadow-emerald-200" onclick="setScanMode('IN')">SCAN IN</button>
+                                <button id="btn-scan-out" class="flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 text-slate-500 hover:bg-slate-200" onclick="setScanMode('OUT')">SCAN OUT</button>
+                            </div>
+                        </div>
+
+                        <!-- Manual Input Box -->
+                        <div class="relative mb-8">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                                </svg>
+                            </div>
+                            <input type="text" id="rpro-input" placeholder="QUÉT HOẶC NHẬP MÃ RPRO..." class="w-full pl-14 pr-4 py-6 bg-slate-50 border-4 border-slate-100 rounded-3xl text-2xl font-black text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-red-100 focus:border-red-500 uppercase tracking-tighter transition-all duration-300">
+                            <div id="input-loader" class="hidden absolute right-6 top-1/2 -translate-y-1/2">
+                                <span class="flex h-5 w-5 rounded-full border-4 border-red-500 border-t-transparent animate-spin"></span>
+                            </div>
+                        </div>
+
+                        <!-- Quantity Selector -->
+                        <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-8">
+                            <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Số lượng (Quantity)</label>
+                            <div class="flex items-center justify-between gap-4">
+                                <button onclick="adjustQty(-1)" class="w-16 h-16 bg-white border-2 border-slate-200 rounded-2xl text-2xl font-black text-slate-600 hover:border-red-500 hover:text-red-500 transition active:scale-90">-</button>
+                                <input type="number" id="qty-input" value="1" min="1" class="flex-1 bg-transparent text-center text-5xl font-black text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                                <button onclick="adjustQty(1)" class="w-16 h-16 bg-white border-2 border-slate-200 rounded-2xl text-2xl font-black text-slate-600 hover:border-red-500 hover:text-red-500 transition active:scale-90">+</button>
+                            </div>
+                        </div>
+
+                        <!-- Manual Save Button -->
+                        <button id="btn-save" class="w-full py-6 bg-slate-800 text-white rounded-3xl font-black text-xl hover:bg-slate-900 transition-all duration-300 shadow-xl shadow-slate-200 transform active:scale-[0.98] flex items-center justify-center gap-3">
+                            <span id="btn-save-text">LƯU DỮ LIỆU</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                            </svg>
+                        </button>
+
+                        <!-- Auto Save Toggle -->
+                        <div class="mt-6 flex items-center justify-center gap-3">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="auto-save" class="sr-only peer" checked>
+                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                                <span class="ml-3 text-xs font-black text-slate-500 uppercase tracking-widest">LƯU TỰ ĐỘNG (Bluetooth Scan)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Scan Feedback Info -->
+                    <div id="rpro-details" class="hidden glass-card rounded-3xl p-8 shadow-sm border-l-8 border-red-500 animate__animated animate__fadeInRight">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Brand/Khách hàng</p>
+                                <p id="detail-brand" class="text-xl font-black text-slate-800">---</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mã PU Code</p>
+                                <p id="detail-pu" class="text-xl font-black text-slate-800">---</p>
+                            </div>
+                            <div class="col-span-2">
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mã vải (FB)</p>
+                                <p id="detail-fb" class="text-xl font-black text-slate-800">---</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Scan History -->
+                <div class="space-y-6">
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <h2 class="text-xl font-black text-slate-800 uppercase italic">LỊCH SỬ QUÉT GẦN ĐÂY</h2>
+                            <p class="text-xs font-bold text-slate-400">Tự động cập nhật từ server...</p>
+                        </div>
+                        <div class="bg-white px-4 py-2 rounded-xl text-xs font-black border border-slate-200 text-slate-500 uppercase tracking-widest">
+                            Tổng quét: <span id="session-count" class="text-red-500">0</span>
+                        </div>
+                    </div>
+                    
+                    <div id="scan-history" class="space-y-3 max-h-[700px] overflow-y-auto pr-2">
+                        <!-- History Items go here -->
+                        <div class="flex items-center justify-center h-40 border-2 border-dashed border-slate-200 rounded-3xl text-slate-300 font-bold italic">
+                            Chưa có dữ liệu quét trong phiên này...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-dashboard" class="hidden animate__animated animate__fadeIn">
+            <!-- Dashboard Overview Stats -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">ĐANG CHẠY (WIP)</p>
+                    <div class="flex items-baseline gap-2">
+                        <span id="stat-wip" class="text-4xl font-black text-red-500">0</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase">Đơn hàng</span>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">NHẬP (HOTMELT IN)</p>
+                    <div class="flex items-baseline gap-2">
+                        <span id="stat-total-in" class="text-4xl font-black text-emerald-500">0</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase italic">Cặp</span>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">XUẤT (HOTMELT OUT)</p>
+                    <div class="flex items-baseline gap-2">
+                        <span id="stat-total-out" class="text-4xl font-black text-blue-500">0</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase italic">Cặp</span>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">TỶ LỆ HOÀN THÀNH</p>
+                    <div class="flex items-baseline gap-2">
+                        <span id="stat-completion" class="text-4xl font-black text-slate-800">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
+                        <div id="stat-completion-bar" class="bg-gradient-to-r from-red-500 to-orange-500 h-full w-0 transition-all duration-1000"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts and Filter -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <!-- Data Filter -->
+                <div class="lg:col-span-1 bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
+                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest border-b pb-3 border-slate-100">BỘ LỌC DỮ LIỆU</h3>
+                    
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Thời gian</label>
+                        <select id="date-range" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400">
+                            <option value="today">Hôm nay</option>
+                            <option value="yesterday">Hôm qua</option>
+                            <option value="7days">7 ngày qua</option>
+                            <option value="30days">30 ngày qua</option>
+                            <option value="all" selected>Tất cả dữ lệu</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Brand (Khách hàng)</label>
+                        <select id="brand-filter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400">
+                            <option value="all">Tất cả Brand</option>
+                            <!-- Dynamic brands -->
+                        </select>
+                    </div>
+
+                    <div class="pt-4 space-y-2">
+                        <button id="btn-export" class="w-full flex items-center justify-center gap-2 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition shadow-lg shadow-green-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            XUẤT FILE EXCEL
+                        </button>
+                        <button id="btn-refresh-dashboard" class="w-full flex items-center justify-center gap-2 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-900 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            LÀM MỚI DỮ LIỆU
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Chart -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200">
+                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 px-2 italic">PHÂN TÍCH NHÓM THEO BRAND (TOP 5)</h3>
+                    <div class="h-[250px]">
+                        <canvas id="brandChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Table Container -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden border-t-8 border-t-red-500">
+                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest">DANH SÁCH CHI TIẾT ĐƠN HÀNG HOTMELT</h3>
+                    <div class="relative w-full sm:w-64">
+                        <input type="text" id="table-search" placeholder="Tìm kiến RPRO/Brand..." class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-red-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="bg-white text-[10px] font-black text-slate-400 uppercase tracking-tighter border-b border-slate-100">
+                                <th class="px-6 py-4">STT</th>
+                                <th class="px-6 py-4">RPRO</th>
+                                <th class="px-6 py-4">#MOLD</th>
+                                <th class="px-6 py-4">BRAND</th>
+                                <th class="px-6 py-4 text-center">TOTAL QTY</th>
+                                <th class="px-6 py-4">HOTMELT IN</th>
+                                <th class="px-6 py-4">HOTMELT OUT</th>
+                                <th class="px-6 py-4 bg-emerald-50 text-emerald-600 text-center">QTY IN</th>
+                                <th class="px-6 py-4 bg-rose-50 text-rose-600 text-center">QTY OUT</th>
+                                <th class="px-6 py-4">DC</th>
+                                <th class="px-6 py-4">FINISH DATE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-table-body" class="text-sm font-bold text-slate-600 divide-y divide-slate-50">
+                            <!-- Rows go here -->
+                            <tr>
+                                <td colspan="8" class="px-6 py-20 text-center animate-pulse text-slate-300 italic">Đang tải dữ liệu từ Supabase...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scanner Audio Elements -->
+    <audio id="audio-success" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+    <audio id="audio-error" src="https://assets.mixkit.co/active_storage/sfx/2873/2873-preview.mp3" preload="auto"></audio>
+
+    <!-- Hidden input for handheld scanner -->
+    <input type="text" id="scanner-input-overlay" autocomplete="off" />
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./supabaseClient.js"></script>
+    <script type="module" src="./hotmelt.js"></script>
+
+    <script>
+        // Inline UI logic for tabs and modal
+        function switchTab(tab) {
+            document.getElementById('tab-scan').classList.toggle('active', tab === 'scan');
+            document.getElementById('tab-dashboard').classList.toggle('active', tab === 'dashboard');
+            
+            document.getElementById('content-scan').classList.toggle('hidden', tab !== 'scan');
+            document.getElementById('content-dashboard').classList.toggle('hidden', tab !== 'dashboard');
+            
+            if (tab === 'scan') {
+                document.getElementById('rpro-input').focus();
+            } else {
+                // Dashboard init will be handled in hotmelt.js
+                window.dispatchEvent(new CustomEvent('dashboard-active'));
+            }
+        }
+    </script>
+</body>
+
+</html>
