@@ -188,12 +188,54 @@ function setupEventListeners() {
         refreshDashboard();
     });
 
-    ELEMENTS.btnRefreshDashboard.addEventListener('click', refreshDashboard);
-    ELEMENTS.btnExport.addEventListener('click', exportToExcel);
     ELEMENTS.tableSearch.addEventListener('input', () => { currentPage = 1; renderTable(); });
     ELEMENTS.brandFilter.addEventListener('change', () => { currentPage = 1; renderTable(); });
-    document.getElementById('mold-filter').addEventListener('input', () => { currentPage = 1; renderTable(); });
-    document.getElementById('finish-date-filter').addEventListener('change', () => { currentPage = 1; renderTable(); });
+    
+    // Header Filters Integration
+    const moldHeader = document.getElementById('mold-filter-header');
+    const moldSidebar = document.getElementById('mold-filter');
+    const dateHeader = document.getElementById('finish-date-filter-header');
+    const dateSidebar = document.getElementById('finish-date-filter');
+    const dateBadge = document.getElementById('finish-date-badge-header');
+
+    moldHeader.addEventListener('input', (e) => {
+        moldSidebar.value = e.target.value;
+        currentPage = 1;
+        renderTable();
+    });
+
+    dateHeader.addEventListener('change', (e) => {
+        dateSidebar.value = e.target.value;
+        if (e.target.value) {
+            const [y, m, d] = e.target.value.split('-');
+            dateBadge.textContent = `${d}/${m}`;
+            dateBadge.classList.remove('hidden');
+        } else {
+            dateBadge.classList.add('hidden');
+        }
+        currentPage = 1;
+        renderTable();
+    });
+
+    moldSidebar.addEventListener('input', (e) => { 
+        moldHeader.value = e.target.value; 
+        currentPage = 1; 
+        renderTable(); 
+    });
+    
+    dateSidebar.addEventListener('change', (e) => {
+        dateHeader.value = e.target.value;
+        if (e.target.value) {
+            const [y, m, d] = e.target.value.split('-');
+            dateBadge.textContent = `${d}/${m}`;
+            dateBadge.classList.remove('hidden');
+        } else {
+            dateBadge.classList.add('hidden');
+        }
+        currentPage = 1; 
+        renderTable(); 
+    });
+
     ELEMENTS.btnToggleCamera?.addEventListener('click', toggleCamera);
 
     window.setLanguage = (lang) => {
