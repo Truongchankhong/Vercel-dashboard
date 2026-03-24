@@ -222,7 +222,7 @@ async function performSave(rpro, qty) {
 
         // Upsert based on RPRO
         const { error } = await supabase
-            .from('Hotmelt')
+            .from('hotmelt')
             .upsert({ 
                 rpro: rpro, 
                 ...updateData,
@@ -264,7 +264,7 @@ function normalizeRPRO(text) {
 
 async function refreshDashboard() {
     try {
-        let query = supabase.from('Hotmelt').select('*').order('updated_at', { ascending: false });
+        let query = supabase.from('hotmelt').select('*').order('updated_at', { ascending: false });
         
         // Date filters
         const range = ELEMENTS.dateRange.value;
@@ -470,7 +470,7 @@ function addHistoryRow(rpro, qty, mode) {
 async function fetchRecentHistory() {
     try {
         const { data } = await supabase
-            .from('Hotmelt')
+            .from('hotmelt')
             .select('*')
             .order('updated_at', { ascending: false })
             .limit(10);
@@ -503,8 +503,12 @@ function showToast(message, type = "success") {
 }
 
 function playAudio(isSuccess) {
-    if (isSuccess) ELEMENTS.audio.success.play();
-    else ELEMENTS.audio.error.play();
+    try {
+        if (isSuccess) ELEMENTS.audio.success.play().catch(e => console.warn("Audio play failed:", e));
+        else ELEMENTS.audio.error.play().catch(e => console.warn("Audio play failed:", e));
+    } catch (e) {
+        console.warn("Audio playback error:", e);
+    }
 }
 
 function formatTime(iso) {
