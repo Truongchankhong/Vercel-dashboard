@@ -41,7 +41,7 @@ const ELEMENTS = {
 };
 
 // ==================== CONFIG & STATE ====================
-let scanMode = 'IN'; // 'IN' or 'OUT'
+let scanMode = 'OUT'; // Default to OUT for Hotmelt
 let currentStage = 'hotmelt'; // 'hotmelt', 'prefitting', 'molding', 'leanline'
 let currentRproData = null;
 let isProcessing = false;
@@ -54,6 +54,33 @@ let currentLanguage = 'vi';
 let currentPage = 1;
 const pageSize = 15;
 let filteredData = [];
+
+// Column Mapping for PowerApp Table
+const COLUMN_MAP = {
+    hotmelt: { 
+        in: null, // User said ONLY Scan out for Hotmelt
+        out: "Laminating (Pro)"
+    },
+    prefitting: {
+        in: null, // User said ONLY Scan out for Prefitting
+        out: "Prefitting (Pro)"
+    },
+    molding: {
+        in: "Molding Pro (IN)",
+        out: "Molding Pro"
+    },
+    leanline: {
+        in: "IN lean Line (Pro)",
+        out: "Out lean Line (Pro)"
+    }
+};
+
+const UI_CONFIG = {
+    hotmelt: { hasIn: false, hasOut: true },
+    prefitting: { hasIn: false, hasOut: true },
+    molding: { hasIn: true, hasOut: true },
+    leanline: { hasIn: true, hasOut: true }
+};
 
 const TRANSLATIONS = {
     vi: {
@@ -78,6 +105,9 @@ const TRANSLATIONS = {
         col_finish: "FINISH DATE",
         click_filter_mold: "Bấm để lọc khuôn",
         click_filter_date: "Bấm để chọn ngày",
+        chart_brand: "PHÂN TÍCH NHÓM THEO BRAND (TOP 5) %",
+        chart_prod: "SẢN LƯỢNG HOÀN THÀNH THEO NGÀY (SỐ ĐÔI)",
+        chart_prod_label: "Sản lượng (Đôi)",
         showing: "Hiển thị",
         of: "của"
     },
@@ -103,6 +133,9 @@ const TRANSLATIONS = {
         col_finish: "FINISH DATE",
         click_filter_mold: "Click to filter mold",
         click_filter_date: "Click to pick date",
+        chart_brand: "BRAND ANALYSIS (TOP 5) %",
+        chart_prod: "DAILY PRODUCTION OUTPUT (PAIRS)",
+        chart_prod_label: "Output (Pairs)",
         showing: "Showing",
         of: "of"
     }
@@ -147,6 +180,16 @@ function setupEventListeners() {
             const isTarget = btn.id === `stage-${stage}`;
             btn.className = `stage-btn flex-1 px-4 py-3 rounded-2xl text-[11px] font-black transition active:scale-95 whitespace-nowrap ${isTarget ? 'bg-slate-800 text-white shadow-lg shadow-slate-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`;
         });
+
+        // Toggle IN/OUT visibility based on Stage Config
+        const config = UI_CONFIG[stage];
+        if (config.hasIn) {
+            ELEMENTS.btnScanIn.classList.remove('hidden');
+        } else {
+            ELEMENTS.btnScanIn.classList.add('hidden');
+            setScanMode('OUT');
+        }
+        
         ELEMENTS.rproInput.focus();
     };
 
@@ -168,19 +211,17 @@ function setupEventListeners() {
         ELEMENTS.qtyInput.value = val;
     };
 
-    // Save Button
+    // Save Button - MODIFIED: Now acts as a Refresh/Check button
     ELEMENTS.btnSave.addEventListener('click', () => {
         const rpro = ELEMENTS.rproInput.value.trim().toUpperCase();
-        const qty = parseInt(ELEMENTS.qtyInput.value) || 1;
-        if (rpro) performSave(rpro, qty);
+        if (rpro) handleRproDetected(rpro);
     });
 
-    // Enter key support
+    // Enter key support - Trigger check
     ELEMENTS.rproInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             const rpro = ELEMENTS.rproInput.value.trim().toUpperCase();
-            const qty = parseInt(ELEMENTS.qtyInput.value) || 1;
-            if (rpro) performSave(rpro, qty);
+            if (rpro) handleRproDetected(rpro);
         }
     });
 
@@ -276,6 +317,18 @@ function setupEventListeners() {
 
 // ==================== SCAN LOGIC ====================
 
+// Convert JS Date to Excel Serial (e.g. 46105.123)
+function jsToExcelSerial(date) {
+    if (!date) return null;
+    return (date.getTime() / (86400 * 1000)) + 25569;
+}
+
+// Convert Excel Serial to ISO string (e.g. "2026-03-24T12:00:00Z")
+function excelToISO(serial) {
+    if (!serial || isNaN(serial)) return null;
+    return new Date((serial - 25569) * 86400 * 1000).toISOString();
+}
+
 async function handleRproDetected(rawRpro) {
     const rpro = normalizeRPRO(rawRpro);
     if (!rpro || isProcessing) return;
@@ -285,16 +338,20 @@ async function handleRproDetected(rawRpro) {
     ELEMENTS.rproInput.value = rpro;
 
     try {
-        // Find in powerapp - Use column names exactly as they are in Supabase (quoted if needed)
         const { data, error } = await supabase
             .from('powerapp')
-            .select('"Brand Code", "PU DESCRIPTION", "FB DESCRIPTION", "#MOLD", "Total Qty", "Finish date"')
+            .select('*')
             .eq('PRO ODER', rpro)
             .maybeSingle();
 
         if (error) throw error;
 
         if (data) {
+            // VERIFY MACHINE
+            if (data['LAMINATION MACHINE (REALTIME)'] !== 'Hotmelt') {
+                showToast(`⚠️ Đơn này thuộc máy ${data['LAMINATION MACHINE (REALTIME)'] || 'khác'}, không phải Hotmelt!`, 'info');
+            }
+
             // Map columns for internal use
             data.Brand = data['Brand Code'];
             data.Mold = data['#MOLD'];
@@ -305,128 +362,75 @@ async function handleRproDetected(rawRpro) {
             showDetails(data);
             playAudio(true);
             
-            // Auto Save if enabled
-            if (ELEMENTS.autoSave.checked) {
-                await performSave(rpro, parseInt(ELEMENTS.qtyInput.value) || 1);
-            }
+            // Repurpose History Row to show current status
+            addStatusHistoryRow(data);
+
         } else {
             showToast(`⚠️ Không tìm thấy RPRO: ${rpro}`, 'error');
             playAudio(false);
             ELEMENTS.rproDetails.classList.add('hidden');
         }
     } catch (err) {
-        console.error("Fetch error:", err);
+        console.error("Check error:", err);
         showToast("❌ Lỗi truy vấn dữ liệu", "error");
     } finally {
         isProcessing = false;
-        ELEMENTS.inputLoader.classList.add('hidden');
+        ELEMENTS.inputLoader.classList.remove('hidden'); // Fix: keep it visible briefly or hide
+        setTimeout(() => ELEMENTS.inputLoader.classList.add('hidden'), 500);
     }
 }
 
-async function performSave(rpro, qty) {
-    if (isProcessing) return;
+// Show current progress in the history area (Read-only)
+function addStatusHistoryRow(data) {
+    const rpro = data['PRO ODER'];
+    const row = document.createElement('div');
+    row.className = `flex flex-col bg-white p-4 rounded-2xl border-l-4 border-indigo-500 shadow-sm animate__animated animate__slideInRight mb-3`;
     
-    // Workflow Validation
-    const stages = ['hotmelt', 'prefitting', 'molding', 'leanline'];
-    const currentIdx = stages.indexOf(currentStage);
+    const checkTime = new Date().toLocaleTimeString('vi-VN', { hour12: false });
     
-    try {
-        // Fetch existing record to check workflow
-        const { data: existingData } = await supabase
-            .from('hotmelt')
-            .select('*')
-            .eq('rpro', rpro)
-            .maybeSingle();
+    // Status indicators
+    const hOUT = data[COLUMN_MAP.hotmelt.out];
+    const pOUT = data[COLUMN_MAP.prefitting.out];
+    const mIN = data[COLUMN_MAP.molding.in];
+    const mOUT = data[COLUMN_MAP.molding.out];
+    const lIN = data[COLUMN_MAP.leanline.in];
+    const lOUT = data[COLUMN_MAP.leanline.out];
 
-        // 1. Validation for Scan OUT: Must have Scan IN at this stage
-        if (scanMode === 'OUT') {
-            if (!existingData || !existingData[`${currentStage}_in`]) {
-                showToast(`❌ Lỗi: Bạn phải quét NHẬP (IN) công đoạn ${currentStage.toUpperCase()} trước khi xuất!`, 'error');
-                playAudio(false);
-                return;
-            }
-        } 
-        // 2. Validation for Scan IN: Must have Scan OUT at PREVIOUS stage
-        else if (scanMode === 'IN' && currentIdx > 0) {
-            const lastStage = stages[currentIdx - 1];
-            if (!existingData || !existingData[`${lastStage}_out`]) {
-                showToast(`❌ Lỗi: Phải hoàn thành XUẤT (OUT) công đoạn ${lastStage.toUpperCase()} mới được nhập vào đây!`, 'error');
-                playAudio(false);
-                return;
-            }
-        }
-
-        isProcessing = true;
-        const saveBtn = ELEMENTS.btnSave;
-        saveBtn.disabled = true;
-        saveBtn.classList.add('opacity-50');
-
-        const updateData = {};
-        const now = new Date().toISOString();
-        
-        if (scanMode === 'IN') {
-            updateData[`${currentStage}_in`] = now;
-            updateData[`${currentStage}_qty_in`] = qty;
-        } else {
-            updateData[`${currentStage}_out`] = now;
-            updateData[`${currentStage}_qty_out`] = qty;
-        }
-
-        // Add metadata from currentRproData if available
-        if (currentRproData) {
-            updateData.brand = currentRproData['Brand Code'] || currentRproData.Brand;
-            updateData.pu = currentRproData.PU;
-            updateData.fb = currentRproData.FB;
-            updateData.mold = currentRproData['#MOLD'] || currentRproData.Mold;
-            updateData.total_qty = currentRproData['Total Qty'];
-            
-            // Fix Excel Serial Date (e.g., 46105) to ISO Date string
-            let fDate = currentRproData['Finish date'];
-            if (fDate && !isNaN(fDate)) {
-                // Excel date is usually a number of days since Dec 30, 1899
-                const jsDate = new Date((fDate - 25569) * 86400 * 1000);
-                if (!isNaN(jsDate.getTime())) {
-                    updateData.finish_date = jsDate.toISOString().split('T')[0];
-                }
-            } else if (fDate) {
-                updateData.finish_date = fDate; // Assume it's already a valid date string
-            }
-        }
-
-        // Upsert based on RPRO
-        const { error } = await supabase
-            .from('hotmelt')
-            .upsert({ 
-                rpro: rpro, 
-                ...updateData,
-                updated_at: now
-            }, { onConflict: 'rpro' });
-
-        if (error) throw error;
-
-        showToast(`✅ Đã lưu ${scanMode === 'IN' ? 'NHẬP' : 'XUẤT'} ${currentStage.toUpperCase()}: ${rpro}`, 'success');
-        addHistoryRow(rpro, qty, scanMode, currentStage);
-        
-        // Reset form
-        ELEMENTS.rproInput.value = '';
-        ELEMENTS.qtyInput.value = '1';
-        ELEMENTS.rproInput.focus();
-        currentRproData = null;
-        
-    } catch (err) {
-        console.error("Save error:", err);
-        if (err.message && err.message.includes('column')) {
-            showToast("❌ Lỗi Database: Bạn cần chạy file SQL TRƯỚC khi dùng tính năng này!", "error");
-        } else {
-            showToast("❌ Lỗi khi lưu dữ liệu", "error");
-        }
-    } finally {
-        isProcessing = false;
-        if (ELEMENTS.btnSave) {
-            ELEMENTS.btnSave.disabled = false;
-            ELEMENTS.btnSave.classList.remove('opacity-50');
-        }
+    row.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+            <div class="flex flex-col">
+                <span class="text-[9px] font-black text-slate-400 uppercase">Status Checked: ${checkTime}</span>
+                <span class="text-sm font-black text-indigo-600">${rpro}</span>
+            </div>
+            <div class="px-2 py-1 bg-slate-100 rounded text-[9px] font-bold">${data['Brand Code']}</div>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+            <div class="p-1 bg-slate-50 rounded border ${hOUT ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100'}">
+                <div class="text-[8px] font-black ${hOUT ? 'text-emerald-600' : 'text-slate-400'}">HM OUT</div>
+                <div class="text-[9px] font-bold">${hOUT ? formatTime(excelToISO(hOUT)) : '---'}</div>
+            </div>
+            <div class="p-1 bg-slate-50 rounded border ${pOUT ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100'}">
+                <div class="text-[8px] font-black ${pOUT ? 'text-emerald-600' : 'text-slate-400'}">PF OUT</div>
+                <div class="text-[9px] font-bold">${pOUT ? formatTime(excelToISO(pOUT)) : '---'}</div>
+            </div>
+            <div class="p-1 bg-slate-50 rounded border ${mOUT ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100'}">
+                <div class="text-[8px] font-black ${mOUT ? 'text-emerald-600' : 'text-slate-400'}">MD OUT</div>
+                <div class="text-[9px] font-bold">${mOUT ? formatTime(excelToISO(mOUT)) : '---'}</div>
+            </div>
+        </div>
+    `;
+    
+    if (ELEMENTS.scanHistory.firstChild && ELEMENTS.scanHistory.firstChild.innerText && ELEMENTS.scanHistory.firstChild.innerText.includes('Chưa có dữ liệu')) {
+        ELEMENTS.scanHistory.innerHTML = '';
     }
+    
+    ELEMENTS.scanHistory.prepend(row);
+    if (ELEMENTS.scanHistory.children.length > 5) ELEMENTS.scanHistory.lastChild.remove();
+}
+
+// Removed performSave as it's now Read-Only
+async function performSave(rpro, qty) {
+    showToast("ℹ️ Chế độ xem dữ liệu (Read-only)", "info");
 }
 
 function normalizeRPRO(text) {
@@ -443,20 +447,41 @@ function normalizeRPRO(text) {
 
 async function refreshDashboard() {
     try {
-        let query = supabase.from('hotmelt').select('*').order('updated_at', { ascending: false });
+        let query = supabase
+            .from('powerapp')
+            .select('*')
+            .eq('LAMINATION MACHINE (REALTIME)', 'Hotmelt'); // EXCLUSIVE FILTER
         
         // Date filters from Flatpickr
         const picker = document.getElementById('date-range-picker')._flatpickr;
         if (picker && picker.selectedDates.length === 2) {
             const start = picker.selectedDates[0].toISOString();
             const end = new Date(picker.selectedDates[1].setHours(23,59,59,999)).toISOString();
-            query = query.gte('updated_at', start).lte('updated_at', end);
+            query = query.gte('created_at', start).lte('created_at', end);
         }
 
         const { data, error } = await query;
         if (error) throw error;
 
-        dashboardData = data;
+        // Map PowerApp rows to Dashboard rows
+        dashboardData = data.map(item => ({
+            rpro: item['PRO ODER'],
+            brand: item['Brand Code'],
+            pu: item['PU DESCRIPTION'],
+            fb: item['FB DESCRIPTION'],
+            mold: item['#MOLD'],
+            total_qty: item['Total Qty'],
+            finish_date: item['Finish date'],
+            // Map Stages using excelToISO
+            hotmelt_out: excelToISO(item[COLUMN_MAP.hotmelt.out]),
+            prefitting_out: excelToISO(item[COLUMN_MAP.prefitting.out]),
+            molding_in: excelToISO(item[COLUMN_MAP.molding.in]),
+            molding_out: excelToISO(item[COLUMN_MAP.molding.out]),
+            leanline_in: excelToISO(item[COLUMN_MAP.leanline.in]),
+            leanline_out: excelToISO(item[COLUMN_MAP.leanline.out]),
+            updated_at: item.updated_at || item.created_at
+        }));
+
         currentPage = 1; 
         updateStats();
         updateBrandFilter();
@@ -465,7 +490,7 @@ async function refreshDashboard() {
         
     } catch (err) {
         console.error("Dashboard error:", err);
-        showToast("❌ Lỗi tải Dashboard", "error");
+        showToast("❌ Lỗi tải Dashboard (PowerApp)", "error");
     }
 }
 
@@ -475,13 +500,13 @@ function updateStats() {
     let wipCount = 0;
 
     dashboardData.forEach(row => {
-        // Total In at the beginning (Hotmelt IN)
-        totalIn += (row.hotmelt_qty_in || 0);
+        // Total In at the beginning - We use hotmelt_out since there's no IN for Hotmelt
+        totalIn += (row.total_qty || 0); // Or use individual stage counts
         // Total Out at the end (Leanline OUT)
-        totalOut += (row.leanline_qty_out || 0);
+        totalOut += (row.leanline_out ? row.total_qty : 0);
         
-        // WIP = Started (Hotmelt IN) but NOT finished (Leanline OUT)
-        if (row.hotmelt_in && !row.leanline_out) {
+        // WIP = Started (Hotmelt OUT) but NOT finished (Leanline OUT)
+        if (row.hotmelt_out && !row.leanline_out) {
             wipCount++;
         }
     });
@@ -542,21 +567,20 @@ function renderTable() {
                 <td class="px-4 py-4 border-r text-center font-black text-slate-400">
                     <span class="text-xs">${row.total_qty || '0'}</span>
                 </td>
-                <!-- STAGE: HOTMELT -->
-                <td class="px-3 py-4 border-r ${row.hotmelt_in ? 'bg-emerald-50/20' : ''}">
-                    ${renderStageCell(row, 'hotmelt')}
+                <td class="px-3 py-4 border-r text-center ${row.hotmelt_out ? 'bg-emerald-50/20' : ''}">
+                    ${renderMappingCell(row, 'hotmelt')}
                 </td>
                 <!-- STAGE: PREFITTING -->
-                <td class="px-3 py-4 border-r ${row.prefitting_in ? 'bg-blue-50/20' : ''}">
-                    ${renderStageCell(row, 'prefitting')}
+                <td class="px-3 py-4 border-r text-center ${row.prefitting_out ? 'bg-blue-50/20' : ''}">
+                    ${renderMappingCell(row, 'prefitting')}
                 </td>
                 <!-- STAGE: MOLDING -->
                 <td class="px-3 py-4 border-r ${row.molding_in ? 'bg-orange-50/20' : ''}">
-                    ${renderStageCell(row, 'molding')}
+                    ${renderMappingCell(row, 'molding')}
                 </td>
                 <!-- STAGE: LEANLINE -->
                 <td class="px-3 py-4 border-r ${row.leanline_in ? 'bg-rose-50/20' : ''}">
-                    ${renderStageCell(row, 'leanline')}
+                    ${renderMappingCell(row, 'leanline')}
                 </td>
                 <td class="px-4 py-4 text-center text-[10px] text-slate-400">
                     ${row.finish_date ? formatDate(row.finish_date) : '---'}
@@ -593,25 +617,23 @@ window.changePage = (page) => {
     renderTable();
 };
 
-function renderStageCell(row, stage) {
-    const timeIn = row[`${stage}_in`];
-    const timeOut = row[`${stage}_out`];
-    const qtyIn = row[`${stage}_qty_in`] || 0;
-    const qtyOut = row[`${stage}_qty_out`] || 0;
-
+function renderMappingCell(row, stage) {
+    const timeIn = row[`${stage}_in`] || null;
+    const timeOut = row[`${stage}_out`] || null;
+    const config = UI_CONFIG[stage];
+    
     if (!timeIn && !timeOut) return '<div class="text-center text-slate-200">---</div>';
 
     return `
         <div class="flex flex-col gap-1">
+            ${config.hasIn ? `
             <div class="flex justify-between items-center bg-white/50 p-1 rounded-md border border-slate-100">
                 <span class="text-[8px] text-emerald-600 font-black">IN:</span>
                 <span class="text-[10px] font-bold">${formatTime(timeIn)}</span>
-                <span class="text-[10px] font-black text-emerald-500 ml-1">${qtyIn}</span>
-            </div>
+            </div>` : ''}
             <div class="flex justify-between items-center bg-white/50 p-1 rounded-md border border-slate-100">
                 <span class="text-[8px] text-rose-600 font-black">OUT:</span>
                 <span class="text-[10px] font-bold">${formatTime(timeOut)}</span>
-                <span class="text-[10px] font-black text-rose-500 ml-1">${qtyOut}</span>
             </div>
         </div>
     `;
@@ -685,12 +707,15 @@ function renderChart() {
         });
     }
 
-    // 2. Production stats (Daily Volume)
+    // 2. Production stats (Daily Volume - Using Leanline OUT for Finished Production)
     const dailyStats = {};
     filteredData.forEach(row => {
         if (row.updated_at) {
             const date = row.updated_at.split('T')[0];
-            dailyStats[date] = (dailyStats[date] || 0) + (row.hotmelt_qty_in || 0);
+            // Since we don't have separate hotmelt_qty_in anymore, we use total_qty if the order started
+            if (row.hotmelt_out) {
+                dailyStats[date] = (dailyStats[date] || 0) + (row.total_qty || 0);
+            }
         }
     });
 
@@ -708,7 +733,7 @@ function renderChart() {
                     return `${d_part}/${m}`;
                 }),
                 datasets: [{
-                    label: 'Tổng đôi Nhập/Ngày',
+                    label: TRANSLATIONS[currentLanguage].chart_prod_label,
                     data: productionValues,
                     backgroundColor: 'rgba(239, 68, 68, 0.8)',
                     borderRadius: 8,
