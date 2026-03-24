@@ -863,7 +863,10 @@ function playAudio(isSuccess) {
 
 function formatTime(iso) {
     if (!iso) return '--:--';
-    return new Date(iso).toLocaleTimeString('vi-VN', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    const d = new Date(iso);
+    const datePart = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    const timePart = d.toLocaleTimeString('vi-VN', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    return `${datePart} ${timePart}`;
 }
 
 function formatDate(iso) {
