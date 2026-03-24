@@ -119,12 +119,12 @@ const TRANSLATIONS = {
         filter_time: "Thời gian",
         filter_brand: "Tất cả Brand",
         filter_mold: "Tất cả khuôn",
-        filter_finish: "Ngày hoàn thành",
+        filter_finish: "Finish date",
         col_rpro: "THÔNG TIN RPRO",
         col_brand: "BRAND",
         col_qty: "SỐ LƯỢNG",
         col_total: "TỔNG PO",
-        col_finish: "NGÀY HOÀN THÀNH",
+        col_finish: "FINISH DATE",
         col_hotmelt: "01. HOTMELT",
         col_prefitting: "02. PREFITTING",
         col_molding: "03. MOLDING",
@@ -159,7 +159,7 @@ const TRANSLATIONS = {
         filter_time: "Time Range",
         filter_brand: "All Brands",
         filter_mold: "All Molds",
-        filter_finish: "Finish Date",
+        filter_finish: "Finish date",
         col_rpro: "RPRO INFO",
         col_brand: "BRAND",
         col_qty: "QUANTITY",
@@ -557,10 +557,8 @@ async function refreshDashboard() {
         }));
 
         currentPage = 1; 
-        updateStats();
         updateBrandFilter();
-        renderTable();
-        renderChart();
+        renderTable(); // renderTable will now call updateStats and renderChart internally to stay in sync
         
     } catch (err) {
         console.error("Dashboard error:", err);
@@ -578,7 +576,7 @@ function updateStats() {
     let firstScanTime = Infinity;
     let lastScanTime = -Infinity;
 
-    dashboardData.forEach(row => {
+    filteredData.forEach(row => {
         const rowVol = row.total_qty || 0;
         totalHotmeltVolume += rowVol;
         
@@ -641,20 +639,43 @@ function renderTable() {
     const moldFilter = document.getElementById('mold-filter').value.toLowerCase();
     const finishDateFilter = document.getElementById('finish-date-filter').value;
     
+    const picker = document.getElementById('date-range-picker')._flatpickr;
+    let startDate = null;
+    let endDate = null;
+    if (picker && picker.selectedDates.length === 2) {
+        startDate = picker.selectedDates[0];
+        endDate = new Date(picker.selectedDates[1].setHours(23,59,59,999));
+    }
+
     filteredData = dashboardData.filter(row => {
+        // 1. RPRO Search
         const matchesRpro = row.rpro.toLowerCase().includes(searchTerm);
+        
+        // 2. Brand Filter
         const matchesBrand = brandFilter === 'all' || row.brand === brandFilter;
+        
+        // 3. Mold Filter
         const matchesMold = !moldFilter || (row.mold && row.mold.toLowerCase().includes(moldFilter));
         
-        // Fix Date Comparison: row.finish_date is Excel serial, finishDateFilter is 'YYYY-MM-DD'
+        // 4. Finish Date Filter
         let matchesFinish = true;
         if (finishDateFilter) {
             const rowDate = row.finish_date ? excelToISO(row.finish_date).split('T')[0] : '';
             matchesFinish = (rowDate === finishDateFilter);
         }
+
+        // 5. Global Time Range Filter (Applied locally for Mock Data compatibility)
+        let matchesTime = true;
+        if (startDate && endDate) {
+            const rowTime = new Date(row.updated_at || row.created_at);
+            matchesTime = (rowTime >= startDate && rowTime <= endDate);
+        }
         
-        return matchesRpro && matchesBrand && matchesMold && matchesFinish;
+        return matchesRpro && matchesBrand && matchesMold && matchesFinish && matchesTime;
     });
+
+    updateStats();
+    renderChart();
 
     const totalRecords = filteredData.length;
     const totalPages = Math.ceil(totalRecords / pageSize);
