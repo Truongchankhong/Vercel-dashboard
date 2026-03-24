@@ -277,46 +277,11 @@
         </div>
 
         <div id="content-dashboard" class="hidden animate__animated animate__fadeIn">
-            <!-- Dashboard Overview Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_wip">Đang chạy (WIP)</p>
-                    <div class="flex items-baseline gap-2">
-                        <span id="stat-wip" class="text-4xl font-black text-red-500">0</span>
-                        <span class="text-xs font-bold text-slate-400" data-i18n="order_unit">ĐƠN HÀNG</span>
-                    </div>
-                </div>
-                <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_in">Nhập (BẮT ĐẦU)</p>
-                    <div class="flex items-baseline gap-2">
-                        <span id="stat-total-in" class="text-4xl font-black text-emerald-500">0</span>
-                        <span class="text-xs font-bold text-slate-400" data-i18n="unit">ĐÔI</span>
-                    </div>
-                </div>
-                <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_out">Xuất (HOÀN THÀNH)</p>
-                    <div class="flex items-baseline gap-2">
-                        <span id="stat-total-out" class="text-4xl font-black text-blue-500">0</span>
-                        <span class="text-xs font-bold text-slate-400" data-i18n="unit">ĐÔI</span>
-                    </div>
-                </div>
-                <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center overflow-hidden">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_rate">Tỷ lệ hoàn thành</p>
-                    <span id="stat-completion" class="text-4xl font-black text-slate-800">0%</span>
-                    <div class="w-full h-2 bg-slate-100 rounded-full mt-3 overflow-hidden">
-                        <div id="stat-completion-bar" class="h-full bg-red-500 transition-all duration-1000" style="width: 0%"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts and Filter -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                <!-- Data Filter -->
-                <div class="lg:col-span-1 bg-white p-6 rounded-3xl border border-slate-200 space-y-4">
-                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest border-b pb-3 border-slate-100">BỘ LỌC DỮ LIỆU</h3>
-                    
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" data-i18n="filter_time">Thời gian</label>
+            <!-- New Horizontal Filter Bar -->
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 mb-8 shadow-sm">
+                <div class="flex flex-wrap items-end gap-4">
+                    <div class="flex-1 min-w-[200px]">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1" data-i18n="filter_time">Thời gian</label>
                         <div class="relative">
                             <input type="text" id="date-range-picker" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400" placeholder="Chọn khoảng ngày...">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -325,56 +290,124 @@
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" data-i18n="filter_brand">Brand (Khách hàng)</label>
+                    <div class="flex-1 min-w-[180px]">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1" data-i18n="filter_brand">Brand Filter</label>
                         <select id="brand-filter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400">
-                            <option value="all" data-i18n="all_brands">Tất cả Brand</option>
-                            <!-- Dynamic brands -->
+                            <option value="all">Tất cả Brand</option>
                         </select>
                     </div>
 
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" data-i18n="filter_mold">#Mold (Lọc khuôn)</label>
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">#Mold (Lọc khuôn)</label>
                         <input type="text" id="mold-filter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400" placeholder="Nhập mã khuôn...">
                     </div>
 
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1" data-i18n="filter_finish_date">Finish Date (Ngày ra hàng)</label>
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Finish Date</label>
                         <input type="date" id="finish-date-filter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400">
                     </div>
 
-                    <div class="pt-4 space-y-2">
-                        <button id="btn-export" class="w-full flex items-center justify-center gap-2 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition shadow-lg shadow-green-100">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div class="flex gap-2">
+                        <button id="btn-export" class="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition shadow-lg shadow-green-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
-                            XUẤT FILE EXCEL
+                            EXPORT
                         </button>
-                        <button id="btn-refresh-dashboard" class="w-full flex items-center justify-center gap-2 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-900 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <button id="btn-refresh-dashboard" class="flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-900 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
-                            LÀM MỚI DỮ LIỆU
+                            REFRESH
                         </button>
                     </div>
                 </div>
+            </div>
 
-                <!-- Charts Section -->
-                <div class="lg:col-span-2 space-y-6">
-                    <!-- Brand Analysis Chart -->
-                    <div class="bg-white p-6 rounded-3xl border border-slate-200">
-                        <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 px-2 italic" data-i18n="chart_brand">PHÂN TÍCH NHÓM THEO BRAND (TOP 5) %</h3>
-                        <div class="h-[250px]">
-                            <canvas id="chart-brands"></canvas>
+            <!-- Dashboard Overview Stats (Two Rows) -->
+            <div class="space-y-6 mb-8">
+                <!-- Part 1: Productivity & Volume -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">CÁC ĐƠN ĐÃ SCAN OUT HOTMELT</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-hotmelt-orders" class="text-4xl font-black text-indigo-500">0</span>
+                            <span class="text-[9px] font-bold text-slate-400">ĐƠN HÀNG</span>
                         </div>
                     </div>
-                    
-                    <!-- Production Volume Chart -->
-                    <div class="bg-white p-6 rounded-3xl border border-slate-200">
-                        <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 px-2 italic" data-i18n="chart_prod">SẢN LƯỢNG HOÀN THÀNH THEO NGÀY (SỐ ĐÔI)</h3>
-                        <div class="h-[250px]">
-                            <canvas id="chart-production"></canvas>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">NĂNG SUẤT TRUNG BÌNH/H</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-productivity" class="text-4xl font-black text-orange-500">0</span>
+                            <span class="text-[9px] font-bold text-slate-400">ĐÔI/H</span>
                         </div>
+                    </div>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">SẢN LƯỢNG TRUNG BÌNH/NGÀY</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-avg-daily" class="text-4xl font-black text-blue-500">0</span>
+                            <span class="text-[9px] font-bold text-slate-400">ĐÔI/NGÀY</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">TỈ LỆ HOTMELT / TỔNG PO</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-hotmelt-ratio" class="text-4xl font-black text-rose-500">0</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">% VOLUME</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Part 2: Workflow & Completion -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_wip">Đang chạy (WIP)</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-wip" class="text-3xl font-black text-slate-800">0</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">ORDERS</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">TỔNG BRAND ÁP DỤNG HOTMELT</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-total-brands" class="text-3xl font-black text-emerald-600">0</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">BRANDS</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_out">ĐÃ HOÀN THÀNH LEANLINE</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-total-out" class="text-3xl font-black text-blue-600">0</span>
+                            <span class="text-[9px] font-bold text-slate-400" data-i18n="unit">ĐÔI</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center overflow-hidden">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_rate">Tỷ lệ hoàn thành</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-completion" class="text-3xl font-black text-slate-800">0%</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                            <div id="stat-completion-bar" class="h-full bg-red-500 transition-all duration-1000" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts and Visualization -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <!-- Brand Analysis Chart -->
+                <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 px-2 italic" data-i18n="chart_brand">PHÂN TÍCH NHÓM THEO BRAND (TOP 5) %</h3>
+                    <div class="h-[250px]">
+                        <canvas id="chart-brands"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Production Volume Chart -->
+                <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 px-2 italic" data-i18n="chart_prod">SẢN LƯỢNG HOÀN THÀNH THEO NGÀY (SỐ ĐÔI)</h3>
+                    <div class="h-[250px]">
+                        <canvas id="chart-production"></canvas>
                     </div>
                 </div>
             </div>

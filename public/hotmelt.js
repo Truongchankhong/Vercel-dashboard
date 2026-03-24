@@ -26,10 +26,14 @@ const ELEMENTS = {
     scannerOverlay: document.getElementById('scanner-input-overlay'),
     // Dashboard elements
     statWip: document.getElementById('stat-wip'),
-    statTotalIn: document.getElementById('stat-total-in'),
+    statTotalBrands: document.getElementById('stat-total-brands'),
     statTotalOut: document.getElementById('stat-total-out'),
     statCompletion: document.getElementById('stat-completion'),
     statCompletionBar: document.getElementById('stat-completion-bar'),
+    statHotmeltOrders: document.getElementById('stat-hotmelt-orders'),
+    statProductivity: document.getElementById('stat-productivity'),
+    statAvgDaily: document.getElementById('stat-avg-daily'),
+    statHotmeltRatio: document.getElementById('stat-hotmelt-ratio'),
     tableBody: document.getElementById('dashboard-table-body'),
     tableSearch: document.getElementById('table-search'),
     brandFilter: document.getElementById('brand-filter'),
@@ -54,6 +58,7 @@ let currentLanguage = 'vi';
 let currentPage = 1;
 const pageSize = 15;
 let filteredData = [];
+let totalPowerAppVolume = 0; // Cumulative PO across all machines for ratio
 
 // Column Mapping for PowerApp Table
 const COLUMN_MAP = {
@@ -452,16 +457,25 @@ async function refreshDashboard() {
             .select('*')
             .eq('"LAMINATION MACHINE (REALTIME)"', 'Hotmelt'); // QUOTED FOR SPACES/PARENS
         
+        let totalVolumeQuery = supabase
+            .from('powerapp')
+            .select('"Total Qty"');
+        
         // Date filters from Flatpickr
         const picker = document.getElementById('date-range-picker')._flatpickr;
         if (picker && picker.selectedDates.length === 2) {
             const start = picker.selectedDates[0].toISOString();
             const end = new Date(picker.selectedDates[1].setHours(23,59,59,999)).toISOString();
             query = query.gte('created_at', start).lte('created_at', end);
+            totalVolumeQuery = totalVolumeQuery.gte('created_at', start).lte('created_at', end);
         }
 
-        const { data, error } = await query;
-        if (error) throw error;
+        const [dashboardRes, totalRes] = await Promise.all([query, totalVolumeQuery]);
+        if (dashboardRes.error) throw dashboardRes.error;
+        if (totalRes.error) throw totalRes.error;
+
+        const data = dashboardRes.data;
+        totalPowerAppVolume = totalRes.data.reduce((sum, row) => sum + (row['Total Qty'] || 0), 0);
 
         // Map PowerApp rows to Dashboard rows
         dashboardData = data.map(item => ({
@@ -495,30 +509,69 @@ async function refreshDashboard() {
 }
 
 function updateStats() {
-    let totalIn = 0;
-    let totalOut = 0;
+    let hotmeltOutOrders = 0;
+    let totalHotmeltVolume = 0;
+    let totalFinishedVolume = 0;
     let wipCount = 0;
+    let brands = new Set();
+    let distinctDays = new Set();
+    let firstScanTime = Infinity;
+    let lastScanTime = -Infinity;
 
     dashboardData.forEach(row => {
-        // Total In at the beginning - We use hotmelt_out since there's no IN for Hotmelt
-        totalIn += (row.total_qty || 0); // Or use individual stage counts
-        // Total Out at the end (Leanline OUT)
-        totalOut += (row.leanline_out ? row.total_qty : 0);
+        const rowVol = row.total_qty || 0;
+        totalHotmeltVolume += rowVol;
         
-        // WIP = Started (Hotmelt OUT) but NOT finished (Leanline OUT)
+        if (row.brand) brands.add(row.brand);
+        
+        if (row.hotmelt_out) {
+            hotmeltOutOrders++;
+            const t = new Date(row.hotmelt_out).getTime();
+            if (t < firstScanTime) firstScanTime = t;
+            if (t > lastScanTime) lastScanTime = t;
+            distinctDays.add(new Date(row.hotmelt_out).toLocaleDateString());
+        }
+
+        if (row.leanline_out) {
+            totalFinishedVolume += rowVol;
+        }
+        
         if (row.hotmelt_out && !row.leanline_out) {
             wipCount++;
         }
     });
 
-    ELEMENTS.statTotalIn.textContent = totalIn.toLocaleString();
-    ELEMENTS.statTotalOut.textContent = totalOut.toLocaleString();
+    // 1. Core metrics
+    ELEMENTS.statHotmeltOrders.textContent = hotmeltOutOrders.toLocaleString();
+    ELEMENTS.statTotalOut.textContent = totalFinishedVolume.toLocaleString();
     ELEMENTS.statWip.textContent = wipCount.toLocaleString();
+    ELEMENTS.statTotalBrands.textContent = brands.size.toLocaleString();
+
+    // 2. Productivity (Pairs/h)
+    // Assume 8 hours/day if only 1 day, or actual elapsed if multiday.
+    // Or simplified: Total Output / (elapsed hours or 8h minimum)
+    let productivity = 0;
+    if (hotmeltOutOrders > 0 && lastScanTime > firstScanTime) {
+        let hours = (lastScanTime - firstScanTime) / (1000 * 60 * 60);
+        if (hours < 1) hours = 1; 
+        productivity = Math.round(totalHotmeltVolume / hours);
+    }
+    ELEMENTS.statProductivity.textContent = productivity.toLocaleString();
+
+    // 3. Avg Daily Output
+    const dayCount = Math.max(1, distinctDays.size);
+    const avgDaily = Math.round(totalFinishedVolume / dayCount);
+    ELEMENTS.statAvgDaily.textContent = avgDaily.toLocaleString();
+
+    // 4. Hotmelt Ratio
+    const ratio = totalPowerAppVolume > 0 ? Math.round((totalHotmeltVolume / totalPowerAppVolume) * 100) : 0;
+    ELEMENTS.statHotmeltRatio.textContent = ratio + '%';
     
-    const rate = totalIn > 0 ? Math.round((totalOut / totalIn) * 100) : 0;
-    ELEMENTS.statCompletion.textContent = rate + '%';
+    // 5. Completion Rate
+    const completionRate = totalHotmeltVolume > 0 ? Math.round((totalFinishedVolume / totalHotmeltVolume) * 100) : 0;
+    ELEMENTS.statCompletion.textContent = completionRate + '%';
     if (ELEMENTS.statCompletionBar) {
-        ELEMENTS.statCompletionBar.style.width = rate + '%';
+        ELEMENTS.statCompletionBar.style.width = completionRate + '%';
     }
 }
 
