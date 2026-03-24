@@ -243,7 +243,11 @@ async function performSave(rpro, qty) {
         
     } catch (err) {
         console.error("Save error:", err);
-        showToast("❌ Lỗi khi lưu dữ liệu", "error");
+        if (err.message && err.message.includes('column')) {
+            showToast("❌ Lỗi Database: Bạn cần chạy file SQL TRƯỚC khi dùng tính năng này!", "error");
+        } else {
+            showToast("❌ Lỗi khi lưu dữ liệu", "error");
+        }
     } finally {
         isProcessing = false;
         saveBtn.disabled = false;
