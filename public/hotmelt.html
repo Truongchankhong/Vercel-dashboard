@@ -137,11 +137,25 @@
                     <div class="glass-card rounded-3xl p-8 shadow-sm">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                             <h2 class="text-2xl font-black text-slate-800">TRẠM QUÉT HOTMELT</h2>
-                            <!-- IN/OUT Toggle -->
-                            <div class="flex p-1 bg-slate-100 rounded-2xl w-full sm:w-auto">
-                                <button id="btn-scan-in" class="flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 bg-emerald-500 text-white shadow-lg shadow-emerald-200" onclick="setScanMode('IN')">SCAN IN</button>
-                                <button id="btn-scan-out" class="flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 text-slate-500 hover:bg-slate-200" onclick="setScanMode('OUT')">SCAN OUT</button>
+                            <!-- IN/OUT Toggle & Camera -->
+                            <div class="flex items-center gap-2 w-full sm:w-auto">
+                                <button id="btn-toggle-camera" class="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition shadow-sm" title="Bật/Tắt Camera">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                </button>
+                                <div class="flex p-1 bg-slate-100 rounded-2xl flex-1 sm:flex-none">
+                                    <button id="btn-scan-in" class="flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 bg-emerald-500 text-white shadow-lg shadow-emerald-200" onclick="setScanMode('IN')">SCAN IN</button>
+                                    <button id="btn-scan-out" class="flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 text-slate-500 hover:bg-slate-200" onclick="setScanMode('OUT')">SCAN OUT</button>
+                                </div>
                             </div>
+                        </div>
+
+                        <!-- Camera Scanner Container -->
+                        <div id="camera-section" class="mb-6 hidden">
+                            <div id="qr-reader" class="rounded-3xl overflow-hidden border-4 border-slate-100 shadow-inner" style="width: 100%; min-height: 250px;"></div>
+                            <p class="text-center text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">Đang sử dụng camera để quét mã...</p>
                         </div>
 
                         <!-- Manual Input Box -->
@@ -159,11 +173,11 @@
 
                         <!-- Quantity Selector -->
                         <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-8">
-                            <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Số lượng (Quantity)</label>
-                            <div class="flex items-center justify-between gap-4">
-                                <button onclick="adjustQty(-1)" class="w-16 h-16 bg-white border-2 border-slate-200 rounded-2xl text-2xl font-black text-slate-600 hover:border-red-500 hover:text-red-500 transition active:scale-90">-</button>
-                                <input type="number" id="qty-input" value="1" min="1" class="flex-1 bg-transparent text-center text-5xl font-black text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
-                                <button onclick="adjustQty(1)" class="w-16 h-16 bg-white border-2 border-slate-200 rounded-2xl text-2xl font-black text-slate-600 hover:border-red-500 hover:text-red-500 transition active:scale-90">+</button>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">Số lượng (Quantity)</label>
+                            <div class="flex items-center justify-center gap-6">
+                                <button onclick="adjustQty(-1)" class="w-14 h-14 flex-shrink-0 bg-white border-2 border-slate-200 rounded-2xl text-2xl font-black text-slate-600 hover:border-red-500 hover:text-red-500 transition active:scale-90 shadow-sm">-</button>
+                                <input type="number" id="qty-input" value="1" min="1" class="w-24 bg-transparent text-center text-5xl font-black text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none min-w-0">
+                                <button onclick="adjustQty(1)" class="w-14 h-14 flex-shrink-0 bg-white border-2 border-slate-200 rounded-2xl text-2xl font-black text-slate-600 hover:border-red-500 hover:text-red-500 transition active:scale-90 shadow-sm">+</button>
                             </div>
                         </div>
 
@@ -359,6 +373,7 @@
     <input type="text" id="scanner-input-overlay" autocomplete="off" />
 
     <!-- Scripts -->
+    <script src="https://unpkg.com/html5-qrcode" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="./supabaseClient.js"></script>
     <script type="module" src="./hotmelt.js"></script>

@@ -1,11 +1,6 @@
 import { supabase } from './supabaseClient.js';
 
-// ==================== CONFIG & STATE ====================
-let scanMode = 'IN'; // 'IN' or 'OUT'
-let currentRproData = null;
-let isProcessing = false;
-let dashboardData = [];
-let brandChart = null;
+// ==================== CONFIG & STATE (REMOVED: MOVED BELOW ELEMENTS) ====================
 
 const ELEMENTS = {
     rproInput: document.getElementById('rpro-input'),
@@ -40,8 +35,19 @@ const ELEMENTS = {
     brandFilter: document.getElementById('brand-filter'),
     dateRange: document.getElementById('date-range'),
     btnExport: document.getElementById('btn-export'),
-    btnRefreshDashboard: document.getElementById('btn-refresh-dashboard')
+    btnRefreshDashboard: document.getElementById('btn-refresh-dashboard'),
+    btnToggleCamera: document.getElementById('btn-toggle-camera'),
+    cameraSection: document.getElementById('camera-section')
 };
+
+// ==================== CONFIG & STATE ====================
+let scanMode = 'IN'; // 'IN' or 'OUT'
+let currentRproData = null;
+let isProcessing = false;
+let dashboardData = [];
+let brandChart = null;
+let html5QrScanner = null;
+let cameraActive = false;
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', () => {
@@ -117,6 +123,7 @@ function setupEventListeners() {
     ELEMENTS.tableSearch.addEventListener('input', renderTable);
     ELEMENTS.brandFilter.addEventListener('change', renderTable);
     ELEMENTS.dateRange.addEventListener('change', refreshDashboard);
+    ELEMENTS.btnToggleCamera?.addEventListener('click', toggleCamera);
 
     // Handheld Scanner Support
     let scanBuffer = '';
@@ -516,13 +523,71 @@ function exportToExcel() {
         "Brand": row.brand,
         "PU Code": row.pu,
         "FB": row.fb,
+        "#Mold": row.mold,
+        "Total Qty": row.total_qty,
         "Hotmelt Scan In": row.hotmelt_scan_in,
         "Hotmelt Scan Out": row.hotmelt_scan_out,
         "Qty In": row.hotmelt_qty_in,
         "Qty Out": row.hotmelt_qty_out,
-        "Created At": row.created_at
+        "DC": row.dc,
+        "Finish Date": row.finish_date,
+        "Created At": row.created_at,
+        "Updated At": row.updated_at
     })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Hotmelt Tracking");
     XLSX.writeFile(wb, `Hotmelt_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
+
+// ==================== CAMERA SCANNER ====================
+
+function toggleCamera() {
+    if (cameraActive) {
+        stopCamera();
+    } else {
+        startCamera();
+    }
+}
+
+function startCamera() {
+    ELEMENTS.cameraSection.classList.remove('hidden');
+    ELEMENTS.btnToggleCamera.classList.add('bg-red-500', 'text-white');
+    
+    if (!html5QrScanner) {
+        html5QrScanner = new Html5Qrcode("qr-reader");
+    }
+
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    
+    html5QrScanner.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess
+    ).then(() => {
+        cameraActive = true;
+    }).catch(err => {
+        console.error("Camera error:", err);
+        showToast("⚠️ Không thể bật camera. Kiểm tra quyền truy cập!", "error");
+        stopCamera();
+    });
+}
+
+function stopCamera() {
+    ELEMENTS.cameraSection.classList.add('hidden');
+    ELEMENTS.btnToggleCamera.classList.remove('bg-red-500', 'text-white');
+    
+    if (html5QrScanner && cameraActive) {
+        html5QrScanner.stop().then(() => {
+            cameraActive = false;
+        }).catch(err => console.error("Stop camera error:", err));
+    } else {
+        cameraActive = false;
+    }
+}
+
+function onScanSuccess(decodedText) {
+    if (isProcessing) return;
+    handleRproDetected(decodedText);
+}
+
+window.toggleCamera = toggleCamera;
