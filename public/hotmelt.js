@@ -218,7 +218,18 @@ async function performSave(rpro, qty) {
             updateData.fb = currentRproData.FB;
             updateData.mold = currentRproData['#MOLD'] || currentRproData.Mold;
             updateData.total_qty = currentRproData['Total Qty'];
-            updateData.finish_date = currentRproData['Finish date'];
+            
+            // Fix Excel Serial Date (e.g., 46105) to ISO Date string
+            let fDate = currentRproData['Finish date'];
+            if (fDate && !isNaN(fDate)) {
+                // Excel date is usually a number of days since Dec 30, 1899
+                const jsDate = new Date((fDate - 25569) * 86400 * 1000);
+                if (!isNaN(jsDate.getTime())) {
+                    updateData.finish_date = jsDate.toISOString().split('T')[0];
+                }
+            } else if (fDate) {
+                updateData.finish_date = fDate; // Assume it's already a valid date string
+            }
         }
 
         // Upsert based on RPRO
