@@ -47,6 +47,7 @@ let currentRproData = null;
 let isProcessing = false;
 let dashboardData = [];
 let brandChart = null;
+let productionChart = null;
 let html5QrScanner = null;
 let cameraActive = false;
 let currentLanguage = 'vi';
@@ -626,49 +627,111 @@ function renderStatusBadge(row) {
 }
 
 function renderChart() {
+    // 1. Brand Analysis (Top 5 Percentage)
     const brandCounts = {};
-    dashboardData.forEach(row => {
+    const brandVolumes = {}; // Sum of total_qty
+    
+    // We use filteredData to reflect current filters, or dashboardData if we want global?
+    // User wants "theo các Brand đang chọn" -> use filteredData
+    filteredData.forEach(row => {
         if (row.brand) {
             brandCounts[row.brand] = (brandCounts[row.brand] || 0) + 1;
+            brandVolumes[row.brand] = (brandVolumes[row.brand] || 0) + (row.total_qty || 0);
         }
     });
-
-    const labels = Object.keys(brandCounts).sort((a,b) => brandCounts[b] - brandCounts[a]).slice(0, 5);
-    const data = labels.map(l => brandCounts[l]);
+    
+    const topBrands = Object.keys(brandVolumes)
+        .sort((a,b) => brandVolumes[b] - brandVolumes[a])
+        .slice(0, 5);
+        
+    const totalVolume = topBrands.reduce((sum, b) => sum + brandVolumes[b], 0);
+    const brandLabels = topBrands.map(b => {
+        const pct = totalVolume > 0 ? Math.round((brandVolumes[b] / totalVolume) * 100) : 0;
+        return `${b} (${pct}%)`;
+    });
+    const brandValues = topBrands.map(b => brandVolumes[b]);
 
     if (brandChart) brandChart.destroy();
-
-    const ctx = document.getElementById('brandChart').getContext('2d');
-    brandChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Số đơn hàng',
-                data: data,
-                backgroundColor: [
-                    'rgba(239, 68, 68, 0.8)',
-                    'rgba(249, 115, 22, 0.8)',
-                    'rgba(245, 158, 11, 0.8)',
-                    'rgba(16, 185, 129, 0.8)',
-                    'rgba(59, 130, 246, 0.8)'
-                ],
-                borderRadius: 12,
-                barThickness: 40
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
+    const ctxBrand = document.getElementById('chart-brands')?.getContext('2d');
+    if (ctxBrand) {
+        brandChart = new Chart(ctxBrand, {
+            type: 'doughnut',
+            data: {
+                labels: brandLabels,
+                datasets: [{
+                    data: brandValues,
+                    backgroundColor: [
+                        '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#ef4444'
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 20
+                }]
             },
-            scales: {
-                y: { beginAtZero: true, grid: { display: false } },
-                x: { grid: { display: false } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            font: { weight: 'bold', size: 10 },
+                            padding: 20
+                        }
+                    }
+                },
+                cutout: '70%'
             }
+        });
+    }
+
+    // 2. Production stats (Daily Volume)
+    const dailyStats = {};
+    filteredData.forEach(row => {
+        if (row.updated_at) {
+            const date = row.updated_at.split('T')[0];
+            dailyStats[date] = (dailyStats[date] || 0) + (row.hotmelt_qty_in || 0);
         }
     });
+
+    const dates = Object.keys(dailyStats).sort();
+    const productionValues = dates.map(d => dailyStats[d]);
+
+    if (productionChart) productionChart.destroy();
+    const ctxProd = document.getElementById('chart-production')?.getContext('2d');
+    if (ctxProd) {
+        productionChart = new Chart(ctxProd, {
+            type: 'bar',
+            data: {
+                labels: dates.map(d => {
+                    const [y, m, d_part] = d.split('-');
+                    return `${d_part}/${m}`;
+                }),
+                datasets: [{
+                    label: 'Tổng đôi Nhập/Ngày',
+                    data: productionValues,
+                    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                    borderRadius: 8,
+                    barThickness: 24
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { 
+                        beginAtZero: true,
+                        grid: { color: '#f1f5f9' },
+                        ticks: { font: { weight: 'bold' } }
+                    }
+                }
+            }
+        });
+    }
 }
 
 function updateBrandFilter() {
