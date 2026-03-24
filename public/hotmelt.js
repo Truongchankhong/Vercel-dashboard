@@ -159,16 +159,18 @@ async function handleRproDetected(rawRpro) {
         // Find in powerapp - Use column names exactly as they are in Supabase (quoted if needed)
         const { data, error } = await supabase
             .from('powerapp')
-            .select('"Brand Code", PU, FB, "#MOLD", "Total Qty", "Finish date"')
+            .select('"Brand Code", "PU DESCRIPTION", "FB DESCRIPTION", "#MOLD", "Total Qty", "Finish date"')
             .eq('PRO ODER', rpro)
             .maybeSingle();
 
         if (error) throw error;
 
         if (data) {
-            // Map Brand Code to Brand for internal use
+            // Map columns for internal use
             data.Brand = data['Brand Code'];
             data.Mold = data['#MOLD'];
+            data.PU = data['PU DESCRIPTION'];
+            data.FB = data['FB DESCRIPTION'];
             
             currentRproData = data;
             showDetails(data);
