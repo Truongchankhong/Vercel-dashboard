@@ -420,28 +420,29 @@ async function handleRproDetected(rawRpro) {
             data.FB = data['FB DESCRIPTION'];
             
             currentRproData = data;
-            showDetails(data);
+            if (ELEMENTS.rproDetails) showDetails(data);
             playAudio(true);
             
             // Repurpose History Row to show current status
-            addStatusHistoryRow(data);
+            if (ELEMENTS.scanHistory) addStatusHistoryRow(data);
 
         } else {
             showToast(`⚠️ Không tìm thấy RPRO: ${rpro}`, 'error');
             playAudio(false);
-            ELEMENTS.rproDetails.classList.add('hidden');
+            if (ELEMENTS.rproDetails) ELEMENTS.rproDetails.classList.add('hidden');
         }
     } catch (err) {
         console.error("Check error:", err);
         showToast("❌ Lỗi truy vấn dữ liệu", "error");
     } finally {
         isProcessing = false;
-        setTimeout(() => ELEMENTS.inputLoader.classList.add('hidden'), 500);
+        if (ELEMENTS.inputLoader) setTimeout(() => ELEMENTS.inputLoader.classList.add('hidden'), 500);
     }
 }
 
 // Show current progress in the history area (Read-only)
 function addStatusHistoryRow(data) {
+    if (!ELEMENTS.scanHistory) return;
     const rpro = data['PRO ODER'];
     const row = document.createElement('div');
     row.className = `flex flex-col bg-white p-4 rounded-2xl border-l-4 border-indigo-500 shadow-sm animate__animated animate__slideInRight mb-3`;
@@ -451,10 +452,7 @@ function addStatusHistoryRow(data) {
     // Status indicators
     const hOUT = data[COLUMN_MAP.hotmelt.out];
     const pOUT = data[COLUMN_MAP.prefitting.out];
-    const mIN = data[COLUMN_MAP.molding.in];
     const mOUT = data[COLUMN_MAP.molding.out];
-    const lIN = data[COLUMN_MAP.leanline.in];
-    const lOUT = data[COLUMN_MAP.leanline.out];
 
     row.innerHTML = `
         <div class="flex justify-between items-start mb-2">
@@ -968,6 +966,7 @@ function showDetails(data) {
 }
 
 function addHistoryRow(rpro, qty, mode, stage) {
+    if (!ELEMENTS.scanHistory) return;
     const row = document.createElement('div');
     const stageName = (stage || currentStage).toUpperCase();
     row.className = `flex justify-between items-center bg-white p-4 rounded-2xl border-l-4 shadow-sm animate__animated animate__slideInRight ${mode === 'IN' ? 'border-emerald-500' : 'border-rose-500'}`;
@@ -1006,7 +1005,7 @@ async function fetchRecentHistory() {
             .limit(10);
             
         if (data && data.length > 0) {
-            ELEMENTS.scanHistory.innerHTML = '';
+            if (ELEMENTS.scanHistory) ELEMENTS.scanHistory.innerHTML = '';
             data.forEach(item => {
                 // Determine latest stage activity
                 const stages = ['hotmelt', 'prefitting', 'molding', 'leanline'];
@@ -1029,8 +1028,10 @@ async function fetchRecentHistory() {
 }
 
 function updateSessionCount() {
-    const count = ELEMENTS.scanHistory.children.length;
-    ELEMENTS.sessionCount.textContent = count;
+    if (ELEMENTS.scanHistory && ELEMENTS.sessionCount) {
+        const count = ELEMENTS.scanHistory.children.length;
+        ELEMENTS.sessionCount.textContent = count;
+    }
 }
 
 function showToast(message, type = "success") {
