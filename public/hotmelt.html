@@ -253,35 +253,33 @@
 
         <div id="content-dashboard" class="hidden animate__animated animate__fadeIn">
             <!-- Dashboard Overview Stats -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">ĐANG CHẠY (WIP)</p>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Đang chạy (WIP)</p>
                     <div class="flex items-baseline gap-2">
                         <span id="stat-wip" class="text-4xl font-black text-red-500">0</span>
-                        <span class="text-xs font-bold text-slate-400 uppercase">Đơn hàng</span>
+                        <span class="text-xs font-bold text-slate-400">ĐƠN HÀNG</span>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">NHẬP (HOTMELT IN)</p>
+                <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nhập (BẮT ĐẦU)</p>
                     <div class="flex items-baseline gap-2">
                         <span id="stat-total-in" class="text-4xl font-black text-emerald-500">0</span>
-                        <span class="text-xs font-bold text-slate-400 uppercase italic">Cặp</span>
+                        <span class="text-xs font-bold text-slate-400">CẶP</span>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">XUẤT (HOTMELT OUT)</p>
+                <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Xuất (HOÀN THÀNH)</p>
                     <div class="flex items-baseline gap-2">
                         <span id="stat-total-out" class="text-4xl font-black text-blue-500">0</span>
-                        <span class="text-xs font-bold text-slate-400 uppercase italic">Cặp</span>
+                        <span class="text-xs font-bold text-slate-400">CẶP</span>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">TỶ LỆ HOÀN THÀNH</p>
-                    <div class="flex items-baseline gap-2">
-                        <span id="stat-completion" class="text-4xl font-black text-slate-800">0%</span>
-                    </div>
-                    <div class="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                        <div id="stat-completion-bar" class="bg-gradient-to-r from-red-500 to-orange-500 h-full w-0 transition-all duration-1000"></div>
+                <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center overflow-hidden">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tỷ lệ hoàn thành</p>
+                    <span id="stat-completion" class="text-4xl font-black text-slate-800">0%</span>
+                    <div class="w-full h-2 bg-slate-100 rounded-full mt-3 overflow-hidden">
+                        <div id="stat-completion-bar" class="h-full bg-red-500 transition-all duration-1000" style="width: 0%"></div>
                     </div>
                 </div>
             </div>

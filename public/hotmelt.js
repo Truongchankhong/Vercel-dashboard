@@ -325,10 +325,13 @@ function updateStats() {
     let wipCount = 0;
 
     dashboardData.forEach(row => {
+        // Total In at the beginning (Hotmelt IN)
         totalIn += (row.hotmelt_qty_in || 0);
-        totalOut += (row.hotmelt_qty_out || 0);
-        // WIP defined as has In but No Out time or Qty Out < Qty In
-        if (row.hotmelt_scan_in && !row.hotmelt_scan_out) {
+        // Total Out at the end (Leanline OUT)
+        totalOut += (row.leanline_qty_out || 0);
+        
+        // WIP = Started (Hotmelt IN) but NOT finished (Leanline OUT)
+        if (row.hotmelt_in && !row.leanline_out) {
             wipCount++;
         }
     });
@@ -339,7 +342,9 @@ function updateStats() {
     
     const rate = totalIn > 0 ? Math.round((totalOut / totalIn) * 100) : 0;
     ELEMENTS.statCompletion.textContent = rate + '%';
-    ELEMENTS.statCompletionBar.style.width = rate + '%';
+    if (ELEMENTS.statCompletionBar) {
+        ELEMENTS.statCompletionBar.style.width = rate + '%';
+    }
 }
 
 function renderTable() {
