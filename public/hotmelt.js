@@ -523,10 +523,7 @@ async function refreshDashboard() {
             totalVolumeQuery = totalVolumeQuery.gte('created_at', start).lte('created_at', end);
         }
 
-        const [dashboardRes, totalRes] = await Promise.all([
-            query.catch(e => ({ data: [], error: e })),
-            totalVolumeQuery.catch(e => ({ data: [], error: e }))
-        ]);
+        const [dashboardRes, totalRes] = await Promise.all([query, totalVolumeQuery]);
 
         let data = [];
         try {
