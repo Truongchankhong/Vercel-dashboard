@@ -62,6 +62,19 @@ const pageSize = 15;
 let filteredData = [];
 let totalPowerAppVolume = 0; // Cumulative PO across all machines for ratio
 
+const MOCK_DATA = [
+    { 'PRO ODER': 'RPRO-NIKE-01', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'PU-AIR-01', 'FB DESCRIPTION': 'FLYKNIT-RED', '#MOLD': 'M-001', 'Total Qty': 550, 'Finish date': 46105, 'Laminating (Pro)': 46098.33, 'Prefitting (Pro)': 46098.50, 'Molding Pro (IN)': 46098.60, 'Molding Pro (OUT)': 46098.70, 'Leanline (IN)': 46098.80, 'Leanline (OUT)': 46098.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-NIKE-02', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'PU-AIR-02', 'FB DESCRIPTION': 'FLYKNIT-BLUE', '#MOLD': 'M-002', 'Total Qty': 320, 'Finish date': 46105, 'Laminating (Pro)': 46098.35, 'Prefitting (Pro)': 46098.55, 'Molding Pro (IN)': 46098.65, 'Molding Pro (OUT)': 46098.75, 'Leanline (IN)': 46098.85, 'Leanline (OUT)': 46098.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-ASICS-01', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'GEL-KAYANO', 'FB DESCRIPTION': 'MESH-SLV', '#MOLD': 'A-101', 'Total Qty': 480, 'Finish date': 46106, 'Laminating (Pro)': 46099.33, 'Prefitting (Pro)': 46099.50, 'Molding Pro (IN)': 46099.60, 'Molding Pro (OUT)': 46099.70, 'Leanline (IN)': 46099.80, 'Leanline (OUT)': 46099.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-ASICS-02', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'NIMBUS-25', 'FB DESCRIPTION': 'MESH-BLK', '#MOLD': 'A-102', 'Total Qty': 620, 'Finish date': 46106, 'Laminating (Pro)': 46099.35, 'Prefitting (Pro)': 46099.55, 'Molding Pro (IN)': 46099.65, 'Molding Pro (OUT)': 46099.75, 'Leanline (IN)': 46099.85, 'Leanline (OUT)': 46099.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-NIKE-03', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'REACT-01', 'FB DESCRIPTION': 'FLY-V2', '#MOLD': 'M-003', 'Total Qty': 280, 'Finish date': 46105, 'Laminating (Pro)': 46098.40, 'Prefitting (Pro)': 46098.60, 'Molding Pro (IN)': 46098.70, 'Molding Pro (OUT)': 46098.80, 'Leanline (IN)': 46098.90, 'Leanline (OUT)': 46098.98, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-NIKE-04', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'PEGASUS-40', 'FB DESCRIPTION': 'MESH-GRY', '#MOLD': 'M-004', 'Total Qty': 410, 'Finish date': 46107, 'Laminating (Pro)': 46100.33, 'Prefitting (Pro)': 46100.50, 'Molding Pro (IN)': 46100.60, 'Molding Pro (OUT)': 46100.70, 'Leanline (IN)': 46100.80, 'Leanline (OUT)': 46100.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-ASICS-03', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'GT-2000', 'FB DESCRIPTION': 'FABRIC-NAVY', '#MOLD': 'A-103', 'Total Qty': 350, 'Finish date': 46107, 'Laminating (Pro)': 46100.35, 'Prefitting (Pro)': 46100.55, 'Molding Pro (IN)': 46100.65, 'Molding Pro (OUT)': 46100.75, 'Leanline (IN)': 46100.85, 'Leanline (OUT)': 46100.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-NIKE-05', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'VAPORFLY', 'FB DESCRIPTION': 'FLYWEAVE-GRN', '#MOLD': 'M-005', 'Total Qty': 150, 'Finish date': 46108, 'Laminating (Pro)': 46101.33, 'Prefitting (Pro)': 46101.50, 'Molding Pro (IN)': 46101.60, 'Molding Pro (OUT)': 46101.70, 'Leanline (IN)': 46101.80, 'Leanline (OUT)': 46101.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-ASICS-04', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'NOVABLAST', 'FB DESCRIPTION': 'MESH-ORG', '#MOLD': 'A-104', 'Total Qty': 290, 'Finish date': 46108, 'Laminating (Pro)': 46101.35, 'Prefitting (Pro)': 46101.55, 'Molding Pro (IN)': 46101.65, 'Molding Pro (OUT)': 46101.75, 'Leanline (IN)': 46101.85, 'Leanline (OUT)': 46101.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-NIKE-06', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'ZOM-FLY', 'FB DESCRIPTION': 'FLYKNIT-BLK', '#MOLD': 'M-006', 'Total Qty': 440, 'Finish date': 46109, 'Laminating (Pro)': 46102.33, 'Prefitting (Pro)': 46102.50, 'Molding Pro (IN)': 46102.60, 'Molding Pro (OUT)': 46102.70, 'Leanline (IN)': 46102.80, 'Leanline (OUT)': 46102.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() }
+];
+
 // Column Mapping for PowerApp Table
 const COLUMN_MAP = {
     hotmelt: { 
@@ -91,60 +104,84 @@ const UI_CONFIG = {
 
 const TRANSLATIONS = {
     vi: {
+        title: "BÁO CÁO THEO DÕI HOTMELT",
         back: "QUAY LẠI",
-        tab_scan: "QUÉT MÃ (SCAN)",
-        tab_dashboard: "BÁO CÁO (DASHBOARD)",
-        stat_wip: "Đang chạy (WIP)",
-        stat_in: "Nhập (BẮT ĐẦU)",
-        stat_out: "Xuất (HOÀN THÀNH)",
-        stat_rate: "Tỷ lệ hoàn thành",
-        order_unit: "ĐƠN HÀNG",
-        unit: "ĐÔI",
+        tab_scan: "QUÉT MÃ",
+        tab_dashboard: "BÁO CÁO",
+        stat_wip: "HÀNG ĐANG CHẠY (WIP)",
+        stat_total_out: "TỔNG HOÀN THÀNH (ĐÔI)",
+        stat_completion: "TỈ LỆ HOÀN THÀNH",
+        stat_hotmelt_orders: "ĐƠN SCAN OUT HOTMELT",
+        stat_productivity: "NĂNG SUẤT (ĐÔI/GIỜ)",
+        stat_avg_daily: "TB SẢN LƯỢNG/NGÀY",
+        stat_hotmelt_ratio: "TỈ LỆ HOTMELT (%)",
+        stat_total_brands: "TỔNG BRAND ÁP DỤNG",
         filter_time: "Thời gian",
-        filter_brand: "Brand (Khách hàng)",
-        all_brands: "Tất cả Brand",
-        filter_mold: "#Mold (Lọc khuôn)",
-        filter_finish_date: "Finish Date (Ngày ra hàng)",
-        table_title: "DANH SÁCH CHI TIẾT ĐƠN HÀNG HOTMELT",
-        search_placeholder: "Tìm kiến RPRO/Brand...",
+        filter_brand: "Tất cả Brand",
+        filter_mold: "Tất cả khuôn",
+        filter_finish: "Ngày hoàn thành",
         col_rpro: "THÔNG TIN RPRO",
+        col_brand: "BRAND",
+        col_qty: "SỐ LƯỢNG",
         col_total: "TỔNG PO",
-        col_finish: "FINISH DATE",
-        click_filter_mold: "Bấm để lọc khuôn",
-        click_filter_date: "Bấm để chọn ngày",
-        chart_brand: "PHÂN TÍCH NHÓM THEO BRAND (TOP 5) %",
-        chart_prod: "SẢN LƯỢNG HOÀN THÀNH THEO NGÀY (SỐ ĐÔI)",
-        chart_prod_label: "Sản lượng (Đôi)",
+        col_finish: "NGÀY HOÀN THÀNH",
+        col_hotmelt: "01. HOTMELT",
+        col_prefitting: "02. PREFITTING",
+        col_molding: "03. MOLDING",
+        col_leanline: "04. LEANLINE",
+        chart_prod_label: "Sản lượng hoàn thành",
+        status_finished: "HOÀN THÀNH",
+        search_placeholder: "Tìm kiếm RPRO/Brand...",
         showing: "Hiển thị",
-        of: "của"
+        no_data: "Không có dữ liệu phù hợp...",
+        of: "của",
+        unit: "ĐÔI",
+        click_filter_date: "Bấm để chọn ngày",
+        table_title: "DANH SÁCH CHI TIẾT ĐƠN HÀNG HOTMELT",
+        chart_brand_ratio: "PHÂN TÍCH THEO BRAND (%)",
+        chart_prod_hourly: "BIỂU ĐỒ NĂNG SUẤT HOTMELT (ĐÔI/GIỜ)",
+        chart_brand_prod: "NĂNG SUẤT HOTMELT THEO BRAND",
+        chart_prod_finished: "SẢN LƯỢNG HOÀN THÀNH LEANLINE (SỐ ĐÔI)"
     },
     en: {
+        title: "HOTMELT MONITORING DASHBOARD",
         back: "BACK",
-        tab_scan: "SCAN AREA",
+        tab_scan: "SCAN",
         tab_dashboard: "DASHBOARD",
-        stat_wip: "Work In Progress",
-        stat_in: "Total Entry",
-        stat_out: "Total Finished",
-        stat_rate: "Completion Rate",
-        order_unit: "ORDERS",
-        unit: "PAIRS",
+        stat_wip: "WORK IN PROGRESS (WIP)",
+        stat_total_out: "TOTAL FINISHED (PAIRS)",
+        stat_completion: "COMPLETION RATE",
+        stat_hotmelt_orders: "HOTMELT ORDERS",
+        stat_productivity: "PRODUCTIVITY (P/H)",
+        stat_avg_daily: "AVG DAILY OUTPUT",
+        stat_hotmelt_ratio: "HOTMELT RATIO (%)",
+        stat_total_brands: "TOTAL BRANDS",
         filter_time: "Time Range",
-        filter_brand: "Brand Filter",
-        all_brands: "All Brands",
-        filter_mold: "Mold Filter",
-        filter_finish_date: "Finish Date",
-        table_title: "DETAILED PRODUCTION LOG",
-        search_placeholder: "Search RPRO/Brand...",
+        filter_brand: "All Brands",
+        filter_mold: "All Molds",
+        filter_finish: "Finish Date",
         col_rpro: "RPRO INFO",
+        col_brand: "BRAND",
+        col_qty: "QUANTITY",
         col_total: "TOTAL PO",
         col_finish: "FINISH DATE",
-        click_filter_mold: "Click to filter mold",
-        click_filter_date: "Click to pick date",
-        chart_brand: "BRAND ANALYSIS (TOP 5) %",
-        chart_prod: "DAILY PRODUCTION OUTPUT (PAIRS)",
-        chart_prod_label: "Output (Pairs)",
+        col_hotmelt: "01. HOTMELT",
+        col_prefitting: "02. PREFITTING",
+        col_molding: "03. MOLDING",
+        col_leanline: "04. LEANLINE",
+        chart_prod_label: "Finished Production",
+        status_finished: "FINISHED",
+        search_placeholder: "Search RPRO/Brand...",
         showing: "Showing",
-        of: "of"
+        no_data: "No data matching filters...",
+        of: "of",
+        unit: "PAIRS",
+        click_filter_date: "Click to filter date",
+        table_title: "HOTMELT ORDER DETAILED LIST",
+        chart_brand_ratio: "BRAND ANALYSIS (%)",
+        chart_prod_hourly: "HOTMELT PRODUCTIVITY TREND (P/H)",
+        chart_brand_prod: "HOTMELT PRODUCTIVITY BY BRAND",
+        chart_prod_finished: "FINISHED PRODUCTION VOLUME (PAIRS)"
     }
 };
 
@@ -168,6 +205,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-refresh history from DB
     fetchRecentHistory();
     setLanguage('vi'); // Default language
+    
+    // Default to dashboard as requested by user
+    if (typeof switchTab === 'function') {
+        switchTab('dashboard');
+    } else {
+        // Fallback if switchTab is not yet available (unlikely)
+        window.dispatchEvent(new CustomEvent('dashboard-active'));
+    }
 });
 
 function setupEventListeners() {
@@ -382,7 +427,6 @@ async function handleRproDetected(rawRpro) {
         showToast("❌ Lỗi truy vấn dữ liệu", "error");
     } finally {
         isProcessing = false;
-        ELEMENTS.inputLoader.classList.remove('hidden'); // Fix: keep it visible briefly or hide
         setTimeout(() => ELEMENTS.inputLoader.classList.add('hidden'), 500);
     }
 }
@@ -476,8 +520,13 @@ async function refreshDashboard() {
         if (dashboardRes.error) throw dashboardRes.error;
         if (totalRes.error) throw totalRes.error;
 
-        const data = dashboardRes.data;
-        totalPowerAppVolume = totalRes.data.reduce((sum, row) => sum + (row['Total Qty'] || 0), 0);
+        let data = dashboardRes.data;
+        if (!data || data.length === 0) {
+            console.log("No data found from DB, using Mock Data for Dashboard demo.");
+            data = MOCK_DATA;
+        }
+        
+        totalPowerAppVolume = totalRes.data.length > 0 ? totalRes.data.reduce((sum, row) => sum + (row['Total Qty'] || 0), 0) : 2000;
 
         // Map PowerApp rows to Dashboard rows
         dashboardData = data.map(item => ({
@@ -604,7 +653,7 @@ function renderTable() {
     renderPaginationControls(totalPages);
 
     if (paginated.length === 0) {
-        ELEMENTS.tableBody.innerHTML = `<tr><td colspan="9" class="px-6 py-20 text-center text-slate-300 italic">No data matching filters...</td></tr>`;
+        ELEMENTS.tableBody.innerHTML = `<tr><td colspan="9" class="px-6 py-20 text-center text-slate-400 italic">${TRANSLATIONS[currentLanguage].no_data}</td></tr>`;
         return;
     }
 
@@ -1070,3 +1119,32 @@ function onScanSuccess(decodedText) {
 }
 
 window.toggleCamera = toggleCamera;
+// Theme Toggle Logic
+const themeBtn = document.getElementById('theme-toggle');
+const themeSun = document.getElementById('theme-sun');
+const themeMoon = document.getElementById('theme-moon');
+
+function toggleTheme() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    updateThemeIcons(isDark);
+    renderChart(); // Redraw charts for possible color context
+}
+
+function updateThemeIcons(isDark) {
+    if (isDark) {
+        themeSun.classList.remove('hidden');
+        themeMoon.classList.add('hidden');
+    } else {
+        themeSun.classList.add('hidden');
+        themeMoon.classList.remove('hidden');
+    }
+}
+
+// Init theme
+if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.classList.add('dark');
+    updateThemeIcons(true);
+}
+
+if (themeBtn) themeBtn.addEventListener('click', toggleTheme);

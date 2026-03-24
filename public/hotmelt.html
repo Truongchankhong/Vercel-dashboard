@@ -24,74 +24,67 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
-        .sidebar-item.active {
-            background: linear-gradient(to right, #ef4444, #f97316);
-            color: white;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-        }
-        
-        .tab-btn.active {
-            border-bottom: 3px solid #ef4444;
-            color: #ef4444;
-            font-weight: 800;
+        :root {
+            --bg-main: #f8fafc;
+            --bg-card: rgba(255, 255, 255, 0.95);
+            --bg-header: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --border: #e2e8f0;
+            --accent: #ef4444;
+            --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         }
 
+        .dark {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --bg-header: #1e293b;
+            --text-main: #f1f5f9;
+            --text-sub: #94a3b8;
+            --border: #334155;
+            --accent: #f43f5e;
+            --card-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+        }
+
+        body { background-color: var(--bg-main); color: var(--text-main); transition: background-color 0.3s, color 0.3s; }
+        header { background-color: var(--bg-header) !important; border-color: var(--border) !important; }
+        
         .glass-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--bg-card);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid var(--border);
+            box-shadow: var(--card-shadow);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .glass-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        .tab-btn.active {
+            border-bottom: 3px solid var(--accent);
+            color: var(--accent);
+            font-weight: 800;
         }
+
+        input, select, table, th, td {
+            background-color: var(--bg-card) !important;
+            color: var(--text-main) !important;
+            border-color: var(--border) !important;
+        }
+
+        .dark .bg-white { background-color: #1e293b !important; border-color: #334155 !important; }
+        .dark .bg-slate-50 { background-color: #0f172a !important; border-color: #334155 !important; }
+        .dark .bg-slate-100 { background-color: #334155 !important; }
+        .dark .table-hover:hover { background-color: #334155 !important; }
+        .dark .text-slate-800 { color: #f1f5f9 !important; }
+        .dark .text-slate-600 { color: #cbd5e1 !important; }
+        .dark .text-slate-400 { color: #94a3b8 !important; }
+        .dark .border-slate-200, .dark .border-slate-100 { border-color: #334155 !important; }
 
         /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
 
-        /* Scan Mode Toggle Effect */
-        .scan-mode-toggle {
-            transition: all 0.4s ease;
-        }
-        .scan-mode-in {
-            background-color: #10b981;
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
-        }
-        .scan-mode-out {
-            background-color: #f43f5e;
-            box-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
-        }
-
-        @keyframes pulse-border {
-            0% { border-color: rgba(239, 68, 68, 0.2); }
-            50% { border-color: rgba(239, 68, 68, 0.8); }
-            100% { border-color: rgba(239, 68, 68, 0.2); }
-        }
-        .scan-active {
-            animation: pulse-border 1s infinite;
-        }
-
-        #scanner-input-overlay {
-            position: fixed;
-            top: -9999px;
-            left: -9999px;
-            opacity: 0;
-        }
+        #scanner-input-overlay { position: fixed; top: -9999px; left: -9999px; opacity: 0; }
     </style>
 </head>
 
@@ -112,22 +105,28 @@
             </div>
             
             <div class="flex items-center gap-4">
+                <!-- Theme Toggle -->
+                <button id="theme-toggle" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition dark:bg-slate-800 dark:hover:bg-slate-700">
+                    <svg id="theme-sun" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-500 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <svg id="theme-moon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
+
                 <!-- Language Toggle -->
-                <div class="flex bg-slate-100 p-1 rounded-xl items-center mr-2">
-                    <button id="lang-vi" onclick="setLanguage('vi')" class="px-3 py-1 rounded-lg text-[10px] font-black transition-all duration-300 bg-white text-red-600 shadow-sm">VI</button>
+                <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl items-center mr-2">
+                    <button id="lang-vi" onclick="setLanguage('vi')" class="px-3 py-1 rounded-lg text-[10px] font-black transition-all duration-300 bg-white text-red-600 shadow-sm dark:bg-slate-700 dark:text-red-400">VI</button>
                     <button id="lang-en" onclick="setLanguage('en')" class="px-3 py-1 rounded-lg text-[10px] font-black transition-all duration-300 text-slate-400">EN</button>
                 </div>
                 
-                <button onclick="window.location.href='index.html'" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition">
+                <button onclick="window.location.href='index.html'" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition dark:text-slate-300 dark:hover:bg-slate-800">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
-                    <span data-i18n="back">QUAY LẠI</span>
+                    <span data-i18n="back">BACK</span>
                 </button>
-                <div id="connection-status" class="hidden sm:flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold border border-green-200">
-                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    SUPABASE ONLINE
-                </div>
             </div>
         </div>
 
@@ -138,145 +137,21 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Main Tabs -->
-        <div class="flex gap-4 mb-8 border-b border-slate-200 overflow-x-auto no-scrollbar">
-            <button id="tab-scan" class="tab-btn active px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap transition-all duration-300 transform" onclick="switchTab('scan')">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                </svg>
-                <span data-i18n="tab_scan">QUÉT MÃ (SCAN)</span>
+        <div class="flex gap-4 mb-8 border-b border-slate-200 overflow-x-auto no-scrollbar hidden">
+            <button id="tab-scan" class="tab-btn px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap hidden" onclick="switchTab('scan')">
+                <span data-i18n="tab_scan">SCAN</span>
             </button>
-            <button id="tab-dashboard" class="tab-btn px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap transition-all duration-300 transform" onclick="switchTab('dashboard')">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <span data-i18n="tab_dashboard">BÁO CÁO (DASHBOARD)</span>
+            <button id="tab-dashboard" class="tab-btn active px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap" onclick="switchTab('dashboard')">
+                <span data-i18n="tab_dashboard">DASHBOARD</span>
             </button>
         </div>
 
-        <!-- Content Area -->
-        <div id="content-scan" class="animate__animated animate__fadeIn">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <!-- Left: Scan Input -->
-                <div class="space-y-6">
-                    <div class="glass-card rounded-3xl p-8 shadow-sm">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                            <h2 class="text-2xl font-black text-slate-800 tracking-tighter uppercase">TRẠM QUÉT HOTMELT</h2>
-                            <!-- IN/OUT Toggle & Camera -->
-                            <div class="flex items-center gap-2 w-full sm:w-auto">
-                                <button id="btn-toggle-camera" class="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition shadow-sm" title="Bật/Tắt Camera">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                </button>
-                                <div class="flex p-1 bg-slate-100 rounded-2xl flex-1 sm:flex-none">
-                                    <button id="btn-scan-in" class="flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 bg-emerald-500 text-white shadow-lg shadow-emerald-200" onclick="setScanMode('IN')">SCAN IN</button>
-                                    <button id="btn-scan-out" class="flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 text-slate-500 hover:bg-slate-200" onclick="setScanMode('OUT')">SCAN OUT</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Stage Selection Bar -->
-                        <div class="mb-8 overflow-x-auto no-scrollbar scroll-smooth">
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 italic">HÀNH TRÌNH ĐƠN HÀNG (STAGES):</p>
-                            <div class="flex gap-2 min-w-[500px] sm:min-w-0">
-                                <button onclick="setStage('hotmelt')" class="stage-btn flex-1 px-4 py-3 bg-slate-800 text-white rounded-2xl text-[11px] font-black shadow-lg shadow-slate-200 transition active:scale-95 whitespace-nowrap" id="stage-hotmelt">01. HOTMELT</button>
-                                <button onclick="setStage('prefitting')" class="stage-btn flex-1 px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl text-[11px] font-black transition active:scale-95 whitespace-nowrap" id="stage-prefitting">02. PREFITTING</button>
-                                <button onclick="setStage('molding')" class="stage-btn flex-1 px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl text-[11px] font-black transition active:scale-95 whitespace-nowrap" id="stage-molding">03. MOLDING</button>
-                                <button onclick="setStage('leanline')" class="stage-btn flex-1 px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl text-[11px) font-black transition active:scale-95 whitespace-nowrap" id="stage-leanline">04. LEANLINE</button>
-                            </div>
-                        </div>
-
-                        <!-- Camera Scanner Container -->
-                        <div id="camera-section" class="mb-6 hidden">
-                            <div id="qr-reader" class="rounded-3xl overflow-hidden border-4 border-slate-100 shadow-inner" style="width: 100%; min-height: 250px;"></div>
-                            <p class="text-center text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">Đang sử dụng camera để quét mã...</p>
-                        </div>
-
-                        <!-- Manual Input Box -->
-                        <div class="relative mb-8">
-                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                </svg>
-                            </div>
-                            <input type="text" id="rpro-input" placeholder="QUÉT HOẶC NHẬP MÃ RPRO..." class="w-full pl-14 pr-4 py-6 bg-slate-50 border-4 border-slate-100 rounded-3xl text-2xl font-black text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-red-100 focus:border-red-500 uppercase tracking-tighter transition-all duration-300">
-                            <div id="input-loader" class="hidden absolute right-6 top-1/2 -translate-y-1/2">
-                                <span class="flex h-5 w-5 rounded-full border-4 border-red-500 border-t-transparent animate-spin"></span>
-                            </div>
-                        </div>
-
-                        <!-- Quantity Selector -->
-                        <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-8">
-                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 text-center">Số lượng (Quantity)</label>
-                            <div class="flex items-center justify-center gap-6">
-                                <button onclick="adjustQty(-1)" class="w-14 h-14 flex-shrink-0 bg-white border-2 border-slate-200 rounded-2xl text-2xl font-black text-slate-600 hover:border-red-500 hover:text-red-500 transition active:scale-90 shadow-sm">-</button>
-                                <input type="number" id="qty-input" value="1" min="1" class="w-24 bg-transparent text-center text-5xl font-black text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none min-w-0">
-                                <button onclick="adjustQty(1)" class="w-14 h-14 flex-shrink-0 bg-white border-2 border-slate-200 rounded-2xl text-2xl font-black text-slate-600 hover:border-red-500 hover:text-red-500 transition active:scale-90 shadow-sm">+</button>
-                            </div>
-                        </div>
-
-                        <!-- Manual Save Button -->
-                        <button id="btn-save" class="w-full py-6 bg-slate-800 text-white rounded-3xl font-black text-xl hover:bg-slate-900 transition-all duration-300 shadow-xl shadow-slate-200 transform active:scale-[0.98] flex items-center justify-center gap-3">
-                            <span id="btn-save-text">LƯU DỮ LIỆU</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                            </svg>
-                        </button>
-
-                        <!-- Auto Save Toggle -->
-                        <div class="mt-6 flex items-center justify-center gap-3">
-                            <label class="inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="auto-save" class="sr-only peer" checked>
-                                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
-                                <span class="ml-3 text-xs font-black text-slate-500 uppercase tracking-widest">LƯU TỰ ĐỘNG (Bluetooth Scan)</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Scan Feedback Info -->
-                    <div id="rpro-details" class="hidden glass-card rounded-3xl p-8 shadow-sm border-l-8 border-red-500 animate__animated animate__fadeInRight">
-                        <div class="grid grid-cols-2 gap-6">
-                            <div>
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Brand/Khách hàng</p>
-                                <p id="detail-brand" class="text-xl font-black text-slate-800">---</p>
-                            </div>
-                            <div>
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mã PU Code</p>
-                                <p id="detail-pu" class="text-xl font-black text-slate-800">---</p>
-                            </div>
-                            <div class="col-span-2">
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mã vải (FB)</p>
-                                <p id="detail-fb" class="text-xl font-black text-slate-800">---</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right: Scan History -->
-                <div class="space-y-6">
-                    <div class="flex justify-between items-end">
-                        <div>
-                            <h2 class="text-xl font-black text-slate-800 uppercase italic">LỊCH SỬ QUÉT GẦN ĐÂY</h2>
-                            <p class="text-xs font-bold text-slate-400">Tự động cập nhật từ server...</p>
-                        </div>
-                        <div class="bg-white px-4 py-2 rounded-xl text-xs font-black border border-slate-200 text-slate-500 uppercase tracking-widest">
-                            Tổng quét: <span id="session-count" class="text-red-500">0</span>
-                        </div>
-                    </div>
-                    
-                    <div id="scan-history" class="space-y-3 max-h-[700px] overflow-y-auto pr-2">
-                        <!-- History Items go here -->
-                        <div class="flex items-center justify-center h-40 border-2 border-dashed border-slate-200 rounded-3xl text-slate-300 font-bold italic">
-                            Chưa có dữ liệu quét trong phiên này...
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div id="content-scan" class="animate__animated animate__fadeIn hidden">
+            <!-- Scan content (Hidden temporarily) -->
         </div>
 
-        <div id="content-dashboard" class="hidden animate__animated animate__fadeIn">
+        <div id="content-dashboard" class="animate__animated animate__fadeIn">
+            <!-- Dashboard Content (Visible) -->
             <!-- New Horizontal Filter Bar -->
             <div class="bg-white p-6 rounded-3xl border border-slate-200 mb-8 shadow-sm">
                 <div class="flex flex-wrap items-end gap-4">
@@ -298,12 +173,12 @@
                     </div>
 
                     <div class="flex-1 min-w-[150px]">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">#Mold (Lọc khuôn)</label>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1" data-i18n="filter_mold">#Mold (Lọc khuôn)</label>
                         <input type="text" id="mold-filter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400" placeholder="Nhập mã khuôn...">
                     </div>
 
                     <div class="flex-1 min-w-[150px]">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Finish Date</label>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1" data-i18n="filter_finish">Finish Date</label>
                         <input type="date" id="finish-date-filter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400">
                     </div>
 
@@ -329,28 +204,28 @@
                 <!-- Part 1: Productivity & Volume -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
-                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">CÁC ĐƠN ĐÃ SCAN OUT HOTMELT</p>
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_hotmelt_orders">CÁC ĐƠN ĐÃ SCAN OUT HOTMELT</p>
                         <div class="flex items-baseline gap-2">
                             <span id="stat-hotmelt-orders" class="text-4xl font-black text-indigo-500">0</span>
-                            <span class="text-[9px] font-bold text-slate-400">ĐƠN HÀNG</span>
+                            <span class="text-[9px] font-bold text-slate-400">ORDERS</span>
                         </div>
                     </div>
                     <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
-                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">NĂNG SUẤT TRUNG BÌNH/H</p>
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_productivity">NĂNG SUẤT TRUNG BÌNH/H</p>
                         <div class="flex items-baseline gap-2">
                             <span id="stat-productivity" class="text-4xl font-black text-orange-500">0</span>
-                            <span class="text-[9px] font-bold text-slate-400">ĐÔI/H</span>
+                            <span class="text-[9px] font-bold text-slate-400">P/H</span>
                         </div>
                     </div>
                     <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
-                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">SẢN LƯỢNG TRUNG BÌNH/NGÀY</p>
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_avg_daily">SẢN LƯỢNG TRUNG BÌNH/NGÀY</p>
                         <div class="flex items-baseline gap-2">
                             <span id="stat-avg-daily" class="text-4xl font-black text-blue-500">0</span>
-                            <span class="text-[9px] font-bold text-slate-400">ĐÔI/NGÀY</span>
+                            <span class="text-[9px] font-bold text-slate-400" data-i18n="unit">ĐÔI/NGÀY</span>
                         </div>
                     </div>
                     <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
-                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">TỈ LỆ HOTMELT / TỔNG PO</p>
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_hotmelt_ratio">TỈ LỆ HOTMELT / TỔNG PO</p>
                         <div class="flex items-baseline gap-2">
                             <span id="stat-hotmelt-ratio" class="text-4xl font-black text-rose-500">0</span>
                             <span class="text-[9px] font-bold text-slate-400 uppercase">% VOLUME</span>
@@ -368,7 +243,7 @@
                         </div>
                     </div>
                     <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
-                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">TỔNG BRAND ÁP DỤNG HOTMELT</p>
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_total_brands">TỔNG BRAND ÁP DỤNG HOTMELT</p>
                         <div class="flex items-baseline gap-2">
                             <span id="stat-total-brands" class="text-3xl font-black text-emerald-600">0</span>
                             <span class="text-[9px] font-bold text-slate-400 uppercase">BRANDS</span>
@@ -397,7 +272,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <!-- Brand Analysis Chart -->
                 <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 px-2 italic">PHÂN TÍCH THEO BRAND (%)</h3>
+                    <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-6 px-2 italic" data-i18n="chart_brand_ratio">PHÂN TÍCH THEO BRAND (%)</h3>
                     <div class="h-[250px]">
                         <canvas id="chart-brands"></canvas>
                     </div>
@@ -405,7 +280,7 @@
 
                 <!-- Hotmelt Hourly Productivity Trend -->
                 <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 px-2 italic text-indigo-600">BIỂU ĐỒ NĂNG SUẤT HOTMELT (ĐÔI/GIỜ)</h3>
+                    <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-6 px-2 italic text-indigo-600 dark:text-indigo-400" data-i18n="chart_prod_hourly">BIỂU ĐỒ NĂNG SUẤT HOTMELT (ĐÔI/GIỜ)</h3>
                     <div class="h-[250px]">
                         <canvas id="chart-productivity-trend"></canvas>
                     </div>
@@ -416,7 +291,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <!-- Productivity by Brand -->
                 <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 px-2 italic text-emerald-600">NĂNG SUẤT HOTMELT THEO BRAND</h3>
+                    <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-6 px-2 italic text-emerald-600 dark:text-emerald-400" data-i18n="chart_brand_prod">NĂNG SUẤT HOTMELT THEO BRAND</h3>
                     <div class="h-[250px]">
                         <canvas id="chart-brand-productivity"></canvas>
                     </div>
@@ -424,7 +299,7 @@
 
                 <!-- Production Volume Chart -->
                 <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                    <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 px-2 italic">SẢN LƯỢNG HOÀN THÀNH LEANLINE (SỐ ĐÔI)</h3>
+                    <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-6 px-2 italic" data-i18n="chart_prod_finished">SẢN LƯỢNG HOÀN THÀNH LEANLINE (SỐ ĐÔI)</h3>
                     <div class="h-[250px]">
                         <canvas id="chart-production"></canvas>
                     </div>
