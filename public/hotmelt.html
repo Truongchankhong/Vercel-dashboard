@@ -389,11 +389,11 @@
                                 <th class="px-4 py-4 border-r bg-blue-50/50 text-blue-700 min-w-[180px] text-center">02. PREFITTING</th>
                                 <th class="px-4 py-4 border-r bg-orange-50/50 text-orange-700 min-w-[180px] text-center">03. MOLDING</th>
                                 <th class="px-4 py-4 border-r bg-rose-50/50 text-rose-700 min-w-[180px] text-center">04. LEANLINE</th>
-                                <th class="px-4 py-4 text-center min-w-[140px] relative group bg-slate-50/80 hover:bg-slate-100 transition overflow-hidden">
-                                    <!-- Invisible Date Picker covering the whole area -->
-                                    <input type="date" id="finish-date-filter-header" class="absolute inset-0 opacity-0 cursor-pointer z-20 w-full h-full">
+                                <th class="px-4 py-4 text-center min-w-[140px] relative group bg-slate-50/80 hover:bg-slate-100 transition cursor-pointer" onclick="document.getElementById('finish-date-filter-header').showPicker()">
+                                    <!-- Hidden Date Picker that we trigger via showPicker() -->
+                                    <input type="date" id="finish-date-filter-header" class="absolute h-0 w-0 opacity-0 pointer-events-none">
                                     
-                                    <div class="flex flex-col items-center justify-center gap-1 relative z-10 pointer-events-none">
+                                    <div class="flex flex-col items-center justify-center gap-1">
                                         <div class="flex items-center gap-1 font-black text-slate-500">
                                             <span data-i18n="col_finish">FINISH DATE</span>
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
