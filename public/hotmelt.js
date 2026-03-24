@@ -52,6 +52,8 @@ let isProcessing = false;
 let dashboardData = [];
 let brandChart = null;
 let productionChart = null;
+let productivityTrendChart = null;
+let brandProductivityChart = null;
 let html5QrScanner = null;
 let cameraActive = false;
 let currentLanguage = 'vi';
@@ -806,6 +808,73 @@ function renderChart() {
                         grid: { color: '#f1f5f9' },
                         ticks: { font: { weight: 'bold' } }
                     }
+                }
+            }
+        });
+    }
+    // 3. Hotmelt Hourly Productivity Trend
+    const hourStats = Array(24).fill(0);
+    filteredData.forEach(row => {
+        if (row.hotmelt_out) {
+            const hour = new Date(row.hotmelt_out).getHours();
+            hourStats[hour] += (row.total_qty || 0);
+        }
+    });
+
+    if (productivityTrendChart) productivityTrendChart.destroy();
+    const ctxTrend = document.getElementById('chart-productivity-trend')?.getContext('2d');
+    if (ctxTrend) {
+        productivityTrendChart = new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 24}, (_, i) => `${i}h`),
+                datasets: [{
+                    label: 'Sản lượng/Giờ',
+                    data: hourStats,
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#6366f1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } }
+                }
+            }
+        });
+    }
+
+    // 4. Productivity by Brand (Hotmelt Output Volume)
+    const brandProdValues = Object.keys(brandVolumes).map(b => brandVolumes[b]);
+    
+    if (brandProductivityChart) brandProductivityChart.destroy();
+    const ctxBrandProd = document.getElementById('chart-brand-productivity')?.getContext('2d');
+    if (ctxBrandProd) {
+        brandProductivityChart = new Chart(ctxBrandProd, {
+            type: 'bar',
+            data: {
+                labels: topBrands,
+                datasets: [{
+                    label: 'Sản lượng Hotmelt (Đôi)',
+                    data: brandValues,
+                    backgroundColor: '#10b981',
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } }
                 }
             }
         });
