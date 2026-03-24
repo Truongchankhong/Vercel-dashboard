@@ -135,8 +135,8 @@
                 <!-- Left: Scan Input -->
                 <div class="space-y-6">
                     <div class="glass-card rounded-3xl p-8 shadow-sm">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                            <h2 class="text-2xl font-black text-slate-800">TRẠM QUÉT HOTMELT</h2>
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                            <h2 class="text-2xl font-black text-slate-800 tracking-tighter uppercase">TRẠM QUÉT HOTMELT</h2>
                             <!-- IN/OUT Toggle & Camera -->
                             <div class="flex items-center gap-2 w-full sm:w-auto">
                                 <button id="btn-toggle-camera" class="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-slate-200 transition shadow-sm" title="Bật/Tắt Camera">
@@ -149,6 +149,17 @@
                                     <button id="btn-scan-in" class="flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 bg-emerald-500 text-white shadow-lg shadow-emerald-200" onclick="setScanMode('IN')">SCAN IN</button>
                                     <button id="btn-scan-out" class="flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 text-slate-500 hover:bg-slate-200" onclick="setScanMode('OUT')">SCAN OUT</button>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Stage Selection Bar -->
+                        <div class="mb-8 overflow-x-auto no-scrollbar scroll-smooth">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 italic">HÀNH TRÌNH ĐƠN HÀNG (STAGES):</p>
+                            <div class="flex gap-2 min-w-[500px] sm:min-w-0">
+                                <button onclick="setStage('hotmelt')" class="stage-btn flex-1 px-4 py-3 bg-slate-800 text-white rounded-2xl text-[11px] font-black shadow-lg shadow-slate-200 transition active:scale-95 whitespace-nowrap" id="stage-hotmelt">01. HOTMELT</button>
+                                <button onclick="setStage('prefitting')" class="stage-btn flex-1 px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl text-[11px] font-black transition active:scale-95 whitespace-nowrap" id="stage-prefitting">02. PREFITTING</button>
+                                <button onclick="setStage('molding')" class="stage-btn flex-1 px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl text-[11px] font-black transition active:scale-95 whitespace-nowrap" id="stage-molding">03. MOLDING</button>
+                                <button onclick="setStage('leanline')" class="stage-btn flex-1 px-4 py-3 bg-slate-100 text-slate-500 rounded-2xl text-[11px) font-black transition active:scale-95 whitespace-nowrap" id="stage-leanline">04. LEANLINE</button>
                             </div>
                         </div>
 
@@ -338,19 +349,17 @@
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
-                        <thead>
-                            <tr class="bg-white text-[10px] font-black text-slate-400 uppercase tracking-tighter border-b border-slate-100">
-                                <th class="px-6 py-4">STT</th>
-                                <th class="px-6 py-4">RPRO</th>
-                                <th class="px-6 py-4">#MOLD</th>
-                                <th class="px-6 py-4">BRAND</th>
-                                <th class="px-6 py-4 text-center">TOTAL QTY</th>
-                                <th class="px-6 py-4">HOTMELT IN</th>
-                                <th class="px-6 py-4">HOTMELT OUT</th>
-                                <th class="px-6 py-4 bg-emerald-50 text-emerald-600 text-center">QTY IN</th>
-                                <th class="px-6 py-4 bg-rose-50 text-rose-600 text-center">QTY OUT</th>
-                                <th class="px-6 py-4">DC</th>
-                                <th class="px-6 py-4">FINISH DATE</th>
+                        <thead class="bg-slate-50 sticky top-0 z-10">
+                            <tr class="text-[10px] font-black text-slate-400 uppercase tracking-tighter border-b border-slate-100">
+                                <th class="px-3 py-4 border-r">STT</th>
+                                <th class="px-4 py-4 border-r min-w-[140px]">THÔNG TIN RPRO</th>
+                                <th class="px-4 py-4 border-r min-w-[80px] text-center">#MOLD</th>
+                                <th class="px-4 py-4 border-r text-center">TỔNG PO</th>
+                                <th class="px-4 py-4 border-r bg-emerald-50/50 text-emerald-700 min-w-[180px] text-center">01. HOTMELT</th>
+                                <th class="px-4 py-4 border-r bg-blue-50/50 text-blue-700 min-w-[180px] text-center">02. PREFITTING</th>
+                                <th class="px-4 py-4 border-r bg-orange-50/50 text-orange-700 min-w-[180px] text-center">03. MOLDING</th>
+                                <th class="px-4 py-4 border-r bg-rose-50/50 text-rose-700 min-w-[180px] text-center">04. LEANLINE</th>
+                                <th class="px-4 py-4 text-center">FINISH DATE</th>
                             </tr>
                         </thead>
                         <tbody id="dashboard-table-body" class="text-sm font-bold text-slate-600 divide-y divide-slate-50">

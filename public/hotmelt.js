@@ -42,6 +42,7 @@ const ELEMENTS = {
 
 // ==================== CONFIG & STATE ====================
 let scanMode = 'IN'; // 'IN' or 'OUT'
+let currentStage = 'hotmelt'; // 'hotmelt', 'prefitting', 'molding', 'leanline'
 let currentRproData = null;
 let isProcessing = false;
 let dashboardData = [];
@@ -63,19 +64,19 @@ function setupEventListeners() {
     // Scan Mode Toggle
     window.setScanMode = (mode) => {
         scanMode = mode;
-        ELEMENTS.btnScanIn.classList.toggle('bg-emerald-500', mode === 'IN');
-        ELEMENTS.btnScanIn.classList.toggle('text-white', mode === 'IN');
-        ELEMENTS.btnScanIn.classList.toggle('shadow-lg', mode === 'IN');
-        ELEMENTS.btnScanIn.classList.toggle('text-slate-500', mode !== 'IN');
-        ELEMENTS.btnScanIn.classList.toggle('bg-slate-100', mode !== 'IN');
-        
-        ELEMENTS.btnScanOut.classList.toggle('bg-rose-500', mode === 'OUT');
-        ELEMENTS.btnScanOut.classList.toggle('text-white', mode === 'OUT');
-        ELEMENTS.btnScanOut.classList.toggle('shadow-lg', mode === 'OUT');
-        ELEMENTS.btnScanOut.classList.toggle('text-slate-500', mode !== 'OUT');
-        ELEMENTS.btnScanOut.classList.toggle('bg-slate-100', mode !== 'OUT');
-        
-        ELEMENTS.btnSaveText.textContent = mode === 'IN' ? 'LƯU DỮ LIỆU (NHẬP)' : 'LƯU DỮ LIỆU (XUẤT)';
+        const isIN = mode === 'IN';
+        ELEMENTS.btnScanIn.className = `flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 ${isIN ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'text-slate-500 bg-slate-100 hover:bg-slate-200'}`;
+        ELEMENTS.btnScanOut.className = `flex-1 px-6 py-2 rounded-xl text-sm font-black transition-all duration-300 ${!isIN ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' : 'text-slate-500 bg-slate-100 hover:bg-slate-200'}`;
+        ELEMENTS.btnSaveText.textContent = isIN ? 'LƯU DỮ LIỆU (NHẬP)' : 'LƯU DỮ LIỆU (XUẤT)';
+        ELEMENTS.rproInput.focus();
+    };
+
+    window.setStage = (stage) => {
+        currentStage = stage;
+        document.querySelectorAll('.stage-btn').forEach(btn => {
+            const isTarget = btn.id === `stage-${stage}`;
+            btn.className = `stage-btn flex-1 px-4 py-3 rounded-2xl text-[11px] font-black transition active:scale-95 whitespace-nowrap ${isTarget ? 'bg-slate-800 text-white shadow-lg shadow-slate-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`;
+        });
         ELEMENTS.rproInput.focus();
     };
 
@@ -203,11 +204,11 @@ async function performSave(rpro, qty) {
         const now = new Date().toISOString();
         
         if (scanMode === 'IN') {
-            updateData.hotmelt_scan_in = now;
-            updateData.hotmelt_qty_in = qty;
+            updateData[`${currentStage}_in`] = now;
+            updateData[`${currentStage}_qty_in`] = qty;
         } else {
-            updateData.hotmelt_scan_out = now;
-            updateData.hotmelt_qty_out = qty;
+            updateData[`${currentStage}_out`] = now;
+            updateData[`${currentStage}_qty_out`] = qty;
         }
 
         // Add metadata from currentRproData if available
@@ -231,8 +232,8 @@ async function performSave(rpro, qty) {
 
         if (error) throw error;
 
-        showToast(`✅ Đã lưu ${scanMode === 'IN' ? 'NHẬP' : 'XUẤT'}: ${rpro}`, 'success');
-        addHistoryRow(rpro, qty, scanMode);
+        showToast(`✅ Đã lưu ${scanMode === 'IN' ? 'NHẬP' : 'XUẤT'} ${currentStage.toUpperCase()}: ${rpro}`, 'success');
+        addHistoryRow(rpro, qty, scanMode, currentStage);
         
         // Reset form
         ELEMENTS.rproInput.value = '';
@@ -335,36 +336,65 @@ function renderTable() {
     });
 
     ELEMENTS.tableBody.innerHTML = filtered.map((row, idx) => {
-        const isWip = row.hotmelt_scan_in && !row.hotmelt_scan_out;
         return `
-            <tr class="hover:bg-slate-50 transition ${isWip ? 'bg-orange-50/30' : ''}">
-                <td class="px-6 py-4 text-xs font-black text-slate-300">#${String(idx + 1).padStart(3, '0')}</td>
-                <td class="px-6 py-4">
-                    <div class="font-black text-slate-800">${row.rpro}</div>
-                    <div class="text-[10px] text-slate-400 uppercase">${row.pu || 'N/A'}</div>
+            <tr class="hover:bg-slate-50 transition">
+                <td class="px-3 py-4 text-xs font-black text-slate-300 border-r">${String(idx + 1).padStart(3, '0')}</td>
+                <td class="px-4 py-4 border-r">
+                    <div class="text-[12px] font-black text-slate-800">${row.rpro}</div>
+                    <div class="text-[9px] text-slate-400 uppercase tracking-tighter">${row.brand || '---'} | ${row.pu || '---'}</div>
                 </td>
-                <td class="px-6 py-4">
-                    <div class="text-xs font-bold text-slate-700">${row.mold || '---'}</div>
+                <td class="px-4 py-4 border-r text-center">
+                    <div class="text-[11px] font-bold text-slate-700">${row.mold || '---'}</div>
                 </td>
-                <td class="px-6 py-4">
-                    <span class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black">${row.brand || '---'}</span>
+                <td class="px-4 py-4 border-r text-center font-black text-slate-400">
+                    <span class="text-xs">${row.total_qty || '0'}</span>
                 </td>
-                <td class="px-6 py-4 text-center font-black text-slate-400">${row.total_qty || '0'}</td>
-                <td class="px-6 py-4">
-                    <div class="text-xs font-bold">${formatTime(row.hotmelt_scan_in)}</div>
-                    <div class="text-[10px] text-slate-400">${formatDate(row.hotmelt_scan_in)}</div>
+                <!-- STAGE: HOTMELT -->
+                <td class="px-3 py-4 border-r ${row.hotmelt_in ? 'bg-emerald-50/20' : ''}">
+                    ${renderStageCell(row, 'hotmelt')}
                 </td>
-                <td class="px-6 py-4">
-                    <div class="text-xs font-bold">${formatTime(row.hotmelt_scan_out)}</div>
-                    <div class="text-[10px] text-slate-400">${formatDate(row.hotmelt_scan_out)}</div>
+                <!-- STAGE: PREFITTING -->
+                <td class="px-3 py-4 border-r ${row.prefitting_in ? 'bg-blue-50/20' : ''}">
+                    ${renderStageCell(row, 'prefitting')}
                 </td>
-                <td class="px-6 py-4 bg-emerald-50/50 text-emerald-600 font-black text-center">${row.hotmelt_qty_in || 0}</td>
-                <td class="px-6 py-4 bg-rose-50/50 text-rose-600 font-black text-center">${row.hotmelt_qty_out || 0}</td>
-                <td class="px-6 py-4 text-center font-bold text-slate-500">${row.dc || '---'}</td>
-                <td class="px-6 py-4 text-center text-xs text-slate-400">${row.finish_date ? formatDate(row.finish_date) : '---'}</td>
+                <!-- STAGE: MOLDING -->
+                <td class="px-3 py-4 border-r ${row.molding_in ? 'bg-orange-50/20' : ''}">
+                    ${renderStageCell(row, 'molding')}
+                </td>
+                <!-- STAGE: LEANLINE -->
+                <td class="px-3 py-4 border-r ${row.leanline_in ? 'bg-rose-50/20' : ''}">
+                    ${renderStageCell(row, 'leanline')}
+                </td>
+                <td class="px-4 py-4 text-center text-[10px] text-slate-400">
+                    ${row.finish_date ? formatDate(row.finish_date) : '---'}
+                </td>
             </tr>
         `;
     }).join('');
+}
+
+function renderStageCell(row, stage) {
+    const timeIn = row[`${stage}_in`];
+    const timeOut = row[`${stage}_out`];
+    const qtyIn = row[`${stage}_qty_in`] || 0;
+    const qtyOut = row[`${stage}_qty_out`] || 0;
+
+    if (!timeIn && !timeOut) return '<div class="text-center text-slate-200">---</div>';
+
+    return `
+        <div class="flex flex-col gap-1">
+            <div class="flex justify-between items-center bg-white/50 p-1 rounded-md border border-slate-100">
+                <span class="text-[8px] text-emerald-600 font-black">IN:</span>
+                <span class="text-[10px] font-bold">${formatTime(timeIn)}</span>
+                <span class="text-[10px] font-black text-emerald-500 ml-1">${qtyIn}</span>
+            </div>
+            <div class="flex justify-between items-center bg-white/50 p-1 rounded-md border border-slate-100">
+                <span class="text-[8px] text-rose-600 font-black">OUT:</span>
+                <span class="text-[10px] font-bold">${formatTime(timeOut)}</span>
+                <span class="text-[10px] font-black text-rose-500 ml-1">${qtyOut}</span>
+            </div>
+        </div>
+    `;
 }
 
 function renderStatusBadge(row) {
@@ -438,15 +468,16 @@ function showDetails(data) {
     ELEMENTS.rproDetails.classList.add('animate__fadeInRight');
 }
 
-function addHistoryRow(rpro, qty, mode) {
+function addHistoryRow(rpro, qty, mode, stage) {
     const row = document.createElement('div');
+    const stageName = (stage || currentStage).toUpperCase();
     row.className = `flex justify-between items-center bg-white p-4 rounded-2xl border-l-4 shadow-sm animate__animated animate__slideInRight ${mode === 'IN' ? 'border-emerald-500' : 'border-rose-500'}`;
     
     const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
     
     row.innerHTML = `
         <div class="flex flex-col">
-            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${time} - ${mode}</span>
+            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${time} - ${stageName} [${mode}]</span>
             <span class="text-sm font-black text-slate-800">${rpro}</span>
         </div>
         <div class="flex items-center gap-3">
@@ -478,9 +509,21 @@ async function fetchRecentHistory() {
         if (data && data.length > 0) {
             ELEMENTS.scanHistory.innerHTML = '';
             data.forEach(item => {
-                const mode = item.hotmelt_scan_out ? 'OUT' : 'IN';
-                const qty = mode === 'IN' ? (item.hotmelt_qty_in || 1) : (item.hotmelt_qty_out || 1);
-                addHistoryRow(item.rpro, qty, mode);
+                // Determine latest stage activity
+                const stages = ['hotmelt', 'prefitting', 'molding', 'leanline'];
+                let latestStage = 'hotmelt';
+                let latestTime = 0;
+                
+                stages.forEach(s => {
+                    const tIn = item[`${s}_in`] ? new Date(item[`${s}_in`]).getTime() : 0;
+                    const tOut = item[`${s}_out`] ? new Date(item[`${s}_out`]).getTime() : 0;
+                    if (tIn > latestTime) { latestTime = tIn; latestStage = s; }
+                    if (tOut > latestTime) { latestTime = tOut; latestStage = s; }
+                });
+
+                const mode = item[`${latestStage}_out`] ? 'OUT' : 'IN';
+                const qty = mode === 'IN' ? (item[`${latestStage}_qty_in`] || 1) : (item[`${latestStage}_qty_out`] || 1);
+                addHistoryRow(item.rpro, qty, mode, latestStage);
             });
         }
     } catch (e) {}
