@@ -128,6 +128,8 @@ const TRANSLATIONS = {
         col_hotmelt: "01. HOTMELT",
         col_prefitting: "02. PREFITTING",
         col_molding: "03. MOLDING",
+        col_pu: "CHI TIẾT PU",
+        col_fb: "CHI TIẾT FB",
         col_leanline: "04. LEANLINE",
         chart_prod_label: "Sản lượng hoàn thành",
         status_finished: "HOÀN THÀNH",
@@ -168,6 +170,8 @@ const TRANSLATIONS = {
         col_hotmelt: "01. HOTMELT",
         col_prefitting: "02. PREFITTING",
         col_molding: "03. MOLDING",
+        col_pu: "PU DESCRIPTION",
+        col_fb: "FB DESCRIPTION",
         col_leanline: "04. LEANLINE",
         chart_prod_label: "Finished Production",
         status_finished: "FINISHED",
@@ -690,7 +694,7 @@ function renderTable() {
     renderPaginationControls(totalPages);
 
     if (paginated.length === 0) {
-        ELEMENTS.tableBody.innerHTML = `<tr><td colspan="9" class="px-6 py-20 text-center text-slate-400 italic">${TRANSLATIONS[currentLanguage].no_data}</td></tr>`;
+        ELEMENTS.tableBody.innerHTML = `<tr><td colspan="12" class="px-6 py-20 text-center text-slate-400 italic">${TRANSLATIONS[currentLanguage].no_data}</td></tr>`;
         return;
     }
 
@@ -700,7 +704,15 @@ function renderTable() {
                 <td class="px-3 py-4 text-xs font-black text-slate-300 border-r">${String(startIdx + idx + 1).padStart(3, '0')}</td>
                 <td class="px-4 py-4 border-r">
                     <div class="text-[12px] font-black text-slate-800">${row.rpro}</div>
-                    <div class="text-[9px] text-slate-400 uppercase tracking-tighter">${row.brand || '---'} | ${row.pu || '---'}</div>
+                </td>
+                <td class="px-4 py-4 border-r text-center">
+                    <div class="text-[11px] font-bold text-slate-600">${row.brand || '---'}</div>
+                </td>
+                <td class="px-4 py-4 border-r">
+                    <div class="text-[11px] font-bold text-slate-600">${row.pu || '---'}</div>
+                </td>
+                <td class="px-4 py-4 border-r">
+                    <div class="text-[11px] font-bold text-slate-600">${row.fb || '---'}</div>
                 </td>
                 <td class="px-4 py-4 border-r text-center">
                     <div class="text-[11px] font-bold text-slate-700">${row.mold || '---'}</div>
