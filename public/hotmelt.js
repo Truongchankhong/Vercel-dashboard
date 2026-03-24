@@ -75,6 +75,8 @@ const TRANSLATIONS = {
         col_rpro: "THÔNG TIN RPRO",
         col_total: "TỔNG PO",
         col_finish: "FINISH DATE",
+        click_filter_mold: "Bấm để lọc khuôn",
+        click_filter_date: "Bấm để chọn ngày",
         showing: "Hiển thị",
         of: "của"
     },
@@ -98,6 +100,8 @@ const TRANSLATIONS = {
         col_rpro: "RPRO INFO",
         col_total: "TOTAL PO",
         col_finish: "FINISH DATE",
+        click_filter_mold: "Click to filter mold",
+        click_filter_date: "Click to pick date",
         showing: "Showing",
         of: "of"
     }
@@ -278,12 +282,42 @@ async function handleRproDetected(rawRpro) {
 
 async function performSave(rpro, qty) {
     if (isProcessing) return;
-    isProcessing = true;
-    const saveBtn = ELEMENTS.btnSave;
-    saveBtn.disabled = true;
-    saveBtn.classList.add('opacity-50');
-
+    
+    // Workflow Validation
+    const stages = ['hotmelt', 'prefitting', 'molding', 'leanline'];
+    const currentIdx = stages.indexOf(currentStage);
+    
     try {
+        // Fetch existing record to check workflow
+        const { data: existingData } = await supabase
+            .from('hotmelt')
+            .select('*')
+            .eq('rpro', rpro)
+            .maybeSingle();
+
+        // 1. Validation for Scan OUT: Must have Scan IN at this stage
+        if (scanMode === 'OUT') {
+            if (!existingData || !existingData[`${currentStage}_in`]) {
+                showToast(`❌ Lỗi: Bạn phải quét NHẬP (IN) công đoạn ${currentStage.toUpperCase()} trước khi xuất!`, 'error');
+                playAudio(false);
+                return;
+            }
+        } 
+        // 2. Validation for Scan IN: Must have Scan OUT at PREVIOUS stage
+        else if (scanMode === 'IN' && currentIdx > 0) {
+            const lastStage = stages[currentIdx - 1];
+            if (!existingData || !existingData[`${lastStage}_out`]) {
+                showToast(`❌ Lỗi: Phải hoàn thành XUẤT (OUT) công đoạn ${lastStage.toUpperCase()} mới được nhập vào đây!`, 'error');
+                playAudio(false);
+                return;
+            }
+        }
+
+        isProcessing = true;
+        const saveBtn = ELEMENTS.btnSave;
+        saveBtn.disabled = true;
+        saveBtn.classList.add('opacity-50');
+
         const updateData = {};
         const now = new Date().toISOString();
         
@@ -345,8 +379,10 @@ async function performSave(rpro, qty) {
         }
     } finally {
         isProcessing = false;
-        saveBtn.disabled = false;
-        saveBtn.classList.remove('opacity-50');
+        if (ELEMENTS.btnSave) {
+            ELEMENTS.btnSave.disabled = false;
+            ELEMENTS.btnSave.classList.remove('opacity-50');
+        }
     }
 }
 
