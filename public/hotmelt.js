@@ -1047,7 +1047,7 @@ window.calculateCheckOrderStats = () => {
     if (!tbody) return;
 
     if (pendingRows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-16 text-center text-slate-300 text-xs italic">
+        tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-16 text-center text-slate-300 text-xs italic">
             ${selected.length === 0 ? 'Vui lòng chọn Brand để xem danh sách...' : 'Không có đơn nào chưa chạy cho brand đã chọn.'}
         </td></tr>`;
         return;
@@ -1061,6 +1061,9 @@ window.calculateCheckOrderStats = () => {
             </td>
             <td class="px-4 py-3 border-r">
                 <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg uppercase">${row.brand}</span>
+            </td>
+            <td class="px-4 py-3 border-r">
+                <span class="text-[11px] font-bold text-slate-600">${row.mold || '---'}</span>
             </td>
             <td class="px-4 py-3 border-r text-center">
                 <span class="text-[12px] font-black text-slate-700">${(row.total_qty || 0).toLocaleString()}</span>
@@ -1090,13 +1093,28 @@ async function loadCheckOrderData() {
         const tbody = document.getElementById('check-pending-table-body');
         if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-16 text-center text-slate-300 text-xs italic">Đang tải dữ liệu từ PowerApp...</td></tr>`;
 
-        const { data, error } = await supabase.from('powerapp').select('*');
-        if (error) throw error;
+        // Supabase limits to 1000 rows by default. Use pagination to fetch ALL rows.
+        let allData = [];
+        let from = 0;
+        const batchSize = 1000;
+        while (true) {
+            const { data: batch, error } = await supabase
+                .from('powerapp')
+                .select('*')
+                .range(from, from + batchSize - 1);
+            if (error) throw error;
+            if (!batch || batch.length === 0) break;
+            allData = allData.concat(batch);
+            if (batch.length < batchSize) break; // Last page
+            from += batchSize;
+        }
+        const data = allData;
 
         // Map ALL records — no Hotmelt filter. Classify only by Laminating (Pro)
         allOrdersData = (data || []).map(item => ({
             rpro: item['PRO ODER'] || '---',
             brand: String(item['Brand Code'] || item['Brand'] || 'N/A').trim(),
+            mold: item['#MOLD'] || '---',
             total_qty: parseFloat(String(item['Total Qty'] || '0').replace(/,/g,'')) || 0,
             pu: item['PU DESCRIPTION'] || '---',
             fb: item['FB DESCRIPTION'] || '---',
