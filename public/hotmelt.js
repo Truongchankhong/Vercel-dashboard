@@ -1010,115 +1010,252 @@ function renderChart() {
 
 function updateBrandFilter() {
     const brands = [...new Set(dashboardData.map(r => r.brand).filter(Boolean))].sort();
-    
-    // 1. Sidebar Filter
     ELEMENTS.brandFilter.innerHTML = '<option value="all">Tất cả Brand</option>' + 
         brands.map(b => `<option value="${b}">${b}</option>`).join('');
-
-    // 2. Check Order Card Checkboxes (Integrated)
-    const container = document.getElementById('check-brand-container');
-    if (container) {
-        container.innerHTML = brands.map(b => `
-            <label class="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-red-400 hover:bg-red-50 transition-all select-none">
-                <input type="checkbox" class="brand-check-item w-4 h-4 text-red-600 rounded cursor-pointer" value="${b}" onchange="calculateCheckOrderStats()">
-                <span class="text-[11px] font-black text-slate-700 uppercase">${b}</span>
-            </label>
-        `).join('');
-    }
 }
 
-// Global functions for Check Order Stats
+// ==================== CHECK TAB STATE ====================
+let checkPendingRows = [];   // All pending rows after brand/mold/date filter
+let checkCurrentPage = 1;
+const checkPageSize = 20;
+
+// ==================== CHIP BRAND SELECTOR ====================
+
+function renderBrandChips(brands) {
+    const container = document.getElementById('check-brand-chips');
+    if (!container) return;
+    container.innerHTML = brands.map((b, i) => `
+        <button 
+            class="check-brand-chip px-3 py-1.5 text-[10px] font-black rounded-xl border-2 border-slate-200 bg-white text-slate-500
+                   hover:border-red-400 hover:text-red-500 transition-all duration-200 uppercase tracking-wider
+                   opacity-0 animate__animated animate__fadeInUp"
+            style="animation-delay:${i * 20}ms; animation-fill-mode:forwards;"
+            data-brand="${b}"
+            onclick="toggleBrandChip(this)">
+            ${b}
+        </button>
+    `).join('');
+}
+
+window.toggleBrandChip = (el) => {
+    const active = el.classList.contains('chip-active');
+    if (active) {
+        el.classList.remove('chip-active', 'border-red-500', 'bg-red-500', 'text-white', 'shadow-lg', 'shadow-red-200/50', '-translate-y-0.5');
+        el.classList.add('border-slate-200', 'bg-white', 'text-slate-500');
+    } else {
+        el.classList.add('chip-active', 'border-red-500', 'bg-red-500', 'text-white', 'shadow-lg', 'shadow-red-200/50', '-translate-y-0.5');
+        el.classList.remove('border-slate-200', 'bg-white', 'text-slate-500');
+    }
+    calculateCheckOrderStats();
+};
+
+window.toggleAllBrandsCheck = (isSelected) => {
+    document.querySelectorAll('.check-brand-chip').forEach(chip => {
+        if (isSelected && !chip.classList.contains('chip-active')) {
+            toggleBrandChip(chip);
+        } else if (!isSelected && chip.classList.contains('chip-active')) {
+            toggleBrandChip(chip);
+        }
+    });
+    calculateCheckOrderStats();
+};
+
+// ==================== COLUMN FILTER TOGGLE ====================
+window.toggleCheckFilter = (type) => {
+    const el = document.getElementById(`check-filter-${type}-wrap`);
+    if (!el) return;
+    el.classList.toggle('hidden');
+    if (!el.classList.contains('hidden')) {
+        const inp = document.getElementById(`check-filter-${type}`);
+        if (inp) setTimeout(() => inp.focus(), 50);
+    }
+};
+
+// ==================== CALCULATE + PIVOT + RENDER ====================
+
 window.calculateCheckOrderStats = () => {
-    const sel = document.getElementById('check-brand-select');
-    const selected = sel ? Array.from(sel.selectedOptions).map(o => o.value) : [];
-    
-    // Use _checkOrdersData (mapped Check tab data) — separate from the raw allOrdersData cache
+    const selected = Array.from(document.querySelectorAll('.check-brand-chip.chip-active')).map(el => el.dataset.brand);
     const source = window._checkOrdersData || [];
     const filtered = selected.length === 0 ? source : source.filter(r => selected.includes(r.brand));
 
-    let totalRunning = 0;
-    let totalPending = 0;
-    const pendingRows = [];
+    let totalRunning = 0, totalPending = 0;
+    const pendingAll = [];
+    const moldMap = {}; // { mold: { running: 0, pending: 0 } }
 
     filtered.forEach(row => {
         const qty = row.total_qty || 0;
-        // Strictly: Laminating (Pro) has value = Đang chạy, NULL = Chưa chạy
+        const mold = row.mold || '---';
+        if (!moldMap[mold]) moldMap[mold] = { running: 0, pending: 0 };
+
         if (row.hotmelt_out) {
             totalRunning += qty;
+            moldMap[mold].running += qty;
         } else {
             totalPending += qty;
-            pendingRows.push(row);
+            moldMap[mold].pending += qty;
+            pendingAll.push(row);
         }
     });
 
-    // Update summary stats
+    // Summary stats
     const elRunning = document.getElementById('check-stat-running');
     const elPending = document.getElementById('check-stat-pending');
     if (elRunning) elRunning.textContent = totalRunning.toLocaleString();
     if (elPending) elPending.textContent = totalPending.toLocaleString();
 
-    // Update pending table header counts
     const elCount = document.getElementById('check-pending-count');
     const elTotalQty = document.getElementById('check-pending-total-qty');
-    if (elCount) elCount.textContent = `${pendingRows.length} ĐƠN`;
+    if (elCount) elCount.textContent = `${pendingAll.length} ĐƠN`;
     if (elTotalQty) elTotalQty.textContent = `${totalPending.toLocaleString()} ĐÔI`;
 
-    // Render pending orders table
+    // Mold Pivot Table
+    renderMoldPivot(moldMap, selected.length > 0);
+
+    // Store for pagination/filter
+    checkPendingRows = pendingAll;
+    checkCurrentPage = 1;
+    renderCheckPendingTable();
+};
+
+function renderMoldPivot(moldMap, hasSelection) {
+    const wrapper = document.getElementById('check-mold-pivot-wrapper');
+    const tbody = document.getElementById('check-mold-pivot-body');
+    const countEl = document.getElementById('check-mold-pivot-count');
+    if (!tbody || !wrapper) return;
+
+    const molds = Object.entries(moldMap).filter(([,v]) => v.running > 0 || v.pending > 0)
+                        .sort((a, b) => (b[1].pending - a[1].pending));
+
+    if (!hasSelection || molds.length === 0) {
+        wrapper.classList.add('hidden');
+        return;
+    }
+    wrapper.classList.remove('hidden');
+    if (countEl) countEl.textContent = `${molds.length} khuôn`;
+
+    tbody.innerHTML = molds.map(([mold, v]) => {
+        const total = v.running + v.pending;
+        const runPct = total > 0 ? Math.round(v.running / total * 100) : 0;
+        return `
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-4 py-2.5 border-r font-black text-slate-700 text-[11px]">${mold}</td>
+            <td class="px-4 py-2.5 border-r text-center">
+                <span class="font-black text-emerald-600 text-[12px]">${v.running.toLocaleString()}</span>
+                <span class="text-[8px] text-slate-400 ml-1">đôi</span>
+            </td>
+            <td class="px-4 py-2.5 border-r text-center">
+                <span class="font-black text-rose-500 text-[12px]">${v.pending.toLocaleString()}</span>
+                <span class="text-[8px] text-slate-400 ml-1">đôi</span>
+            </td>
+            <td class="px-4 py-2.5">
+                <div class="flex items-center gap-2">
+                    <span class="font-bold text-slate-600 text-[11px]">${total.toLocaleString()}</span>
+                    <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[40px]">
+                        <div class="h-full bg-emerald-400 rounded-full" style="width:${runPct}%"></div>
+                    </div>
+                    <span class="text-[8px] text-slate-400">${runPct}%</span>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// Render paginated + filtered pending table
+window.renderCheckPendingTable = () => {
     const tbody = document.getElementById('check-pending-table-body');
     if (!tbody) return;
 
-    if (pendingRows.length === 0) {
+    const moldFilter = (document.getElementById('check-filter-mold')?.value || '').toLowerCase().trim();
+    const dateFilter = document.getElementById('check-filter-date')?.value || '';
+
+    let rows = checkPendingRows;
+    if (moldFilter) rows = rows.filter(r => (r.mold || '').toLowerCase().includes(moldFilter));
+    if (dateFilter) {
+        // Convert date filter to Excel serial for comparison
+        const filterSerial = (new Date(dateFilter).getTime() / 86400000) + 25569;
+        rows = rows.filter(r => {
+            const fd = parseFloat(r.finish_date);
+            if (!fd) return false;
+            return Math.floor(fd) === Math.floor(filterSerial);
+        });
+    }
+
+    const totalPages = Math.ceil(rows.length / checkPageSize) || 1;
+    checkCurrentPage = Math.min(checkCurrentPage, totalPages);
+    const start = (checkCurrentPage - 1) * checkPageSize;
+    const page = rows.slice(start, start + checkPageSize);
+
+    const selected = Array.from(document.querySelectorAll('.check-brand-chip.chip-active')).length;
+
+    if (rows.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-16 text-center text-slate-300 text-xs italic">
-            ${selected.length === 0 ? 'Vui lòng chọn Brand để xem danh sách...' : 'Không có đơn nào chưa chạy cho brand đã chọn.'}
+            ${selected === 0 ? 'Vui lòng chọn Brand...' : 'Không có đơn nào khớp bộ lọc.'}
         </td></tr>`;
+        document.getElementById('check-pagination')?.classList.add('hidden');
         return;
     }
 
-    tbody.innerHTML = pendingRows.map((row, idx) => `
-        <tr class="hover:bg-slate-50 transition-colors">
-            <td class="px-3 py-3 text-xs font-black text-slate-300 border-r">${String(idx + 1).padStart(3, '0')}</td>
+    tbody.innerHTML = page.map((row, idx) => `
+        <tr class="hover:bg-red-50/30 transition-colors">
+            <td class="px-3 py-3 text-xs font-black text-slate-300 border-r">${String(start + idx + 1).padStart(3,'0')}</td>
             <td class="px-4 py-3 border-r">
                 <div class="text-[12px] font-black text-slate-800">${row.rpro}</div>
             </td>
             <td class="px-4 py-3 border-r">
                 <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg uppercase">${row.brand}</span>
             </td>
-            <td class="px-4 py-3 border-r">
-                <span class="text-[11px] font-bold text-slate-600">${row.mold || '---'}</span>
-            </td>
+            <td class="px-4 py-3 border-r text-[11px] font-bold text-slate-600">${row.mold || '---'}</td>
             <td class="px-4 py-3 border-r text-center">
-                <span class="text-[12px] font-black text-slate-700">${(row.total_qty || 0).toLocaleString()}</span>
+                <span class="text-[12px] font-black text-slate-700">${(row.total_qty||0).toLocaleString()}</span>
                 <span class="text-[9px] text-slate-400 ml-1">đôi</span>
             </td>
-            <td class="px-4 py-3 border-r text-[11px] text-slate-600">${row.pu || '---'}</td>
-            <td class="px-4 py-3 border-r text-[11px] text-slate-600">${row.fb || '---'}</td>
+            <td class="px-4 py-3 border-r text-[11px] text-slate-500">${row.pu||'---'}</td>
+            <td class="px-4 py-3 border-r text-[11px] text-slate-500">${row.fb||'---'}</td>
             <td class="px-4 py-3 text-center text-[11px] text-slate-500">${row.finish_date ? formatDate(row.finish_date) : '---'}</td>
         </tr>
     `).join('');
+
+    // Pagination controls
+    const pageEl = document.getElementById('check-pagination');
+    const pageInfo = document.getElementById('check-page-info');
+    const pageNums = document.getElementById('check-page-numbers');
+    if (pageEl) pageEl.classList.toggle('hidden', totalPages <= 1);
+    if (pageInfo) pageInfo.textContent = `Trang ${checkCurrentPage}/${totalPages} — ${rows.length} đơn`;
+    if (pageNums) {
+        const pages = [];
+        for (let p = Math.max(1, checkCurrentPage-2); p <= Math.min(totalPages, checkCurrentPage+2); p++) {
+            pages.push(`
+                <button onclick="setCheckPage(${p})" class="w-8 h-8 text-[10px] font-black rounded-lg border transition 
+                    ${p === checkCurrentPage ? 'bg-red-500 text-white border-red-500' : 'bg-white border-slate-200 hover:border-red-300 hover:text-red-500'}">
+                    ${p}
+                </button>
+            `);
+        }
+        pageNums.innerHTML = pages.join('');
+    }
+    document.getElementById('check-btn-prev')?.toggleAttribute('disabled', checkCurrentPage <= 1);
+    document.getElementById('check-btn-next')?.toggleAttribute('disabled', checkCurrentPage >= totalPages);
 };
 
-window.toggleAllBrandsCheck = (isSelected) => {
-    const sel = document.getElementById('check-brand-select');
-    if (sel) Array.from(sel.options).forEach(o => o.selected = isSelected);
-    calculateCheckOrderStats();
-};
+window.changeCheckPage = (dir) => { checkCurrentPage += dir; renderCheckPendingTable(); };
+window.setCheckPage = (p) => { checkCurrentPage = p; renderCheckPendingTable(); };
 
-// Load ALL PowerApp orders for the Check tab (no filter)
-// Reuses the shared allOrdersData cache — saves egress on tab switches.
+// ==================== LOAD CHECK TAB DATA ====================
+
+// Load ALL PowerApp orders for the Check tab — reuses shared cache
 async function loadCheckOrderData() {
     try {
         const elRunning = document.getElementById('check-stat-running');
         const elPending = document.getElementById('check-stat-pending');
         if (elRunning) elRunning.textContent = '...';
         if (elPending) elPending.textContent = '...';
-
         const tbody = document.getElementById('check-pending-table-body');
         if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-16 text-center text-slate-300 text-xs italic">Đang tải dữ liệu từ PowerApp...</td></tr>`;
 
         // Use shared cache — only fetches from Supabase once per session
         await fetchAllPowerApp();
 
-        // Map to Check tab format (only fields needed for display)
+        // Map to Check tab format
         const checkData = allOrdersData.map(item => ({
             rpro: item['PRO ODER'] || '---',
             brand: String(item['Brand Code'] || item['Brand'] || 'N/A').trim(),
@@ -1130,17 +1267,12 @@ async function loadCheckOrderData() {
             hotmelt_out: excelToISO(item['Laminating (Pro)'])
         }));
 
-        // Store in separate variable — do NOT overwrite allOrdersData (raw cache)
         window._checkOrdersData = checkData;
 
-        // Build brand list from ALL orders → populate dropdown
+        // Build brand chips
         const allBrands = [...new Set(checkData.map(r => r.brand).filter(b => b && b !== 'N/A' && b !== '---'))].sort();
-        const sel = document.getElementById('check-brand-select');
-        if (sel) {
-            sel.innerHTML = allBrands.map(b => `<option value="${b}">${b}</option>`).join('');
-        }
+        renderBrandChips(allBrands);
 
-        // Reset stats
         if (elRunning) elRunning.textContent = '0';
         if (elPending) elPending.textContent = '0';
         if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-16 text-center text-slate-300 text-xs italic">Vui lòng chọn Brand để xem danh sách...</td></tr>`;
@@ -1152,7 +1284,7 @@ async function loadCheckOrderData() {
     }
 }
 
-// Expose to global scope (required because hotmelt.js is an ES module)
+// Expose to global scope (ES module requirement)
 window.loadCheckOrderData = loadCheckOrderData;
 
 function showDetails(data) {

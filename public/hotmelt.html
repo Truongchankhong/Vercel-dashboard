@@ -149,15 +149,42 @@
         <div id="content-check" class="animate__animated animate__fadeIn hidden">
             <!-- Order Checking View -->
             <div id="check-order-container-spot"></div>
-            
+
+            <!-- Mold Pivot Table -->
+            <div id="check-mold-pivot-wrapper" class="hidden mt-6">
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 bg-gradient-to-r from-slate-800 to-slate-900 flex justify-between items-center">
+                        <div>
+                            <h3 class="text-[11px] font-black text-white uppercase tracking-widest">PHÂN TÍCH THEO KHUÔN (#MOLD)</h3>
+                            <p class="text-[9px] text-slate-400 mt-0.5">Pivot: Khuôn × Đang chạy / Chưa chạy</p>
+                        </div>
+                        <span id="check-mold-pivot-count" class="px-2 py-0.5 bg-white/10 text-white text-[9px] font-black rounded-full">0 khuôn</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 bg-slate-50">
+                                    <th class="px-4 py-3 border-r">#MOLD</th>
+                                    <th class="px-4 py-3 border-r text-center text-emerald-600">✅ ĐANG CHẠY</th>
+                                    <th class="px-4 py-3 border-r text-center text-rose-500">⏳ CHƯA CHẠY</th>
+                                    <th class="px-4 py-3 text-center text-slate-500">TỔNG</th>
+                                </tr>
+                            </thead>
+                            <tbody id="check-mold-pivot-body" class="divide-y divide-slate-50 text-[11px]">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Pending Orders Table -->
-            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden border-t-8 border-t-slate-700 mt-6">
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mt-6">
                 <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
                     <div>
                         <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest">DANH SÁCH ĐƠN CHƯA CHẠY HOTMELT</h3>
                         <p class="text-[10px] text-slate-400 mt-1">Các đơn có cột <span class="font-black text-slate-600">Laminating (Pro)</span> = NULL</p>
                     </div>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 flex-wrap">
                         <span id="check-pending-count" class="px-3 py-1 bg-slate-800 text-white text-[10px] font-black rounded-full">0 ĐƠN</span>
                         <span id="check-pending-total-qty" class="px-3 py-1 bg-red-500 text-white text-[10px] font-black rounded-full">0 ĐÔI</span>
                     </div>
@@ -166,20 +193,39 @@
                     <table class="w-full text-left">
                         <thead class="bg-slate-50 sticky top-0 z-10">
                             <tr class="text-[10px] font-black text-slate-400 uppercase tracking-tighter border-b border-slate-100">
-                                <th class="px-3 py-4 border-r">STT</th>
-                                <th class="px-4 py-4 border-r min-w-[160px]">RPRO</th>
-                                <th class="px-4 py-4 border-r min-w-[100px]">BRAND</th>
-                                <th class="px-4 py-4 border-r min-w-[100px]">#MOLD</th>
-                                <th class="px-4 py-4 border-r text-center min-w-[100px]">TOTAL PO</th>
-                                <th class="px-4 py-4 border-r min-w-[180px]">PU DESCRIPTION</th>
-                                <th class="px-4 py-4 border-r min-w-[160px]">FB DESCRIPTION</th>
-                                <th class="px-4 py-4 min-w-[120px] text-center">FINISH DATE</th>
+                                <th class="px-3 py-3 border-r w-10">STT</th>
+                                <th class="px-4 py-3 border-r min-w-[160px]">RPRO</th>
+                                <th class="px-4 py-3 border-r min-w-[90px]">BRAND</th>
+                                <th class="px-4 py-3 border-r min-w-[120px] cursor-pointer select-none group" onclick="toggleCheckFilter('mold')">
+                                    <div class="flex items-center gap-1">#MOLD <span class="text-[8px] text-slate-300 group-hover:text-red-400 transition">🔍</span></div>
+                                    <div id="check-filter-mold-wrap" class="hidden mt-1">
+                                        <input id="check-filter-mold" type="text" placeholder="Tìm khuôn..." onclick="event.stopPropagation()" oninput="renderCheckPendingTable()" class="w-full text-[10px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-red-400" />
+                                    </div>
+                                </th>
+                                <th class="px-4 py-3 border-r text-center min-w-[90px]">TOTAL PO</th>
+                                <th class="px-4 py-3 border-r min-w-[180px]">PU DESCRIPTION</th>
+                                <th class="px-4 py-3 border-r min-w-[150px]">FB DESCRIPTION</th>
+                                <th class="px-4 py-3 min-w-[140px] cursor-pointer select-none group" onclick="toggleCheckFilter('date')">
+                                    <div class="flex items-center gap-1">FINISH DATE <span class="text-[8px] text-slate-300 group-hover:text-red-400 transition">🔍</span></div>
+                                    <div id="check-filter-date-wrap" class="hidden mt-1">
+                                        <input id="check-filter-date" type="date" onclick="event.stopPropagation()" onchange="renderCheckPendingTable()" class="w-full text-[10px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-red-400 cursor-pointer" />
+                                    </div>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="check-pending-table-body" class="text-sm font-bold text-slate-600 divide-y divide-slate-50">
-                            <tr><td colspan="7" class="px-6 py-16 text-center text-slate-300 text-xs italic">Chọn Brand để xem danh sách...</td></tr>
+                            <tr><td colspan="8" class="px-6 py-16 text-center text-slate-300 text-xs italic">Chọn Brand để xem danh sách...</td></tr>
                         </tbody>
                     </table>
+                </div>
+                <!-- Pagination -->
+                <div id="check-pagination" class="hidden px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-4 bg-slate-50/50">
+                    <span id="check-page-info" class="text-[10px] font-bold text-slate-400"></span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="changeCheckPage(-1)" id="check-btn-prev" class="px-4 py-2 text-[10px] font-black bg-white border border-slate-200 rounded-xl hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition disabled:opacity-30 disabled:pointer-events-none">← TRƯỚC</button>
+                        <div id="check-page-numbers" class="flex gap-1"></div>
+                        <button onclick="changeCheckPage(1)" id="check-btn-next" class="px-4 py-2 text-[10px] font-black bg-white border border-slate-200 rounded-xl hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition disabled:opacity-30 disabled:pointer-events-none">SAU →</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -319,22 +365,20 @@
                              </div>
                         </div>
                         
-                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                        <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100">
                             <div class="flex justify-between items-center mb-3">
                                 <div>
                                     <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Chọn Brand:</span>
-                                    <span class="text-[9px] text-slate-400 ml-2">(Giữ Ctrl để chọn nhiều)</span>
+                                    <span class="text-[9px] text-slate-400 ml-2">(Nhấn vào từng Brand để chọn)</span>
                                 </div>
                                 <div class="flex gap-2">
                                     <button onclick="toggleAllBrandsCheck(true)" class="px-3 py-1 bg-white border border-slate-200 text-[9px] font-black rounded-lg hover:bg-slate-100 transition uppercase shadow-sm">TẤT CẢ</button>
                                     <button onclick="toggleAllBrandsCheck(false)" class="px-3 py-1 bg-white border border-slate-200 text-[9px] font-black rounded-lg hover:bg-slate-100 transition uppercase shadow-sm">BỎ CHỌN</button>
-                                    <button onclick="calculateCheckOrderStats()" class="px-3 py-1 bg-red-500 text-white text-[9px] font-black rounded-lg hover:bg-red-600 transition uppercase shadow-sm">🔍 XEM</button>
                                 </div>
                             </div>
-                            <select id="check-brand-select" multiple onchange="calculateCheckOrderStats()"
-                                class="w-full h-32 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 p-2 focus:outline-none focus:ring-2 focus:ring-red-400 cursor-pointer">
-                                <option disabled>Đang tải danh sách brand...</option>
-                            </select>
+                            <div id="check-brand-chips" class="flex flex-wrap gap-2 min-h-[36px]">
+                                <span class="text-xs text-slate-300 italic self-center">Đang tải danh sách brand...</span>
+                            </div>
                         </div>
                     </div>
                     
