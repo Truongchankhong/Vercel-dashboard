@@ -63,16 +63,16 @@ let filteredData = [];
 let totalPowerAppVolume = 0; // Cumulative PO across all machines for ratio
 
 const MOCK_DATA = [
-    { 'PRO ODER': 'RPRO-NIKE-01', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'PU-AIR-01', 'FB DESCRIPTION': 'FLYKNIT-RED', '#MOLD': 'M-001', 'Total Qty': 550, 'Finish date': 46105, 'Laminating (Pro)': 46098.33, 'Prefitting (Pro)': 46098.50, 'Molding Pro (IN)': 46098.60, 'Molding Pro (OUT)': 46098.70, 'Leanline (IN)': 46098.80, 'Leanline (OUT)': 46098.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
-    { 'PRO ODER': 'RPRO-NIKE-02', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'PU-AIR-02', 'FB DESCRIPTION': 'FLYKNIT-BLUE', '#MOLD': 'M-002', 'Total Qty': 320, 'Finish date': 46105, 'Laminating (Pro)': 46098.35, 'Prefitting (Pro)': 46098.55, 'Molding Pro (IN)': 46098.65, 'Molding Pro (OUT)': 46098.75, 'Leanline (IN)': 46098.85, 'Leanline (OUT)': 46098.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
-    { 'PRO ODER': 'RPRO-ASICS-01', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'GEL-KAYANO', 'FB DESCRIPTION': 'MESH-SLV', '#MOLD': 'A-101', 'Total Qty': 480, 'Finish date': 46106, 'Laminating (Pro)': 46099.33, 'Prefitting (Pro)': 46099.50, 'Molding Pro (IN)': 46099.60, 'Molding Pro (OUT)': 46099.70, 'Leanline (IN)': 46099.80, 'Leanline (OUT)': 46099.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
-    { 'PRO ODER': 'RPRO-ASICS-02', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'NIMBUS-25', 'FB DESCRIPTION': 'MESH-BLK', '#MOLD': 'A-102', 'Total Qty': 620, 'Finish date': 46106, 'Laminating (Pro)': 46099.35, 'Prefitting (Pro)': 46099.55, 'Molding Pro (IN)': 46099.65, 'Molding Pro (OUT)': 46099.75, 'Leanline (IN)': 46099.85, 'Leanline (OUT)': 46099.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
-    { 'PRO ODER': 'RPRO-NIKE-03', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'REACT-01', 'FB DESCRIPTION': 'FLY-V2', '#MOLD': 'M-003', 'Total Qty': 280, 'Finish date': 46105, 'Laminating (Pro)': 46098.40, 'Prefitting (Pro)': 46098.60, 'Molding Pro (IN)': 46098.70, 'Molding Pro (OUT)': 46098.80, 'Leanline (IN)': 46098.90, 'Leanline (OUT)': 46098.98, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
-    { 'PRO ODER': 'RPRO-NIKE-04', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'PEGASUS-40', 'FB DESCRIPTION': 'MESH-GRY', '#MOLD': 'M-004', 'Total Qty': 410, 'Finish date': 46107, 'Laminating (Pro)': 46100.33, 'Prefitting (Pro)': 46100.50, 'Molding Pro (IN)': 46100.60, 'Molding Pro (OUT)': 46100.70, 'Leanline (IN)': 46100.80, 'Leanline (OUT)': 46100.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
-    { 'PRO ODER': 'RPRO-ASICS-03', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'GT-2000', 'FB DESCRIPTION': 'FABRIC-NAVY', '#MOLD': 'A-103', 'Total Qty': 350, 'Finish date': 46107, 'Laminating (Pro)': 46100.35, 'Prefitting (Pro)': 46100.55, 'Molding Pro (IN)': 46100.65, 'Molding Pro (OUT)': 46100.75, 'Leanline (IN)': 46100.85, 'Leanline (OUT)': 46100.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
-    { 'PRO ODER': 'RPRO-NIKE-05', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'VAPORFLY', 'FB DESCRIPTION': 'FLYWEAVE-GRN', '#MOLD': 'M-005', 'Total Qty': 150, 'Finish date': 46108, 'Laminating (Pro)': 46101.33, 'Prefitting (Pro)': 46101.50, 'Molding Pro (IN)': 46101.60, 'Molding Pro (OUT)': 46101.70, 'Leanline (IN)': 46101.80, 'Leanline (OUT)': 46101.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
-    { 'PRO ODER': 'RPRO-ASICS-04', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'NOVABLAST', 'FB DESCRIPTION': 'MESH-ORG', '#MOLD': 'A-104', 'Total Qty': 290, 'Finish date': 46108, 'Laminating (Pro)': 46101.35, 'Prefitting (Pro)': 46101.55, 'Molding Pro (IN)': 46101.65, 'Molding Pro (OUT)': 46101.75, 'Leanline (IN)': 46101.85, 'Leanline (OUT)': 46101.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
-    { 'PRO ODER': 'RPRO-NIKE-06', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'ZOM-FLY', 'FB DESCRIPTION': 'FLYKNIT-BLK', '#MOLD': 'M-006', 'Total Qty': 440, 'Finish date': 46109, 'Laminating (Pro)': 46102.33, 'Prefitting (Pro)': 46102.50, 'Molding Pro (IN)': 46102.60, 'Molding Pro (OUT)': 46102.70, 'Leanline (IN)': 46102.80, 'Leanline (OUT)': 46102.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() }
+    { 'PRO ODER': 'RPRO-NIKE-01', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'PU-AIR-01', 'FB DESCRIPTION': 'FLYKNIT-RED', '#MOLD': 'M-001', 'Total Qty': 550, 'Finish date': 46105, 'Laminating (Pro)': 46098.33, 'Prefitting (Pro)': 46098.50, 'Molding Pro (IN)': 46098.60, 'Molding Pro': 46098.70, 'IN lean Line (Pro)': 46098.80, 'Out lean Line (Pro)': 46098.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-NIKE-02', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'PU-AIR-02', 'FB DESCRIPTION': 'FLYKNIT-BLUE', '#MOLD': 'M-002', 'Total Qty': 320, 'Finish date': 46105, 'Laminating (Pro)': 46098.35, 'Prefitting (Pro)': 46098.55, 'Molding Pro (IN)': 46098.65, 'Molding Pro': 46098.75, 'IN lean Line (Pro)': 46098.85, 'Out lean Line (Pro)': 46098.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-ASICS-01', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'GEL-KAYANO', 'FB DESCRIPTION': 'MESH-SLV', '#MOLD': 'A-101', 'Total Qty': 480, 'Finish date': 46106, 'Laminating (Pro)': 46099.33, 'Prefitting (Pro)': 46099.50, 'Molding Pro (IN)': 46099.60, 'Molding Pro': 46099.70, 'IN lean Line (Pro)': 46099.80, 'Out lean Line (Pro)': 46099.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-ASICS-02', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'NIMBUS-25', 'FB DESCRIPTION': 'MESH-BLK', '#MOLD': 'A-102', 'Total Qty': 620, 'Finish date': 46106, 'Laminating (Pro)': 46099.35, 'Prefitting (Pro)': 46099.55, 'Molding Pro (IN)': 46099.65, 'Molding Pro': 46099.75, 'IN lean Line (Pro)': 46099.85, 'Out lean Line (Pro)': 46099.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-NIKE-03', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'REACT-01', 'FB DESCRIPTION': 'FLY-V2', '#MOLD': 'M-003', 'Total Qty': 280, 'Finish date': 46105, 'Laminating (Pro)': 46098.40, 'Prefitting (Pro)': 46098.60, 'Molding Pro (IN)': 46098.70, 'Molding Pro': 46098.80, 'IN lean Line (Pro)': 46098.90, 'Out lean Line (Pro)': 46098.98, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-NIKE-04', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'PEGASUS-40', 'FB DESCRIPTION': 'MESH-GRY', '#MOLD': 'M-004', 'Total Qty': 410, 'Finish date': 46107, 'Laminating (Pro)': 46100.33, 'Prefitting (Pro)': 46100.50, 'Molding Pro (IN)': 46100.60, 'Molding Pro': 46100.70, 'IN lean Line (Pro)': 46100.80, 'Out lean Line (Pro)': 46100.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-ASICS-03', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'GT-2000', 'FB DESCRIPTION': 'FABRIC-NAVY', '#MOLD': 'A-103', 'Total Qty': 350, 'Finish date': 46107, 'Laminating (Pro)': 46100.35, 'Prefitting (Pro)': 46100.55, 'Molding Pro (IN)': 46100.65, 'Molding Pro': 46100.75, 'IN lean Line (Pro)': 46100.85, 'Out lean Line (Pro)': 46100.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-NIKE-05', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'VAPORFLY', 'FB DESCRIPTION': 'FLYWEAVE-GRN', '#MOLD': 'M-005', 'Total Qty': 150, 'Finish date': 46108, 'Laminating (Pro)': 46101.33, 'Prefitting (Pro)': 46101.50, 'Molding Pro (IN)': 46101.60, 'Molding Pro': 46101.70, 'IN lean Line (Pro)': 46101.80, 'Out lean Line (Pro)': 46101.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-ASICS-04', 'Brand Code': 'ASICS', 'PU DESCRIPTION': 'NOVABLAST', 'FB DESCRIPTION': 'MESH-ORG', '#MOLD': 'A-104', 'Total Qty': 290, 'Finish date': 46108, 'Laminating (Pro)': 46101.35, 'Prefitting (Pro)': 46101.55, 'Molding Pro (IN)': 46101.65, 'Molding Pro': 46101.75, 'IN lean Line (Pro)': 46101.85, 'Out lean Line (Pro)': 46101.95, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
+    { 'PRO ODER': 'RPRO-NIKE-06', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'ZOM-FLY', 'FB DESCRIPTION': 'FLYKNIT-BLK', '#MOLD': 'M-006', 'Total Qty': 440, 'Finish date': 46109, 'Laminating (Pro)': 46102.33, 'Prefitting (Pro)': 46102.50, 'Molding Pro (IN)': 46102.60, 'Molding Pro': 46102.70, 'IN lean Line (Pro)': 46102.80, 'Out lean Line (Pro)': 46102.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() }
 ];
 
 // Column Mapping for PowerApp Table
@@ -392,8 +392,12 @@ function jsToExcelSerial(date) {
 
 // Convert Excel Serial to ISO string (e.g. "2026-03-24T12:00:00Z")
 function excelToISO(serial) {
-    if (!serial || isNaN(serial)) return null;
-    return new Date((serial - 25569) * 86400 * 1000).toISOString();
+    if (serial === null || serial === undefined) return null;
+    const s = String(serial).trim();
+    if (s === '' || s.toUpperCase() === 'NULL' || isNaN(serial)) return null;
+    const num = parseFloat(serial);
+    if (num <= 0) return null; // 0 or negative serial is not a valid date
+    return new Date((num - 25569) * 86400 * 1000).toISOString();
 }
 
 async function handleRproDetected(rawRpro) {
@@ -511,16 +515,31 @@ function normalizeRPRO(text) {
 
 async function refreshDashboard() {
     try {
+        // We get all orders that are either Planned or Realtime for Hotmelt
+        // OR we can just fetch all PowerApp data if it's not too huge.
+        // Let's use the Hotmelt filter but make sure we also catch "Pending" ones by PLAN.
         let query = supabase
             .from('powerapp')
-            .select('*')
+            .select(`
+                "PRO ODER", 
+                "Brand Code", 
+                "PU DESCRIPTION", 
+                "FB DESCRIPTION", 
+                "#MOLD", 
+                "Total Qty", 
+                "Laminating (Pro)", 
+                "Prefitting (Pro)", 
+                "Molding Pro (IN)", 
+                "Molding Pro", 
+                "IN lean Line (Pro)", 
+                "Out lean Line (Pro)",
+                "Finish date",
+                "LAMINATION MACHINE (REALTIME)",
+                "LAMINATION MACHINE (PLAN)",
+                "updated_at",
+                "created_at"
+            `)
             .or('"LAMINATION MACHINE (REALTIME)".eq.Hotmelt,"LAMINATION MACHINE (PLAN)".eq.Hotmelt');
-        
-        // Similarly update totalVolumeQuery?
-        // Let's keep it simple for now as per user request
-        let totalVolumeQuery = supabase
-            .from('powerapp')
-            .select('"Total Qty"');
         
         // Date filters from Flatpickr
         const picker = document.getElementById('date-range-picker')._flatpickr;
@@ -546,23 +565,28 @@ async function refreshDashboard() {
         totalPowerAppVolume = (totalRes && totalRes.data && totalRes.data.length > 0) ? totalRes.data.reduce((sum, row) => sum + (row['Total Qty'] || 0), 0) : 10000;
 
         // Map PowerApp rows to Dashboard rows
-        dashboardData = data.map(item => ({
-            rpro: item['PRO ODER'],
-            brand: item['Brand Code'],
-            pu: item['PU DESCRIPTION'],
-            fb: item['FB DESCRIPTION'],
-            mold: item['#MOLD'],
-            total_qty: item['Total Qty'],
-            finish_date: item['Finish date'],
-            // Map Stages using excelToISO
-            hotmelt_out: excelToISO(item[COLUMN_MAP.hotmelt.out]),
-            prefitting_out: excelToISO(item[COLUMN_MAP.prefitting.out]),
-            molding_in: excelToISO(item[COLUMN_MAP.molding.in]),
-            molding_out: excelToISO(item[COLUMN_MAP.molding.out]),
-            leanline_in: excelToISO(item[COLUMN_MAP.leanline.in]),
-            leanline_out: excelToISO(item[COLUMN_MAP.leanline.out]),
-            updated_at: item.updated_at || item.created_at
-        }));
+        dashboardData = data.map(item => {
+            const brandRaw = item['Brand Code'] || item['Brand'] || 'N/A';
+            const qtyRaw = item['Total Qty'] || '0';
+            
+            return {
+                rpro: item['PRO ODER'] || '---',
+                brand: String(brandRaw).trim(),
+                pu: item['PU DESCRIPTION'] || '---',
+                fb: item['FB DESCRIPTION'] || '---',
+                mold: item['#MOLD'] || '---',
+                total_qty: parseFloat(String(qtyRaw).replace(/,/g, '')) || 0,
+                finish_date: item['Finish date'],
+                // Map Stages using excelToISO and COLUMN_MAP
+                hotmelt_out: excelToISO(item[COLUMN_MAP.hotmelt.out]),
+                prefitting_out: excelToISO(item[COLUMN_MAP.prefitting.out]),
+                molding_in: excelToISO(item[COLUMN_MAP.molding.in]),
+                molding_out: excelToISO(item[COLUMN_MAP.molding.out]),
+                leanline_in: excelToISO(item[COLUMN_MAP.leanline.in]),
+                leanline_out: excelToISO(item[COLUMN_MAP.leanline.out]),
+                updated_at: item.updated_at || item.created_at
+            };
+        });
 
         currentPage = 1; 
         updateBrandFilter();
