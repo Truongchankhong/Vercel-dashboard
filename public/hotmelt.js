@@ -1008,7 +1008,8 @@ function updateBrandFilter() {
 
 // Global functions for Check Order Stats
 window.calculateCheckOrderStats = () => {
-    const selected = Array.from(document.querySelectorAll('.brand-check-item:checked')).map(cb => cb.value);
+    const sel = document.getElementById('check-brand-select');
+    const selected = sel ? Array.from(sel.selectedOptions).map(o => o.value) : [];
     
     // Use allOrdersData (all PowerApp records, no Hotmelt filter)
     const source = allOrdersData;
@@ -1073,7 +1074,8 @@ window.calculateCheckOrderStats = () => {
 };
 
 window.toggleAllBrandsCheck = (isSelected) => {
-    document.querySelectorAll('.brand-check-item').forEach(cb => cb.checked = isSelected);
+    const sel = document.getElementById('check-brand-select');
+    if (sel) Array.from(sel.options).forEach(o => o.selected = isSelected);
     calculateCheckOrderStats();
 };
 
@@ -1086,7 +1088,7 @@ async function loadCheckOrderData() {
         if (elPending) elPending.textContent = '...';
 
         const tbody = document.getElementById('check-pending-table-body');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-16 text-center text-slate-300 text-xs italic">Đang tải dữ liệu...</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-16 text-center text-slate-300 text-xs italic">Đang tải dữ liệu từ PowerApp...</td></tr>`;
 
         const { data, error } = await supabase.from('powerapp').select('*');
         if (error) throw error;
@@ -1103,21 +1105,17 @@ async function loadCheckOrderData() {
             hotmelt_out: excelToISO(item['Laminating (Pro)'])
         }));
 
-        // Build brand list from ALL orders
-        const allBrands = [...new Set(allOrdersData.map(r => r.brand).filter(b => b && b !== 'N/A'))].sort();
-        const container = document.getElementById('check-brand-container');
-        if (container) {
-            container.innerHTML = allBrands.map(b => `
-                <label class="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-red-400 hover:bg-red-50 transition-all select-none">
-                    <input type="checkbox" class="brand-check-item w-4 h-4 text-red-600 rounded cursor-pointer" value="${b}" onchange="calculateCheckOrderStats()">
-                    <span class="text-[11px] font-black text-slate-700 uppercase">${b}</span>
-                </label>
-            `).join('');
+        // Build brand list from ALL orders → populate dropdown
+        const allBrands = [...new Set(allOrdersData.map(r => r.brand).filter(b => b && b !== 'N/A' && b !== '---'))].sort();
+        const sel = document.getElementById('check-brand-select');
+        if (sel) {
+            sel.innerHTML = allBrands.map(b => `<option value="${b}">${b}</option>`).join('');
         }
 
-        // Don't auto-calculate — wait for user to select brands
+        // Reset stats
         if (elRunning) elRunning.textContent = '0';
         if (elPending) elPending.textContent = '0';
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-16 text-center text-slate-300 text-xs italic">Vui lòng chọn Brand để xem danh sách...</td></tr>`;
 
     } catch(err) {
         console.error('Check Order load error:', err);
@@ -1125,6 +1123,9 @@ async function loadCheckOrderData() {
         if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-red-400 text-xs">Lỗi tải dữ liệu: ${err.message}</td></tr>`;
     }
 }
+
+// Expose to global scope (required because hotmelt.js is an ES module)
+window.loadCheckOrderData = loadCheckOrderData;
 
 function showDetails(data) {
     ELEMENTS.details.brand.textContent = data.Brand || '---';
