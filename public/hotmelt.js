@@ -542,27 +542,25 @@ async function refreshDashboard() {
             .or('"LAMINATION MACHINE (REALTIME)".eq.Hotmelt,"LAMINATION MACHINE (PLAN)".eq.Hotmelt');
         
         // Date filters from Flatpickr
-        const picker = document.getElementById('date-range-picker')._flatpickr;
+        const picker = document.getElementById('date-range-picker')?._flatpickr;
         if (picker && picker.selectedDates.length === 2) {
             const start = picker.selectedDates[0].toISOString();
             const end = new Date(picker.selectedDates[1].setHours(23,59,59,999)).toISOString();
             query = query.gte('created_at', start).lte('created_at', end);
-            totalVolumeQuery = totalVolumeQuery.gte('created_at', start).lte('created_at', end);
         }
 
-        const [dashboardRes, totalRes] = await Promise.all([query, totalVolumeQuery]);
+        const { data: rawData, error } = await query;
+        if (error) throw error;
 
-        let data = [];
-        try {
-            if (dashboardRes && dashboardRes.data) data = dashboardRes.data;
-        } catch (e) { console.warn("DB issue, using empty data:", e); }
+        let data = rawData || [];
         
-        // COMBINE: Always add Mock Data for reporting as requested by user
+        // COMBINE: Always add Mock Data for RPROs not yet in DB
         const realRpros = new Set(data.map(item => item['PRO ODER']));
         const uniqueMock = MOCK_DATA.filter(m => !realRpros.has(m['PRO ODER']));
         data = [...data, ...uniqueMock];
         
-        totalPowerAppVolume = (totalRes && totalRes.data && totalRes.data.length > 0) ? totalRes.data.reduce((sum, row) => sum + (row['Total Qty'] || 0), 0) : 10000;
+        // Calculate total volume from fetched data directly
+        totalPowerAppVolume = data.reduce((sum, row) => sum + (parseFloat(String(row['Total Qty'] || '0').replace(/,/g,'')) || 0), 0) || 10000;
 
         // Map PowerApp rows to Dashboard rows
         dashboardData = data.map(item => {
