@@ -512,8 +512,10 @@ async function refreshDashboard() {
         let query = supabase
             .from('powerapp')
             .select('*')
-            .eq('"LAMINATION MACHINE (REALTIME)"', 'Hotmelt'); // QUOTED FOR SPACES/PARENS
+            .or('"LAMINATION MACHINE (REALTIME)".eq.Hotmelt,"LAMINATION MACHINE (PLAN)".eq.Hotmelt');
         
+        // Similarly update totalVolumeQuery?
+        // Let's keep it simple for now as per user request
         let totalVolumeQuery = supabase
             .from('powerapp')
             .select('"Total Qty"');
@@ -562,6 +564,7 @@ async function refreshDashboard() {
 
         currentPage = 1; 
         updateBrandFilter();
+        calculateCheckOrderStats();
         renderTable(); // renderTable will now call updateStats and renderChart internally to stay in sync
         
     } catch (err) {
@@ -984,12 +987,56 @@ function renderChart() {
 }
 
 function updateBrandFilter() {
-    const brands = [...new Set(dashboardData.map(r => r.brand).filter(Boolean))];
+    const brands = [...new Set(dashboardData.map(r => r.brand).filter(Boolean))].sort();
+    
+    // 1. Sidebar Filter
     ELEMENTS.brandFilter.innerHTML = '<option value="all">Tất cả Brand</option>' + 
         brands.map(b => `<option value="${b}">${b}</option>`).join('');
+
+    // 2. Check Order Card Checkboxes (Integrated)
+    const container = document.getElementById('check-brand-container');
+    if (container) {
+        container.innerHTML = brands.map(b => `
+            <label class="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-red-400 hover:bg-red-50 transition-all select-none">
+                <input type="checkbox" class="brand-check-item w-4 h-4 text-red-600 rounded cursor-pointer" value="${b}" onchange="calculateCheckOrderStats()">
+                <span class="text-[11px] font-black text-slate-700 uppercase">${b}</span>
+            </label>
+        `).join('');
+    }
 }
 
-// ==================== UTILS ====================
+// Global functions for Check Order Stats
+window.calculateCheckOrderStats = () => {
+    const selected = Array.from(document.querySelectorAll('.brand-check-item:checked')).map(cb => cb.value);
+    
+    let totalRunning = 0;
+    let totalPending = 0;
+
+    dashboardData.forEach(row => {
+        // Only count if it belongs to selected brands (or all if none selected yet??)
+        // Usually better to count all if none selected? User said "chọn Brand mong muốn"
+        if (selected.length === 0 || selected.includes(row.brand)) {
+             const qty = row.total_qty || 0;
+             // Running: has hotmelt_out (Laminating Pro)
+             if (row.hotmelt_out) {
+                 totalRunning += qty;
+             } else {
+                 totalPending += qty;
+             }
+        }
+    });
+
+    const elRunning = document.getElementById('check-stat-running');
+    const elPending = document.getElementById('check-stat-pending');
+    
+    if (elRunning) elRunning.textContent = totalRunning.toLocaleString();
+    if (elPending) elPending.textContent = totalPending.toLocaleString();
+};
+
+window.toggleAllBrandsCheck = (isSelected) => {
+    document.querySelectorAll('.brand-check-item').forEach(cb => cb.checked = isSelected);
+    calculateCheckOrderStats();
+};
 
 function showDetails(data) {
     ELEMENTS.details.brand.textContent = data.Brand || '---';
