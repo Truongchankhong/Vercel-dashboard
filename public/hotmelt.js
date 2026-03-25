@@ -62,6 +62,7 @@ const pageSize = 15;
 let filteredData = [];
 let totalPowerAppVolume = 0; // Cumulative PO across all machines for ratio
 let allOrdersData = []; // All PowerApp records for Check Order tab
+let allOrdersDataLoaded = false; // Cache flag — avoids re-fetching on tab switch
 
 const MOCK_DATA = [
     { 'PRO ODER': 'RPRO-NIKE-01', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'PU-AIR-01', 'FB DESCRIPTION': 'FLYKNIT-RED', '#MOLD': 'M-001', 'Total Qty': 550, 'Finish date': 46105, 'Laminating (Pro)': 46098.33, 'Prefitting (Pro)': 46098.50, 'Molding Pro (IN)': 46098.60, 'Molding Pro': 46098.70, 'IN lean Line (Pro)': 46098.80, 'Out lean Line (Pro)': 46098.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
@@ -512,38 +513,59 @@ function normalizeRPRO(text) {
     return match ? match[0] : clean;
 }
 
+// ==================== SHARED DATA FETCH ====================
+// Fetches ALL powerapp rows once, caches in allOrdersData.
+// Both refreshDashboard() and loadCheckOrderData() use this cache.
+// This means only ONE round-trip to Supabase per session — saving egress.
+async function fetchAllPowerApp(forceRefresh = false) {
+    if (allOrdersDataLoaded && !forceRefresh) return; // Already cached, skip
+
+    let allData = [];
+    let from = 0;
+    const batchSize = 1000;
+    while (true) {
+        const { data: batch, error } = await supabase
+            .from('powerapp')
+            .select('*')
+            .range(from, from + batchSize - 1);
+        if (error) throw error;
+        if (!batch || batch.length === 0) break;
+        allData = allData.concat(batch);
+        if (batch.length < batchSize) break;
+        from += batchSize;
+    }
+
+    allOrdersData = allData;
+    allOrdersDataLoaded = true;
+    console.log(`[PowerApp] Loaded ${allOrdersData.length} rows (egress saved on subsequent calls).`);
+}
+
 // ==================== DASHBOARD LOGIC ====================
 
 async function refreshDashboard() {
     try {
-        // Use select('*') to avoid Supabase 400 errors caused by column names
-        // with special characters (parentheses, spaces) in the select string.
-        // Filtering is done client-side after fetch.
-        const { data: rawData, error } = await supabase
-            .from('powerapp')
-            .select('*');
-        
-        if (error) throw error;
+        // Use shared cache — no extra fetch if already loaded
+        await fetchAllPowerApp();
 
         // Client-side filter: only rows related to Hotmelt (planned or realtime)
-        let data = (rawData || []).filter(item => 
+        let data = allOrdersData.filter(item =>
             item['LAMINATION MACHINE (REALTIME)'] === 'Hotmelt' ||
             item['LAMINATION MACHINE (PLAN)'] === 'Hotmelt'
         );
-        
+
         // COMBINE: Always add Mock Data for RPROs not yet in DB
         const realRpros = new Set(data.map(item => item['PRO ODER']));
         const uniqueMock = MOCK_DATA.filter(m => !realRpros.has(m['PRO ODER']));
         data = [...data, ...uniqueMock];
-        
+
         // Calculate total volume from fetched data directly
-        totalPowerAppVolume = data.reduce((sum, row) => sum + (parseFloat(String(row['Total Qty'] || '0').replace(/,/g,'')) || 0), 0) || 10000;
+        totalPowerAppVolume = allOrdersData.reduce((sum, row) => sum + (parseFloat(String(row['Total Qty'] || '0').replace(/,/g,'')) || 0), 0) || 10000;
 
         // Map PowerApp rows to Dashboard rows
         dashboardData = data.map(item => {
             const brandRaw = item['Brand Code'] || item['Brand'] || 'N/A';
             const qtyRaw = item['Total Qty'] || '0';
-            
+
             return {
                 rpro: item['PRO ODER'] || '---',
                 brand: String(brandRaw).trim(),
@@ -552,7 +574,6 @@ async function refreshDashboard() {
                 mold: item['#MOLD'] || '---',
                 total_qty: parseFloat(String(qtyRaw).replace(/,/g, '')) || 0,
                 finish_date: item['Finish date'],
-                // Map Stages using excelToISO and COLUMN_MAP
                 hotmelt_out: excelToISO(item[COLUMN_MAP.hotmelt.out]),
                 prefitting_out: excelToISO(item[COLUMN_MAP.prefitting.out]),
                 molding_in: excelToISO(item[COLUMN_MAP.molding.in]),
@@ -563,11 +584,11 @@ async function refreshDashboard() {
             };
         });
 
-        currentPage = 1; 
+        currentPage = 1;
         updateBrandFilter();
         calculateCheckOrderStats();
-        renderTable(); // renderTable will now call updateStats and renderChart internally to stay in sync
-        
+        renderTable();
+
     } catch (err) {
         console.error("Dashboard error:", err);
         showToast("❌ Lỗi tải Dashboard (PowerApp)", "error");
@@ -1011,8 +1032,8 @@ window.calculateCheckOrderStats = () => {
     const sel = document.getElementById('check-brand-select');
     const selected = sel ? Array.from(sel.selectedOptions).map(o => o.value) : [];
     
-    // Use allOrdersData (all PowerApp records, no Hotmelt filter)
-    const source = allOrdersData;
+    // Use _checkOrdersData (mapped Check tab data) — separate from the raw allOrdersData cache
+    const source = window._checkOrdersData || [];
     const filtered = selected.length === 0 ? source : source.filter(r => selected.includes(r.brand));
 
     let totalRunning = 0;
@@ -1083,6 +1104,7 @@ window.toggleAllBrandsCheck = (isSelected) => {
 };
 
 // Load ALL PowerApp orders for the Check tab (no filter)
+// Reuses the shared allOrdersData cache — saves egress on tab switches.
 async function loadCheckOrderData() {
     try {
         const elRunning = document.getElementById('check-stat-running');
@@ -1091,27 +1113,13 @@ async function loadCheckOrderData() {
         if (elPending) elPending.textContent = '...';
 
         const tbody = document.getElementById('check-pending-table-body');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-16 text-center text-slate-300 text-xs italic">Đang tải dữ liệu từ PowerApp...</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-16 text-center text-slate-300 text-xs italic">Đang tải dữ liệu từ PowerApp...</td></tr>`;
 
-        // Supabase limits to 1000 rows by default. Use pagination to fetch ALL rows.
-        let allData = [];
-        let from = 0;
-        const batchSize = 1000;
-        while (true) {
-            const { data: batch, error } = await supabase
-                .from('powerapp')
-                .select('*')
-                .range(from, from + batchSize - 1);
-            if (error) throw error;
-            if (!batch || batch.length === 0) break;
-            allData = allData.concat(batch);
-            if (batch.length < batchSize) break; // Last page
-            from += batchSize;
-        }
-        const data = allData;
+        // Use shared cache — only fetches from Supabase once per session
+        await fetchAllPowerApp();
 
-        // Map ALL records — no Hotmelt filter. Classify only by Laminating (Pro)
-        allOrdersData = (data || []).map(item => ({
+        // Map to Check tab format (only fields needed for display)
+        const checkData = allOrdersData.map(item => ({
             rpro: item['PRO ODER'] || '---',
             brand: String(item['Brand Code'] || item['Brand'] || 'N/A').trim(),
             mold: item['#MOLD'] || '---',
@@ -1119,12 +1127,14 @@ async function loadCheckOrderData() {
             pu: item['PU DESCRIPTION'] || '---',
             fb: item['FB DESCRIPTION'] || '---',
             finish_date: item['Finish date'],
-            // Running = has a valid numeric value in Laminating (Pro)
             hotmelt_out: excelToISO(item['Laminating (Pro)'])
         }));
 
+        // Store in separate variable — do NOT overwrite allOrdersData (raw cache)
+        window._checkOrdersData = checkData;
+
         // Build brand list from ALL orders → populate dropdown
-        const allBrands = [...new Set(allOrdersData.map(r => r.brand).filter(b => b && b !== 'N/A' && b !== '---'))].sort();
+        const allBrands = [...new Set(checkData.map(r => r.brand).filter(b => b && b !== 'N/A' && b !== '---'))].sort();
         const sel = document.getElementById('check-brand-select');
         if (sel) {
             sel.innerHTML = allBrands.map(b => `<option value="${b}">${b}</option>`).join('');
@@ -1133,12 +1143,12 @@ async function loadCheckOrderData() {
         // Reset stats
         if (elRunning) elRunning.textContent = '0';
         if (elPending) elPending.textContent = '0';
-        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-16 text-center text-slate-300 text-xs italic">Vui lòng chọn Brand để xem danh sách...</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-16 text-center text-slate-300 text-xs italic">Vui lòng chọn Brand để xem danh sách...</td></tr>`;
 
     } catch(err) {
         console.error('Check Order load error:', err);
         const tbody = document.getElementById('check-pending-table-body');
-        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-red-400 text-xs">Lỗi tải dữ liệu: ${err.message}</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-8 text-center text-red-400 text-xs">Lỗi tải dữ liệu: ${err.message}</td></tr>`;
     }
 }
 
