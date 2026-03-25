@@ -57,11 +57,19 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
+        .tab-btn {
+            color: #64748b;  /* slate-500 default */
+            border-bottom: 3px solid transparent;
+        }
         .tab-btn.active {
             border-bottom: 3px solid var(--accent);
             color: var(--accent);
-            font-weight: 800;
+            font-weight: 900;
         }
+        /* Dark mode: inactive tabs clearly visible */
+        .dark .tab-btn { color: #94a3b8; }
+        .dark .tab-btn:hover { color: #cbd5e1; }
+        .dark .tab-btn.active { color: var(--accent); }
 
         input, select, table, th, td {
             background-color: var(--bg-card) !important;
@@ -74,9 +82,40 @@
         .dark .bg-slate-100 { background-color: #334155 !important; }
         .dark .table-hover:hover { background-color: #334155 !important; }
         .dark .text-slate-800 { color: #f1f5f9 !important; }
+        .dark .text-slate-700 { color: #e2e8f0 !important; }
         .dark .text-slate-600 { color: #cbd5e1 !important; }
-        .dark .text-slate-400 { color: #94a3b8 !important; }
+        .dark .text-slate-500 { color: #94a3b8 !important; }
+        .dark .text-slate-400 { color: #64748b !important; }
         .dark .border-slate-200, .dark .border-slate-100 { border-color: #334155 !important; }
+        .dark .check-brand-chip { background-color: #1e293b !important; border-color: #334155 !important; color: #94a3b8 !important; }
+        .dark .check-brand-chip.chip-active { background-color: #ef4444 !important; border-color: #ef4444 !important; color: #fff !important; }
+
+        /* ─── Loading Skeleton ─── */
+        @keyframes shimmer {
+            0%   { background-position: -800px 0; }
+            100% { background-position: 800px 0; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+            background-size: 800px 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 12px;
+        }
+        .dark .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 800px 100%;
+        }
+
+        /* ─── Full-page loading overlay ─── */
+        #page-loading-overlay {
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(248,250,252,0.92);
+            backdrop-filter: blur(4px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.4s ease;
+        }
+        .dark #page-loading-overlay { background: rgba(15,23,42,0.92); }
+        #page-loading-overlay.fade-out { opacity: 0; pointer-events: none; }
 
         /* Custom scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -136,13 +175,40 @@
         </div>
     </header>
 
+    <!-- Full-page Loading Overlay -->
+    <div id="page-loading-overlay">
+        <div class="flex flex-col items-center gap-5">
+            <!-- Animated logo -->
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-xl shadow-red-200 animate__animated animate__pulse animate__infinite">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <!-- Spinner -->
+            <div class="relative w-12 h-12">
+                <div class="absolute inset-0 border-4 border-slate-200 dark:border-slate-700 rounded-full"></div>
+                <div class="absolute inset-0 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <div class="text-center">
+                <p id="loading-text" class="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">Đang tải dữ liệu...</p>
+                <p class="text-[10px] text-slate-400 mt-1 font-bold">Loading production data...</p>
+            </div>
+            <!-- Skeleton bars -->
+            <div class="flex flex-col gap-2 w-64">
+                <div class="skeleton h-3 w-full"></div>
+                <div class="skeleton h-3 w-4/5"></div>
+                <div class="skeleton h-3 w-3/5"></div>
+            </div>
+        </div>
+    </div>
+
     <main class="w-full px-6 lg:px-12 py-8">
-        <div class="flex gap-4 mb-8 border-b border-slate-200 overflow-x-auto no-scrollbar">
+        <div class="flex gap-4 mb-8 border-b border-slate-200 dark:border-slate-700 overflow-x-auto no-scrollbar">
             <button id="tab-dashboard" class="tab-btn active px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap transition-all duration-300" onclick="switchTab('dashboard')">
-                <span data-i18n="tab_dashboard">DASHBOARD</span>
+                📊 <span data-i18n="tab_dashboard">DASHBOARD</span>
             </button>
             <button id="tab-check" class="tab-btn px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap transition-all duration-300" onclick="switchTab('check')">
-                <span data-i18n="tab_check">CHECK ĐƠN</span>
+                🔍 <span data-i18n="tab_check">CHECK ĐƠN</span>
             </button>
         </div>
 
@@ -543,12 +609,16 @@
             document.getElementById('content-check').classList.toggle('hidden', tab !== 'check');
 
             if (tab === 'check') {
-                // Move the card to the check tab if it's not already there
                 const card = document.getElementById('check-order-card-source');
                 const spot = document.getElementById('check-order-container-spot');
                 if (card && spot) spot.appendChild(card);
-                // Load ALL orders for check tab (no Hotmelt filter)
-                if (typeof loadCheckOrderData === 'function') loadCheckOrderData();
+                // Show loading while fetching Check tab data
+                if (typeof showLoading === 'function') showLoading('Đang tải danh sách đơn...');
+                if (typeof loadCheckOrderData === 'function') {
+                    Promise.resolve(loadCheckOrderData()).finally(() => {
+                        if (typeof hideLoading === 'function') hideLoading();
+                    });
+                }
                 history.replaceState(null, null, "#check");
             } else {
                 window.dispatchEvent(new CustomEvent('dashboard-active'));

@@ -146,7 +146,23 @@ const TRANSLATIONS = {
         chart_brand_ratio: "PHÂN TÍCH THEO BRAND (%)",
         chart_prod_hourly: "BIỂU ĐỒ NĂNG SUẤT HOTMELT (ĐÔI/GIỜ)",
         chart_brand_prod: "NĂNG SUẤT HOTMELT THEO BRAND",
-        chart_prod_finished: "SẢN LƯỢNG HOÀN THÀNH LEANLINE (SỐ ĐÔI)"
+        chart_prod_finished: "SẢN LƯỢNG HOÀN THÀNH LEANLINE (SỐ ĐÔI)",
+        // Check tab
+        check_title: "CHECK ĐƠN THEO BRAND",
+        check_sub: "Phân tích sản lượng PO từ PowerApp",
+        check_select_brand: "Chọn Brand:",
+        check_hint: "(Nhấn vào từng Brand để chọn)",
+        check_all: "TẤT CẢ",
+        check_clear: "BỎ CHỌN",
+        check_running: "TỔNG PO ĐANG CHẠY",
+        check_pending: "TỔNG PO CHƯA CHẠY",
+        check_running_sub: "Đơn đã bắt đầu Laminating",
+        check_pending_sub: "Đơn chưa có ghi nhận SX",
+        check_pivot_title: "PHÂN TÍCH THEO KHUÔN (#MOLD)",
+        check_pivot_sub: "Pivot: Khuôn × Đang chạy / Chưa chạy",
+        check_table_title: "DANH SÁCH ĐƠN CHƯA CHẠY HOTMELT",
+        check_table_sub: "Các đơn có cột Laminating (Pro) = NULL",
+        loading: "Đang tải dữ liệu..."
     },
     en: {
         title: "HOTMELT MONITORING DASHBOARD",
@@ -189,20 +205,57 @@ const TRANSLATIONS = {
         chart_brand_ratio: "BRAND ANALYSIS (%)",
         chart_prod_hourly: "HOTMELT PRODUCTIVITY TREND (P/H)",
         chart_brand_prod: "HOTMELT PRODUCTIVITY BY BRAND",
-        chart_prod_finished: "FINISHED PRODUCTION VOLUME (PAIRS)"
+        chart_prod_finished: "FINISHED PRODUCTION VOLUME (PAIRS)",
+        // Check tab
+        check_title: "CHECK ORDERS BY BRAND",
+        check_sub: "Analyze PO volume from PowerApp",
+        check_select_brand: "Select Brand:",
+        check_hint: "(Click each Brand to select)",
+        check_all: "ALL",
+        check_clear: "CLEAR",
+        check_running: "TOTAL PO RUNNING",
+        check_pending: "TOTAL PO PENDING",
+        check_running_sub: "Orders started Laminating",
+        check_pending_sub: "Orders not yet in production",
+        check_pivot_title: "ANALYSIS BY MOLD (#MOLD)",
+        check_pivot_sub: "Pivot: Mold × Running / Pending",
+        check_table_title: "PENDING ORDERS LIST",
+        check_table_sub: "Orders with Laminating (Pro) = NULL",
+        loading: "Loading data..."
     }
 };
 
+// ==================== LOADING OVERLAY ====================
+function showLoading(msg) {
+    const el = document.getElementById('page-loading-overlay');
+    const txt = document.getElementById('loading-text');
+    if (el) { el.classList.remove('fade-out', 'hidden'); }
+    if (txt && msg) txt.textContent = msg;
+}
+function hideLoading() {
+    const el = document.getElementById('page-loading-overlay');
+    if (!el) return;
+    el.classList.add('fade-out');
+    setTimeout(() => el.classList.add('hidden'), 450);
+}
+// Expose loading helpers to global (used by inline switchTab in HTML)
+window.showLoading = showLoading;
+window.hideLoading = hideLoading;
+
 // ==================== INITIALIZATION ====================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     if (ELEMENTS.rproInput) ELEMENTS.rproInput.focus();
     setupEventListeners();
     updateSessionCount();
-    
+
+    // Show loading overlay immediately
+    const t = TRANSLATIONS[currentLanguage] || TRANSLATIONS.vi;
+    showLoading(t.loading || 'Đang tải dữ liệu...');
+
     // Initialize Date Range Picker (Default 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     flatpickr("#date-range-picker", {
         mode: "range",
         dateFormat: "Y-m-d",
@@ -213,13 +266,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-refresh history from DB
     fetchRecentHistory();
     setLanguage('vi'); // Default language
-    
+
     // Default to dashboard as requested by user
     if (typeof switchTab === 'function') {
         switchTab('dashboard');
     } else {
-        // Fallback if switchTab is not yet available (unlikely)
         window.dispatchEvent(new CustomEvent('dashboard-active'));
+    }
+
+    // Load initial data, then hide overlay
+    try {
+        await refreshDashboard();
+    } finally {
+        hideLoading();
     }
 });
 
