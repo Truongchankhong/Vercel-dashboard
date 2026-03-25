@@ -1010,32 +1010,66 @@ function updateBrandFilter() {
 window.calculateCheckOrderStats = () => {
     const selected = Array.from(document.querySelectorAll('.brand-check-item:checked')).map(cb => cb.value);
     
-    // If allOrdersData loaded, use it; otherwise fall back to dashboardData
-    const source = allOrdersData.length > 0 ? allOrdersData : dashboardData;
+    // Use allOrdersData (all PowerApp records, no Hotmelt filter)
+    const source = allOrdersData;
     const filtered = selected.length === 0 ? source : source.filter(r => selected.includes(r.brand));
 
     let totalRunning = 0;
     let totalPending = 0;
+    const pendingRows = [];
 
     filtered.forEach(row => {
-        const qty = typeof row.total_qty === 'number' ? row.total_qty 
-                  : parseFloat(String(row['Total Qty'] || row.total_qty || '0').replace(/,/g,'')) || 0;
-        // Running: has Laminating (Pro) value
-        const hasLaminating = row.hotmelt_out ||
-            excelToISO(row['Laminating (Pro)']) ||
-            excelToISO(row.laminating_pro);
-        if (hasLaminating) {
+        const qty = row.total_qty || 0;
+        // Strictly: Laminating (Pro) has value = Đang chạy, NULL = Chưa chạy
+        if (row.hotmelt_out) {
             totalRunning += qty;
         } else {
             totalPending += qty;
+            pendingRows.push(row);
         }
     });
 
+    // Update summary stats
     const elRunning = document.getElementById('check-stat-running');
     const elPending = document.getElementById('check-stat-pending');
-    
     if (elRunning) elRunning.textContent = totalRunning.toLocaleString();
     if (elPending) elPending.textContent = totalPending.toLocaleString();
+
+    // Update pending table header counts
+    const elCount = document.getElementById('check-pending-count');
+    const elTotalQty = document.getElementById('check-pending-total-qty');
+    if (elCount) elCount.textContent = `${pendingRows.length} ĐƠN`;
+    if (elTotalQty) elTotalQty.textContent = `${totalPending.toLocaleString()} ĐÔI`;
+
+    // Render pending orders table
+    const tbody = document.getElementById('check-pending-table-body');
+    if (!tbody) return;
+
+    if (pendingRows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-16 text-center text-slate-300 text-xs italic">
+            ${selected.length === 0 ? 'Vui lòng chọn Brand để xem danh sách...' : 'Không có đơn nào chưa chạy cho brand đã chọn.'}
+        </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = pendingRows.map((row, idx) => `
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-3 py-3 text-xs font-black text-slate-300 border-r">${String(idx + 1).padStart(3, '0')}</td>
+            <td class="px-4 py-3 border-r">
+                <div class="text-[12px] font-black text-slate-800">${row.rpro}</div>
+            </td>
+            <td class="px-4 py-3 border-r">
+                <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-black rounded-lg uppercase">${row.brand}</span>
+            </td>
+            <td class="px-4 py-3 border-r text-center">
+                <span class="text-[12px] font-black text-slate-700">${(row.total_qty || 0).toLocaleString()}</span>
+                <span class="text-[9px] text-slate-400 ml-1">đôi</span>
+            </td>
+            <td class="px-4 py-3 border-r text-[11px] text-slate-600">${row.pu || '---'}</td>
+            <td class="px-4 py-3 border-r text-[11px] text-slate-600">${row.fb || '---'}</td>
+            <td class="px-4 py-3 text-center text-[11px] text-slate-500">${row.finish_date ? formatDate(row.finish_date) : '---'}</td>
+        </tr>
+    `).join('');
 };
 
 window.toggleAllBrandsCheck = (isSelected) => {
@@ -1043,25 +1077,30 @@ window.toggleAllBrandsCheck = (isSelected) => {
     calculateCheckOrderStats();
 };
 
-// Load ALL PowerApp orders for the Check tab (no Hotmelt filter)
+// Load ALL PowerApp orders for the Check tab (no filter)
 async function loadCheckOrderData() {
     try {
-        // Show loading state
         const elRunning = document.getElementById('check-stat-running');
         const elPending = document.getElementById('check-stat-pending');
         if (elRunning) elRunning.textContent = '...';
         if (elPending) elPending.textContent = '...';
 
+        const tbody = document.getElementById('check-pending-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-16 text-center text-slate-300 text-xs italic">Đang tải dữ liệu...</td></tr>`;
+
         const { data, error } = await supabase.from('powerapp').select('*');
         if (error) throw error;
 
-        // Map to simple objects
+        // Map ALL records — no Hotmelt filter. Classify only by Laminating (Pro)
         allOrdersData = (data || []).map(item => ({
             rpro: item['PRO ODER'] || '---',
             brand: String(item['Brand Code'] || item['Brand'] || 'N/A').trim(),
             total_qty: parseFloat(String(item['Total Qty'] || '0').replace(/,/g,'')) || 0,
-            hotmelt_out: excelToISO(item['Laminating (Pro)']),
-            lamString: item['Laminating (Pro)'] // keep raw for debugging
+            pu: item['PU DESCRIPTION'] || '---',
+            fb: item['FB DESCRIPTION'] || '---',
+            finish_date: item['Finish date'],
+            // Running = has a valid numeric value in Laminating (Pro)
+            hotmelt_out: excelToISO(item['Laminating (Pro)'])
         }));
 
         // Build brand list from ALL orders
@@ -1076,9 +1115,14 @@ async function loadCheckOrderData() {
             `).join('');
         }
 
-        calculateCheckOrderStats();
+        // Don't auto-calculate — wait for user to select brands
+        if (elRunning) elRunning.textContent = '0';
+        if (elPending) elPending.textContent = '0';
+
     } catch(err) {
         console.error('Check Order load error:', err);
+        const tbody = document.getElementById('check-pending-table-body');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-red-400 text-xs">Lỗi tải dữ liệu: ${err.message}</td></tr>`;
     }
 }
 
