@@ -836,7 +836,11 @@ function renderChart() {
                 datasets: [{
                     data: brandValues,
                     backgroundColor: [
-                        '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#ef4444'
+                        '#6366f1', // Indigo (Nike)
+                        '#10b981', // Emerald (Asics)
+                        '#f59e0b', // Amber
+                        '#f43f5e', // Rose
+                        '#06b6d4'  // Cyan
                     ],
                     borderWidth: 0,
                     hoverOffset: 20
