@@ -106,8 +106,9 @@ const TRANSLATIONS = {
     vi: {
         title: "BÁO CÁO THEO DÕI HOTMELT",
         back: "QUAY LẠI",
-        tab_scan: "QUÉT MÃ",
-        tab_dashboard: "BÁO CÁO",
+        tab_scan: "CHECK ĐƠN",
+        tab_check: "CHECK ĐƠN",
+        tab_dashboard: "DASHBOARD",
         stat_wip: "HÀNG ĐANG CHẠY (WIP)",
         stat_total_out: "TỔNG HOÀN THÀNH (ĐÔI)",
         stat_completion: "TỈ LỆ HOÀN THÀNH",
@@ -148,7 +149,8 @@ const TRANSLATIONS = {
     en: {
         title: "HOTMELT MONITORING DASHBOARD",
         back: "BACK",
-        tab_scan: "SCAN",
+        tab_scan: "CHECK ORDERS",
+        tab_check: "CHECK ORDERS",
         tab_dashboard: "DASHBOARD",
         stat_wip: "WORK IN PROGRESS (WIP)",
         stat_total_out: "TOTAL FINISHED (PAIRS)",

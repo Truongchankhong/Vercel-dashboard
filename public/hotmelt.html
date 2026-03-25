@@ -137,17 +137,18 @@
     </header>
 
     <main class="w-full px-6 lg:px-12 py-8">
-        <div class="flex gap-4 mb-8 border-b border-slate-200 overflow-x-auto no-scrollbar hidden">
-            <button id="tab-scan" class="tab-btn px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap hidden" onclick="switchTab('scan')">
-                <span data-i18n="tab_scan">SCAN</span>
-            </button>
-            <button id="tab-dashboard" class="tab-btn active px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap" onclick="switchTab('dashboard')">
+        <div class="flex gap-4 mb-8 border-b border-slate-200 overflow-x-auto no-scrollbar">
+            <button id="tab-dashboard" class="tab-btn active px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap transition-all duration-300" onclick="switchTab('dashboard')">
                 <span data-i18n="tab_dashboard">DASHBOARD</span>
+            </button>
+            <button id="tab-check" class="tab-btn px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap transition-all duration-300" onclick="switchTab('check')">
+                <span data-i18n="tab_check">CHECK ĐƠN</span>
             </button>
         </div>
 
-        <div id="content-scan" class="animate__animated animate__fadeIn hidden">
-            <!-- Scan content (Hidden temporarily) -->
+        <div id="content-check" class="animate__animated animate__fadeIn hidden">
+            <!-- Order Checking View -->
+            <div id="check-order-container-spot"></div>
         </div>
 
         <div id="content-dashboard" class="animate__animated animate__fadeIn">
@@ -268,42 +269,60 @@
                 </div>
             </div>
 
-            <!-- Check Order Card -->
-            <div class="bg-white p-6 rounded-3xl border border-slate-200 mb-8 shadow-sm">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <!-- Check Order Card (MOVED TO TAB) -->
+            <div id="check-order-card-source" class="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl overflow-hidden mb-8">
+                <div class="flex flex-col md:flex-row justify-between items-start lg:items-center gap-8">
                     <div class="flex-1 w-full">
-                        <h3 class="text-[12px] font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
-                             <div class="w-6 h-6 rounded-lg bg-red-500 text-white flex items-center justify-center text-[10px]">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        <div class="flex items-center gap-3 mb-6">
+                             <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 text-white flex items-center justify-center shadow-lg shadow-red-200">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
                                 </svg>
                              </div>
-                             CHECK ĐƠN THEO BRAND (NHÓM HOTMELT)
-                        </h3>
-                        <div class="flex gap-2 mb-4">
-                            <button onclick="toggleAllBrandsCheck(true)" class="px-3 py-1 bg-slate-100 text-[10px] font-black rounded-lg hover:bg-slate-200 transition uppercase text-slate-600">CHỌN TẤT CẢ</button>
-                            <button onclick="toggleAllBrandsCheck(false)" class="px-3 py-1 bg-slate-100 text-[10px] font-black rounded-lg hover:bg-slate-200 transition uppercase text-slate-600">BỎ CHỌN</button>
+                             <div>
+                                <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest leading-none" data-i18n="tab_check">CHECK ĐƠN THEO BRAND (NHÓM HOTMELT)</h3>
+                                <p class="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tighter">Phân tích sán lượng PO thực tế từ PowerApp</p>
+                             </div>
                         </div>
-                        <div id="check-brand-container" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto no-scrollbar p-1">
-                            <!-- Brand checkboxes injected here -->
+                        
+                        <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Chọn Brand chương trình:</span>
+                                <div class="flex gap-2">
+                                    <button onclick="toggleAllBrandsCheck(true)" class="px-3 py-1 bg-white border border-slate-200 text-[9px] font-black rounded-lg hover:bg-slate-100 transition uppercase shadow-sm">TẤT CẢ</button>
+                                    <button onclick="toggleAllBrandsCheck(false)" class="px-3 py-1 bg-white border border-slate-200 text-[9px] font-black rounded-lg hover:bg-slate-100 transition uppercase shadow-sm">BỎ CHỌN</button>
+                                </div>
+                            </div>
+                            <div id="check-brand-container" class="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto no-scrollbar p-1">
+                                <!-- Brand checkboxes injected here -->
+                            </div>
                         </div>
                     </div>
-                    <div class="flex gap-4 w-full md:w-auto">
-                        <div class="flex-1 md:w-56 p-4 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-200 text-white transition-all transform hover:scale-105 cursor-default">
-                            <p class="text-[10px] font-black uppercase opacity-80 mb-1">TỔNG PO ĐANG CHẠY</p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full md:w-auto">
+                        <div class="w-full md:w-64 p-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl shadow-xl shadow-emerald-200 text-white relative overflow-hidden group">
+                            <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-700"></div>
+                            <p class="text-[10px] font-black uppercase opacity-80 mb-2 tracking-widest">TỔNG PO ĐANG CHẠY</p>
                             <div class="flex items-baseline gap-2">
-                                <p id="check-stat-running" class="text-3xl font-black">0</p>
-                                <span class="text-[10px] font-bold opacity-60">ĐÔI</span>
+                                <p id="check-stat-running" class="text-5xl font-black">0</p>
+                                <span class="text-xs font-bold opacity-60">ĐÔI</span>
                             </div>
-                            <p class="text-[8px] opacity-40 mt-1 italic leading-none">(Đã có thời gian Laminating Pro)</p>
+                            <div class="mt-4 pt-4 border-t border-white/20">
+                                <p class="text-[9px] font-bold opacity-70 italic">Trạng thái: Đơn đã bắt đầu Laminating</p>
+                            </div>
                         </div>
-                        <div class="flex-1 md:w-56 p-4 bg-slate-800 rounded-2xl shadow-lg shadow-slate-200 text-white transition-all transform hover:scale-105 cursor-default">
-                            <p class="text-[10px] font-black uppercase opacity-80 mb-1">TỔNG PO CHƯA CHẠY</p>
+                        
+                        <div class="w-full md:w-64 p-8 bg-gradient-to-br from-slate-700 to-slate-900 rounded-3xl shadow-xl shadow-slate-300 text-white relative overflow-hidden group">
+                            <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-700"></div>
+                            <p class="text-[10px] font-black uppercase opacity-80 mb-2 tracking-widest">TỔNG PO CHƯA CHẠY</p>
                             <div class="flex items-baseline gap-2">
-                                <p id="check-stat-pending" class="text-3xl font-black">0</p>
-                                <span class="text-[10px] font-bold opacity-60">ĐÔI</span>
+                                <p id="check-stat-pending" class="text-5xl font-black">0</p>
+                                <span class="text-xs font-bold opacity-60">ĐÔI</span>
                             </div>
-                            <p class="text-[8px] opacity-40 mt-1 italic leading-none">(Chưa có thời gian Laminating Pro)</p>
+                            <div class="mt-4 pt-4 border-t border-white/20">
+                                <p class="text-[9px] font-bold opacity-70 italic">Trạng thái: Đơn chưa có ghi nhận SX</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -435,17 +454,19 @@
     <script>
         // Inline UI logic for tabs and modal
         function switchTab(tab) {
-            document.getElementById('tab-scan').classList.toggle('active', tab === 'scan');
             document.getElementById('tab-dashboard').classList.toggle('active', tab === 'dashboard');
+            document.getElementById('tab-check').classList.toggle('active', tab === 'check');
             
-            document.getElementById('content-scan').classList.toggle('hidden', tab !== 'scan');
             document.getElementById('content-dashboard').classList.toggle('hidden', tab !== 'dashboard');
-            
-            if (tab === 'scan') {
-                document.getElementById('rpro-input')?.focus();
-                history.replaceState(null, null, "#scan");
+            document.getElementById('content-check').classList.toggle('hidden', tab !== 'check');
+
+            if (tab === 'check') {
+                // Move the card to the check tab if it's not already there
+                const card = document.getElementById('check-order-card-source');
+                const spot = document.getElementById('check-order-container-spot');
+                if (card && spot) spot.appendChild(card);
+                history.replaceState(null, null, "#check");
             } else {
-                // Dashboard init will be handled in hotmelt.js
                 window.dispatchEvent(new CustomEvent('dashboard-active'));
                 history.replaceState(null, null, "#dashboard");
             }
@@ -454,10 +475,10 @@
         // Handle URL Hash on load
         window.addEventListener('DOMContentLoaded', () => {
             const hash = window.location.hash.substring(1);
-            if (hash === 'dashboard') {
-                switchTab('dashboard');
+            if (hash === 'check') {
+                switchTab('check');
             } else {
-                switchTab('scan');
+                switchTab('dashboard');
             }
         });
     </script>
