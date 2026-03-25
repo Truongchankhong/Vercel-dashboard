@@ -515,9 +515,9 @@ function normalizeRPRO(text) {
 
 async function refreshDashboard() {
     try {
-        // We get all orders that are either Planned or Realtime for Hotmelt
-        // OR we can just fetch all PowerApp data if it's not too huge.
-        // Let's use the Hotmelt filter but make sure we also catch "Pending" ones by PLAN.
+        // Fetch all PowerApp records with only needed columns.
+        // We filter client-side for Hotmelt because Supabase PostgREST does not support
+        // .or() with column names containing parentheses, which causes a 400 error.
         let query = supabase
             .from('powerapp')
             .select(`
@@ -538,21 +538,16 @@ async function refreshDashboard() {
                 "LAMINATION MACHINE (PLAN)",
                 "updated_at",
                 "created_at"
-            `)
-            .or('"LAMINATION MACHINE (REALTIME)".eq.Hotmelt,"LAMINATION MACHINE (PLAN)".eq.Hotmelt');
+            `);
         
-        // Date filters from Flatpickr
-        const picker = document.getElementById('date-range-picker')?._flatpickr;
-        if (picker && picker.selectedDates.length === 2) {
-            const start = picker.selectedDates[0].toISOString();
-            const end = new Date(picker.selectedDates[1].setHours(23,59,59,999)).toISOString();
-            query = query.gte('created_at', start).lte('created_at', end);
-        }
-
         const { data: rawData, error } = await query;
         if (error) throw error;
 
-        let data = rawData || [];
+        // Client-side filter: only rows related to Hotmelt (planned or realtime)
+        let data = (rawData || []).filter(item => 
+            item['LAMINATION MACHINE (REALTIME)'] === 'Hotmelt' ||
+            item['LAMINATION MACHINE (PLAN)'] === 'Hotmelt'
+        );
         
         // COMBINE: Always add Mock Data for RPROs not yet in DB
         const realRpros = new Set(data.map(item => item['PRO ODER']));
