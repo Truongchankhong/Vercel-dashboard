@@ -515,32 +515,13 @@ function normalizeRPRO(text) {
 
 async function refreshDashboard() {
     try {
-        // Fetch all PowerApp records with only needed columns.
-        // We filter client-side for Hotmelt because Supabase PostgREST does not support
-        // .or() with column names containing parentheses, which causes a 400 error.
-        let query = supabase
+        // Use select('*') to avoid Supabase 400 errors caused by column names
+        // with special characters (parentheses, spaces) in the select string.
+        // Filtering is done client-side after fetch.
+        const { data: rawData, error } = await supabase
             .from('powerapp')
-            .select(`
-                "PRO ODER", 
-                "Brand Code", 
-                "PU DESCRIPTION", 
-                "FB DESCRIPTION", 
-                "#MOLD", 
-                "Total Qty", 
-                "Laminating (Pro)", 
-                "Prefitting (Pro)", 
-                "Molding Pro (IN)", 
-                "Molding Pro", 
-                "IN lean Line (Pro)", 
-                "Out lean Line (Pro)",
-                "Finish date",
-                "LAMINATION MACHINE (REALTIME)",
-                "LAMINATION MACHINE (PLAN)",
-                "updated_at",
-                "created_at"
-            `);
+            .select('*');
         
-        const { data: rawData, error } = await query;
         if (error) throw error;
 
         // Client-side filter: only rows related to Hotmelt (planned or realtime)
