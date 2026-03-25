@@ -465,6 +465,8 @@
                 const card = document.getElementById('check-order-card-source');
                 const spot = document.getElementById('check-order-container-spot');
                 if (card && spot) spot.appendChild(card);
+                // Load ALL orders for check tab (no Hotmelt filter)
+                if (typeof loadCheckOrderData === 'function') loadCheckOrderData();
                 history.replaceState(null, null, "#check");
             } else {
                 window.dispatchEvent(new CustomEvent('dashboard-active'));

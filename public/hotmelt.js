@@ -61,6 +61,7 @@ let currentPage = 1;
 const pageSize = 15;
 let filteredData = [];
 let totalPowerAppVolume = 0; // Cumulative PO across all machines for ratio
+let allOrdersData = []; // All PowerApp records for Check Order tab
 
 const MOCK_DATA = [
     { 'PRO ODER': 'RPRO-NIKE-01', 'Brand Code': 'NIKE', 'PU DESCRIPTION': 'PU-AIR-01', 'FB DESCRIPTION': 'FLYKNIT-RED', '#MOLD': 'M-001', 'Total Qty': 550, 'Finish date': 46105, 'Laminating (Pro)': 46098.33, 'Prefitting (Pro)': 46098.50, 'Molding Pro (IN)': 46098.60, 'Molding Pro': 46098.70, 'IN lean Line (Pro)': 46098.80, 'Out lean Line (Pro)': 46098.90, 'LAMINATION MACHINE (REALTIME)': 'Hotmelt', created_at: new Date().toISOString() },
@@ -1009,20 +1010,24 @@ function updateBrandFilter() {
 window.calculateCheckOrderStats = () => {
     const selected = Array.from(document.querySelectorAll('.brand-check-item:checked')).map(cb => cb.value);
     
+    // If allOrdersData loaded, use it; otherwise fall back to dashboardData
+    const source = allOrdersData.length > 0 ? allOrdersData : dashboardData;
+    const filtered = selected.length === 0 ? source : source.filter(r => selected.includes(r.brand));
+
     let totalRunning = 0;
     let totalPending = 0;
 
-    dashboardData.forEach(row => {
-        // Only count if it belongs to selected brands (or all if none selected yet??)
-        // Usually better to count all if none selected? User said "chọn Brand mong muốn"
-        if (selected.length === 0 || selected.includes(row.brand)) {
-             const qty = row.total_qty || 0;
-             // Running: has hotmelt_out (Laminating Pro)
-             if (row.hotmelt_out) {
-                 totalRunning += qty;
-             } else {
-                 totalPending += qty;
-             }
+    filtered.forEach(row => {
+        const qty = typeof row.total_qty === 'number' ? row.total_qty 
+                  : parseFloat(String(row['Total Qty'] || row.total_qty || '0').replace(/,/g,'')) || 0;
+        // Running: has Laminating (Pro) value
+        const hasLaminating = row.hotmelt_out ||
+            excelToISO(row['Laminating (Pro)']) ||
+            excelToISO(row.laminating_pro);
+        if (hasLaminating) {
+            totalRunning += qty;
+        } else {
+            totalPending += qty;
         }
     });
 
@@ -1037,6 +1042,45 @@ window.toggleAllBrandsCheck = (isSelected) => {
     document.querySelectorAll('.brand-check-item').forEach(cb => cb.checked = isSelected);
     calculateCheckOrderStats();
 };
+
+// Load ALL PowerApp orders for the Check tab (no Hotmelt filter)
+async function loadCheckOrderData() {
+    try {
+        // Show loading state
+        const elRunning = document.getElementById('check-stat-running');
+        const elPending = document.getElementById('check-stat-pending');
+        if (elRunning) elRunning.textContent = '...';
+        if (elPending) elPending.textContent = '...';
+
+        const { data, error } = await supabase.from('powerapp').select('*');
+        if (error) throw error;
+
+        // Map to simple objects
+        allOrdersData = (data || []).map(item => ({
+            rpro: item['PRO ODER'] || '---',
+            brand: String(item['Brand Code'] || item['Brand'] || 'N/A').trim(),
+            total_qty: parseFloat(String(item['Total Qty'] || '0').replace(/,/g,'')) || 0,
+            hotmelt_out: excelToISO(item['Laminating (Pro)']),
+            lamString: item['Laminating (Pro)'] // keep raw for debugging
+        }));
+
+        // Build brand list from ALL orders
+        const allBrands = [...new Set(allOrdersData.map(r => r.brand).filter(b => b && b !== 'N/A'))].sort();
+        const container = document.getElementById('check-brand-container');
+        if (container) {
+            container.innerHTML = allBrands.map(b => `
+                <label class="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-red-400 hover:bg-red-50 transition-all select-none">
+                    <input type="checkbox" class="brand-check-item w-4 h-4 text-red-600 rounded cursor-pointer" value="${b}" onchange="calculateCheckOrderStats()">
+                    <span class="text-[11px] font-black text-slate-700 uppercase">${b}</span>
+                </label>
+            `).join('');
+        }
+
+        calculateCheckOrderStats();
+    } catch(err) {
+        console.error('Check Order load error:', err);
+    }
+}
 
 function showDetails(data) {
     ELEMENTS.details.brand.textContent = data.Brand || '---';
