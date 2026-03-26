@@ -660,8 +660,9 @@ async function refreshDashboard() {
 
 function updateStats() {
     let hotmeltOutOrders = 0;
-    let totalHotmeltVolume = 0;
-    let totalFinishedVolume = 0;
+    let totalHotmeltVolume = 0;         // Total PO volume in filtered view
+    let totalHotmeltScannedVolume = 0;  // Total volume actually scanned out of Hotmelt
+    let totalFinishedVolume = 0;        // Total volume out of Leanline
     let wipCount = 0;
     let brands = new Set();
     let distinctDays = new Set();
@@ -676,6 +677,7 @@ function updateStats() {
         
         if (row.hotmelt_out) {
             hotmeltOutOrders++;
+            totalHotmeltScannedVolume += rowVol;
             const t = new Date(row.hotmelt_out).getTime();
             if (t < firstScanTime) firstScanTime = t;
             if (t > lastScanTime) lastScanTime = t;
@@ -691,20 +693,73 @@ function updateStats() {
         }
     });
 
+    // --- Calculate Denominator for Hotmelt Ratio using allOrdersData ---
+    let totalGeneralLaminationVolume = 0;
+
+    const searchTerm = ELEMENTS.tableSearch.value.toLowerCase();
+    const brandFilter = ELEMENTS.brandFilter.value;
+    const moldFilter = document.getElementById('mold-filter').value.toLowerCase();
+    const finishDateFilter = document.getElementById('finish-date-filter').value;
+    
+    const picker = document.getElementById('date-range-picker')._flatpickr;
+    let startDate = null;
+    let endDate = null;
+    if (picker && picker.selectedDates.length === 2) {
+        startDate = picker.selectedDates[0];
+        endDate = new Date(picker.selectedDates[1].setHours(23,59,59,999));
+    }
+
+    allOrdersData.forEach(item => {
+        // Apply Global Filters to all data
+        const laminationOut = item['Laminating (Pro)'];
+        if (!laminationOut) return; // Must have Lamination Out
+
+        const rpro = (item['PRO ODER'] || '').toLowerCase();
+        if (searchTerm && !rpro.includes(searchTerm)) return;
+
+        const brand = String(item['Brand Code'] || item['Brand'] || 'N/A').trim();
+        if (brandFilter !== 'all' && brand !== brandFilter) return;
+
+        const mold = (item['#MOLD'] || '').toLowerCase();
+        if (moldFilter && !mold.includes(moldFilter)) return;
+
+        if (finishDateFilter) {
+            // Re-use excelToISO if finish date is excel serial
+            let rowDate = '';
+            if (item['Finish date']) {
+                const serial = Number(item['Finish date']);
+                if (!isNaN(serial) && serial > 0) {
+                    const base = new Date(1899, 11, 30);
+                    rowDate = new Date(base.getTime() + serial * 86400000).toISOString().split('T')[0];
+                } else if (typeof item['Finish date'] === 'string') {
+                    rowDate = item['Finish date'].split('T')[0];
+                }
+            }
+            if (rowDate !== finishDateFilter) return;
+        }
+
+        if (startDate && endDate) {
+            const rowTime = new Date(item.updated_at || item.created_at);
+            if (rowTime < startDate || rowTime > endDate) return;
+        }
+
+        const qtyRaw = item['Total Qty'] || '0';
+        const qty = parseFloat(String(qtyRaw).replace(/,/g, '')) || 0;
+        totalGeneralLaminationVolume += qty;
+    });
+
     // 1. Core metrics
     ELEMENTS.statHotmeltOrders.textContent = hotmeltOutOrders.toLocaleString();
     ELEMENTS.statTotalOut.textContent = totalFinishedVolume.toLocaleString();
     ELEMENTS.statWip.textContent = wipCount.toLocaleString();
     ELEMENTS.statTotalBrands.textContent = brands.size.toLocaleString();
 
-    // 2. Productivity (Pairs/h)
-    // Assume 8 hours/day if only 1 day, or actual elapsed if multiday.
-    // Or simplified: Total Output / (elapsed hours or 8h minimum)
+    // 2. Productivity (Pairs/h) - Based on ACTUALLY SCANNED Hotmelt items
     let productivity = 0;
     if (hotmeltOutOrders > 0 && lastScanTime > firstScanTime) {
         let hours = (lastScanTime - firstScanTime) / (1000 * 60 * 60);
         if (hours < 1) hours = 1; 
-        productivity = Math.round(totalHotmeltVolume / hours);
+        productivity = Math.round(totalHotmeltScannedVolume / hours);
     }
     ELEMENTS.statProductivity.textContent = productivity.toLocaleString();
 
@@ -714,7 +769,8 @@ function updateStats() {
     ELEMENTS.statAvgDaily.textContent = avgDaily.toLocaleString();
 
     // 4. Hotmelt Ratio
-    const ratio = totalPowerAppVolume > 0 ? Math.round((totalHotmeltVolume / totalPowerAppVolume) * 100) : 0;
+    // hotmeltScanOut / totalGeneralLaminationOut (with same filters)
+    const ratio = totalGeneralLaminationVolume > 0 ? Math.round((totalHotmeltScannedVolume / totalGeneralLaminationVolume) * 100) : 0;
     ELEMENTS.statHotmeltRatio.textContent = ratio + '%';
     
     // 5. Completion Rate
