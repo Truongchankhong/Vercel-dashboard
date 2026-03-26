@@ -739,7 +739,9 @@ function updateStats() {
         }
 
         if (startDate && endDate) {
-            const rowTime = new Date(item.updated_at || item.created_at);
+            const iso = excelToISO(laminationOut);
+            if (!iso) return;
+            const rowTime = new Date(iso);
             if (rowTime < startDate || rowTime > endDate) return;
         }
 
@@ -815,8 +817,12 @@ function renderTable() {
         // 5. Global Time Range Filter (Applied locally for Mock Data compatibility)
         let matchesTime = true;
         if (startDate && endDate) {
-            const rowTime = new Date(row.updated_at || row.created_at);
-            matchesTime = (rowTime >= startDate && rowTime <= endDate);
+            if (!row.hotmelt_out) {
+                matchesTime = false; // Must have scan out to be in this date range
+            } else {
+                const rowTime = new Date(row.hotmelt_out);
+                matchesTime = (rowTime >= startDate && rowTime <= endDate);
+            }
         }
         
         return matchesRpro && matchesBrand && matchesMold && matchesFinish && matchesTime;
