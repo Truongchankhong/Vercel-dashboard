@@ -616,10 +616,10 @@ async function refreshDashboard() {
             item['LAMINATION MACHINE (PLAN)'] === 'Hotmelt'
         );
 
-        // COMBINE: Always add Mock Data for RPROs not yet in DB
-        const realRpros = new Set(data.map(item => item['PRO ODER']));
-        const uniqueMock = MOCK_DATA.filter(m => !realRpros.has(m['PRO ODER']));
-        data = [...data, ...uniqueMock];
+        // COMBINE: Always add Mock Data for RPROs not yet in DB (DISABLED - Show real data only)
+        // const realRpros = new Set(data.map(item => item['PRO ODER']));
+        // const uniqueMock = MOCK_DATA.filter(m => !realRpros.has(m['PRO ODER']));
+        // data = [...data, ...uniqueMock];
 
         // Calculate total volume from fetched data directly
         totalPowerAppVolume = allOrdersData.reduce((sum, row) => sum + (parseFloat(String(row['Total Qty'] || '0').replace(/,/g,'')) || 0), 0) || 10000;
