@@ -583,8 +583,8 @@ async function fetchAllPowerApp(forceRefresh = false) {
     let from = 0;
     const batchSize = 1000;
     
-    // Optimize egress by only selecting needed columns
-    const selectCols = '"PRO ODER", "Brand Code", "Brand", "PU DESCRIPTION", "FB DESCRIPTION", "#MOLD", "Total Qty", "Finish date", "Laminating (Pro)", "Prefitting (Pro)", "Molding Pro (IN)", "Molding Pro", "IN lean Line (Pro)", "Out lean Line (Pro)", "LAMINATION MACHINE (REALTIME)", "LAMINATION MACHINE (PLAN)", "updated_at", "created_at"';
+    // Optimize egress by only selecting needed columns (Removed non-existent columns like Brand, PU DESCRIPTION, updated_at to fix 400 error)
+    const selectCols = '"PRO ODER", "Brand Code", "PU", "FB DESCRIPTION", "#MOLD", "Total Qty", "Finish date", "Laminating (Pro)", "Prefitting (Pro)", "Molding Pro (IN)", "Molding Pro", "IN lean Line (Pro)", "Out lean Line (Pro)", "LAMINATION MACHINE (REALTIME)", "LAMINATION MACHINE (PLAN)", "created_at"';
 
     while (true) {
         const { data: batch, error } = await supabase
@@ -632,7 +632,7 @@ async function refreshDashboard() {
             return {
                 rpro: item['PRO ODER'] || '---',
                 brand: String(brandRaw).trim(),
-                pu: item['PU DESCRIPTION'] || '---',
+                pu: item['PU'] || '---',
                 fb: item['FB DESCRIPTION'] || '---',
                 mold: item['#MOLD'] || '---',
                 total_qty: parseFloat(String(qtyRaw).replace(/,/g, '')) || 0,
