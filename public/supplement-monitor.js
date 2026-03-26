@@ -31,6 +31,7 @@ let monitorCharts = {}; // Store Chart instances
 
 // ==================== STATE ====================
 let progressMap = {};
+let orderDetailsCache = {}; // Cache order details to save egress
 let progressData = [];
 let currentPage = 1;
 const itemsPerPage = 100;
@@ -161,87 +162,106 @@ async function fetchProgressData() {
         // BULK FETCH FINISH DATES, MOLD AND CONFIRMATION
         const rproList = Object.keys(progressMap);
         if (rproList.length > 0) {
-            updateLoading(50, `Đang tải chi tiết cho ${rproList.length} đơn hàng...`);
-            // Fetch PowerApp Details
-            const { data: orderDetails } = await supabase
-                .from('powerapp')
-                .select('"PRO ODER", "Finish date", "SO", "Brand Code", "CUSTOMERS", "Total Qty", "#MOLD"')
-                .in('"PRO ODER"', rproList);
-
-            if (orderDetails) {
-                orderDetails.forEach(item => {
-                    const code = item['PRO ODER'];
-                    if (progressMap[code]) {
-                        progressMap[code].finish_date = item['Finish date'];
-                        progressMap[code].so = item['SO'];
-                        progressMap[code].brand = item['Brand Code'];
-                        progressMap[code].customer = item['CUSTOMERS'];
-                        progressMap[code].total_qty = item['Total Qty'];
-                        progressMap[code].mold = item['#MOLD'];
-                    }
-                });
+            // Find which RPROs actually need fetching
+            const missingInfoRpros = rproList.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].so);
+            const missingQtyRpros = rproList.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].qty_sup);
+            
+            if (missingInfoRpros.length > 0 || missingQtyRpros.length > 0) {
+                updateLoading(50, `Đang tải chi tiết cho ${missingInfoRpros.length + missingQtyRpros.length} đơn hàng mới...`);
             }
 
-            // Fallback for missing order details: Check Masterdata
-            const missingInfoRpros = rproList.filter(rpro => !progressMap[rpro].so);
+            // 1. Fetch missing PowerApp Details
             if (missingInfoRpros.length > 0) {
-                const { data: masterDetails } = await supabase
-                    .from('Masterdata')
+                const { data: orderDetails } = await supabase
+                    .from('powerapp')
                     .select('"PRO ODER", "Finish date", "SO", "Brand Code", "CUSTOMERS", "Total Qty", "#MOLD"')
                     .in('"PRO ODER"', missingInfoRpros);
 
-                if (masterDetails) {
-                    masterDetails.forEach(item => {
+                if (orderDetails) {
+                    orderDetails.forEach(item => {
                         const code = item['PRO ODER'];
-                        if (progressMap[code]) {
-                            progressMap[code].finish_date = item['Finish date'];
-                            progressMap[code].so = item['SO'];
-                            progressMap[code].brand = item['Brand Code'];
-                            progressMap[code].customer = item['CUSTOMERS'];
-                            progressMap[code].total_qty = item['Total Qty'];
-                            progressMap[code].mold = item['#MOLD'];
-                        }
+                        if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
+                        Object.assign(orderDetailsCache[code], {
+                            finish_date: item['Finish date'],
+                            so: item['SO'],
+                            brand: item['Brand Code'],
+                            customer: item['CUSTOMERS'],
+                            total_qty: item['Total Qty'],
+                            mold: item['#MOLD']
+                        });
                     });
+                }
+
+                // Fallback for Masterdata
+                const stillMissingInfo = missingInfoRpros.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].so);
+                if (stillMissingInfo.length > 0) {
+                    const { data: masterDetails } = await supabase
+                        .from('Masterdata')
+                        .select('"PRO ODER", "Finish date", "SO", "Brand Code", "CUSTOMERS", "Total Qty", "#MOLD"')
+                        .in('"PRO ODER"', stillMissingInfo);
+
+                    if (masterDetails) {
+                        masterDetails.forEach(item => {
+                            const code = item['PRO ODER'];
+                            if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
+                            Object.assign(orderDetailsCache[code], {
+                                finish_date: item['Finish date'],
+                                so: item['SO'],
+                                brand: item['Brand Code'],
+                                customer: item['CUSTOMERS'],
+                                total_qty: item['Total Qty'],
+                                mold: item['#MOLD']
+                            });
+                        });
+                    }
                 }
             }
 
-            // Fetch Confirmation Details (Qty_Sup and Date make order)
-            // Priority: available_supplement (if not null) -> total
-            updateLoading(75, 'Đang tải thông tin xác nhận kho...');
-            const { data: confirmDetails } = await supabase
-                .from('supplement_confirm')
-                .select('rpro, total, available_supplement, confirm, updated_at')
-                .in('rpro', rproList);
-
-            if (confirmDetails) {
-                confirmDetails.forEach(item => {
-                    const code = item.rpro;
-                    if (progressMap[code]) {
-                        // "Qty_Sup sẽ lấy mặc định bằng với cột Số đôi có thể bù... trong trường hợp không tìm thấy số thì lấy bằng với cột total"
-                        progressMap[code].qty_sup = (item.available_supplement !== null) ? item.available_supplement : item.total;
-                        progressMap[code].confirm_date = item.updated_at;
-                        progressMap[code].confirm_status = item.confirm;
-                    }
-                });
-            }
-
-            // Fallback: For RPROs still without qty_sup, fetch from 'supplement' table
-            const missingQtyRpros = rproList.filter(rpro => !progressMap[rpro].qty_sup);
+            // 2. Fetch missing Confirmation Details
             if (missingQtyRpros.length > 0) {
-                const { data: supplementDetails } = await supabase
-                    .from('supplement')
-                    .select('rpro, total')
+                const { data: confirmDetails } = await supabase
+                    .from('supplement_confirm')
+                    .select('rpro, total, available_supplement, confirm, updated_at')
                     .in('rpro', missingQtyRpros);
 
-                if (supplementDetails) {
-                    supplementDetails.forEach(item => {
+                if (confirmDetails) {
+                    confirmDetails.forEach(item => {
                         const code = item.rpro;
-                        if (progressMap[code] && !progressMap[code].qty_sup) {
-                            progressMap[code].qty_sup = item.total;
-                        }
+                        if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
+                        Object.assign(orderDetailsCache[code], {
+                            qty_sup: (item.available_supplement !== null) ? item.available_supplement : item.total,
+                            confirm_date: item.updated_at,
+                            confirm_status: item.confirm
+                        });
                     });
                 }
+
+                // Fallback for Supplement table
+                const stillMissingQty = missingQtyRpros.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].qty_sup);
+                if (stillMissingQty.length > 0) {
+                    const { data: supplementDetails } = await supabase
+                        .from('supplement')
+                        .select('rpro, total')
+                        .in('rpro', stillMissingQty);
+
+                    if (supplementDetails) {
+                        supplementDetails.forEach(item => {
+                            const code = item.rpro;
+                            if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
+                            if (!orderDetailsCache[code].qty_sup) {
+                                orderDetailsCache[code].qty_sup = item.total;
+                            }
+                        });
+                    }
+                }
             }
+
+            // 3. Apply Cache to ProgressMap
+            rproList.forEach(code => {
+                if (progressMap[code] && orderDetailsCache[code]) {
+                    Object.assign(progressMap[code], orderDetailsCache[code]);
+                }
+            });
         }
 
         updateLoading(95, 'Đang chuẩn bị hiển thị...');
