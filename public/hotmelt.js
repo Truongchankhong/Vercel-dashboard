@@ -772,7 +772,7 @@ function updateStats() {
 
     // 4. Hotmelt Ratio
     // hotmeltScanOut / totalGeneralLaminationOut (with same filters)
-    const ratio = totalGeneralLaminationVolume > 0 ? Math.round((totalHotmeltScannedVolume / totalGeneralLaminationVolume) * 100) : 0;
+    const ratio = totalGeneralLaminationVolume > 0 ? ((totalHotmeltScannedVolume / totalGeneralLaminationVolume) * 100).toFixed(1) : "0";
     ELEMENTS.statHotmeltRatio.textContent = ratio + '%';
     
     // 5. Completion Rate
