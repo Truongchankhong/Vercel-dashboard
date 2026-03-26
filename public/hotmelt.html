@@ -325,10 +325,13 @@
                                 <th class="px-4 py-3 border-r text-center min-w-[90px]">TOTAL PO</th>
                                 <th class="px-4 py-3 border-r min-w-[180px]">PU DESCRIPTION</th>
                                 <th class="px-4 py-3 border-r min-w-[150px]">FB DESCRIPTION</th>
-                                <th class="px-4 py-3 min-w-[140px] cursor-pointer select-none group" onclick="toggleCheckFilter('date')">
-                                    <div class="flex items-center gap-1">FINISH DATE <span class="text-[8px] text-slate-300 group-hover:text-red-400 transition">🔍</span></div>
+                                <th class="px-4 py-3 min-w-[160px] cursor-pointer select-none group" onclick="toggleCheckFilter('date')">
+                                    <div class="flex items-center gap-1">FINISH DATE <span class="text-[8px] text-slate-300 group-hover:text-red-400 transition">🗓</span></div>
                                     <div id="check-filter-date-wrap" class="hidden mt-1">
-                                        <input id="check-filter-date" type="date" onclick="event.stopPropagation()" onchange="renderCheckPendingTable()" class="w-full text-[10px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-red-400 cursor-pointer" />
+                                        <select id="check-filter-date" onclick="event.stopPropagation()" onchange="renderCheckPendingTable()"
+                                            class="w-full text-[10px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-red-400 cursor-pointer">
+                                            <option value="">— Tất cả ngày —</option>
+                                        </select>
                                     </div>
                                 </th>
                             </tr>

@@ -1170,6 +1170,9 @@ window.calculateCheckOrderStats = () => {
     // Mold Pivot Table
     renderMoldPivot(moldMap, selected.length > 0);
 
+    // Build date dropdown from pending rows (all pages)
+    populateFinishDateFilter(pendingAll);
+
     // Store for pagination/filter
     checkPendingRows = pendingAll;
     checkCurrentPage = 1;
@@ -1219,24 +1222,45 @@ function renderMoldPivot(moldMap, hasSelection) {
     }).join('');
 }
 
+// Populate the Finish Date dropdown with unique dates from all pending rows
+function populateFinishDateFilter(pendingRows) {
+    const sel = document.getElementById('check-filter-date');
+    if (!sel) return;
+    const prev = sel.value; // preserve current selection if still valid
+
+    // Collect unique Excel serials that have a valid date
+    const serialSet = new Set();
+    pendingRows.forEach(r => {
+        const fd = parseFloat(r.finish_date);
+        if (fd && fd > 0) serialSet.add(Math.floor(fd));
+    });
+
+    // Sort ascending
+    const serials = [...serialSet].sort((a, b) => a - b);
+
+    sel.innerHTML = '<option value="">— Tất cả ngày —</option>' +
+        serials.map(s => {
+            const label = formatDate(s); // reuse existing helper
+            return `<option value="${s}">${label}</option>`;
+        }).join('');
+
+    // Restore previous selection if still in list
+    if (prev && serials.includes(Number(prev))) sel.value = prev;
+}
+
 // Render paginated + filtered pending table
 window.renderCheckPendingTable = () => {
     const tbody = document.getElementById('check-pending-table-body');
     if (!tbody) return;
 
     const moldFilter = (document.getElementById('check-filter-mold')?.value || '').toLowerCase().trim();
-    const dateFilter = document.getElementById('check-filter-date')?.value || '';
+    const dateFilter = document.getElementById('check-filter-date')?.value || ''; // Excel serial floor as string
 
     let rows = checkPendingRows;
     if (moldFilter) rows = rows.filter(r => (r.mold || '').toLowerCase().includes(moldFilter));
     if (dateFilter) {
-        // Convert date filter to Excel serial for comparison
-        const filterSerial = (new Date(dateFilter).getTime() / 86400000) + 25569;
-        rows = rows.filter(r => {
-            const fd = parseFloat(r.finish_date);
-            if (!fd) return false;
-            return Math.floor(fd) === Math.floor(filterSerial);
-        });
+        const targetSerial = Number(dateFilter);
+        rows = rows.filter(r => Math.floor(parseFloat(r.finish_date) || 0) === targetSerial);
     }
 
     const totalPages = Math.ceil(rows.length / checkPageSize) || 1;
