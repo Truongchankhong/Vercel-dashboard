@@ -108,6 +108,15 @@ function init() {
 function renderSizeGrid() {
     const isBomMode = currentRproType === 'bom';
     
+    // Update Grid Columns for BOM mode
+    if (sizeGrid) {
+        if (isBomMode) {
+            sizeGrid.className = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 max-h-[400px] overflow-y-auto pr-2 no-scrollbar";
+        } else {
+            sizeGrid.className = "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-[400px] overflow-y-auto pr-2 no-scrollbar";
+        }
+    }
+    
     // Update Total QTY Wrapper
     const totalWrapper = document.getElementById('total-qty-wrapper');
     if (totalWrapper) {
@@ -145,12 +154,12 @@ function renderSizeGrid() {
                         <div class="flex flex-col items-center flex-1">
                             <span class="text-[8px] font-bold text-slate-400">L</span>
                             <input type="number" id="${idBase}_l" data-size="${size}" data-side="L" min="0" value="0"
-                                class="size-input w-full bg-white border border-slate-200 p-1.5 rounded-lg text-center font-bold text-xs focus:ring-4 focus:ring-teal-100 outline-none transition-all">
+                                class="size-input w-full bg-white border border-slate-200 p-1 rounded-lg text-center font-black text-[11px] focus:ring-4 focus:ring-teal-100 outline-none transition-all">
                         </div>
                         <div class="flex flex-col items-center flex-1">
                             <span class="text-[8px] font-bold text-slate-400">R</span>
                             <input type="number" id="${idBase}_r" data-size="${size}" data-side="R" min="0" value="0"
-                                class="size-input w-full bg-white border border-slate-200 p-1.5 rounded-lg text-center font-bold text-xs focus:ring-4 focus:ring-teal-100 outline-none transition-all">
+                                class="size-input w-full bg-white border border-slate-200 p-1 rounded-lg text-center font-black text-[11px] focus:ring-4 focus:ring-teal-100 outline-none transition-all">
                         </div>
                     </div>
                 </div>
@@ -1620,7 +1629,7 @@ function updateSizeHighlights() {
             if (isExtra) {
                 input.className = "size-input w-full bg-orange-200 border-2 border-orange-400 p-2 rounded-xl text-center font-black text-slate-800 shadow-md ring-4 ring-orange-50 outline-none transition-all scale-105 z-10";
             } else {
-                const baseClass = isBomMode ? "p-1.5 text-xs" : "p-2";
+                const baseClass = isBomMode ? "p-1 text-[11px]" : "p-2";
                 input.className = `size-input w-full bg-teal-200 border-2 border-teal-400 ${baseClass} rounded-xl text-center font-black text-slate-800 shadow-md ring-4 ring-teal-50 outline-none transition-all scale-105 z-10`;
             }
         } else {
@@ -1628,7 +1637,7 @@ function updateSizeHighlights() {
             if (isExtra) {
                 input.className = "size-input w-full bg-orange-50 border border-orange-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-orange-100 outline-none transition-all";
             } else {
-                const baseClass = isBomMode ? "p-1.5 text-xs bg-white" : "p-2 bg-slate-50";
+                const baseClass = isBomMode ? "p-1 text-[11px] bg-white" : "p-2 bg-slate-50";
                 input.className = `size-input w-full ${baseClass} border border-slate-200 rounded-xl text-center font-bold focus:ring-4 focus:ring-teal-100 outline-none transition-all`;
             }
         }
