@@ -105,8 +105,11 @@
                             <div id="default-search-container">
                                 <div class="flex gap-2 mb-3">
                                     <button type="button"
-                                        class="rpro-type-btn px-4 py-2 rounded-xl text-[11px] font-bold border-2 transition-all active:scale-95 bg-slate-800 text-white border-slate-800 shadow-sm"
+                                        class="rpro-type-btn px-4 py-2 rounded-xl text-[11px] font-bold border-2 border-slate-100 text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
                                         data-type="rpro">RPRO</button>
+                                    <button type="button"
+                                        class="rpro-type-btn px-4 py-2 rounded-xl text-[11px] font-bold border-2 border-slate-100 text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
+                                        data-type="bom">BOM</button>
                                     <button type="button"
                                         class="rpro-type-btn px-4 py-2 rounded-xl text-[11px] font-bold border-2 border-slate-100 text-slate-500 hover:bg-slate-50 transition-all active:scale-95"
                                         data-type="pu">PU DESCRIPTION</button>
@@ -248,11 +251,13 @@
                                 <span class="w-2 h-8 bg-teal-500 rounded-full"></span>
                                 SỐ LƯỢNG HÀNG DƯ
                             </h3>
-                            <div class="flex items-center gap-3">
+                            <div id="total-qty-container" class="flex items-center gap-3">
                                 <label class="font-bold text-slate-600">Tổng SL:</label>
-                                <input type="number" id="total-qty-override"
-                                    class="w-32 bg-slate-50 border-2 border-slate-300 p-2 rounded-xl text-lg font-black text-center text-teal-700 focus:border-teal-500 outline-none"
-                                    min="0" placeholder="0">
+                                <div id="total-qty-wrapper" class="flex items-center gap-2">
+                                     <input type="number" id="total-qty-override"
+                                         class="w-32 bg-slate-50 border-2 border-slate-300 p-2 rounded-xl text-lg font-black text-center text-teal-700 focus:border-teal-500 outline-none"
+                                         min="0" placeholder="0">
+                                </div>
                             </div>
                         </div>
 

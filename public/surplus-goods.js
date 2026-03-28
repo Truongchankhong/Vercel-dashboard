@@ -106,12 +106,60 @@ function init() {
 }
 
 function renderSizeGrid() {
+    const isBomMode = currentRproType === 'bom';
+    
+    // Update Total QTY Wrapper
+    const totalWrapper = document.getElementById('total-qty-wrapper');
+    if (totalWrapper) {
+        if (isBomMode) {
+            totalWrapper.innerHTML = `
+                <div class="flex flex-col items-center">
+                    <span class="text-[9px] font-bold text-slate-400">L</span>
+                    <input type="number" id="total-qty-override-l"
+                        class="w-20 bg-slate-50 border-2 border-slate-300 p-2 rounded-xl text-lg font-black text-center text-teal-700 focus:border-teal-500 outline-none"
+                        min="0" placeholder="0">
+                </div>
+                <div class="flex flex-col items-center">
+                    <span class="text-[9px] font-bold text-slate-400">R</span>
+                    <input type="number" id="total-qty-override-r"
+                        class="w-20 bg-slate-50 border-2 border-slate-300 p-2 rounded-xl text-lg font-black text-center text-teal-700 focus:border-teal-500 outline-none"
+                        min="0" placeholder="0">
+                </div>
+            `;
+        } else {
+            totalWrapper.innerHTML = `
+                <input type="number" id="total-qty-override"
+                    class="w-32 bg-slate-50 border-2 border-slate-300 p-2 rounded-xl text-lg font-black text-center text-teal-700 focus:border-teal-500 outline-none"
+                    min="0" placeholder="0">
+            `;
+        }
+    }
+
     sizeGrid.innerHTML = STANDARD_SIZES.map(size => {
-        const id = `size_${size.toString().replace('.', '_')}`;
+        const idBase = `size_${size.toString().replace('.', '_')}`;
+        if (isBomMode) {
+            return `
+                <div class="flex flex-col gap-1 border border-slate-100 p-1 rounded-xl bg-slate-50/50">
+                    <label class="text-[10px] font-black text-slate-500 text-center uppercase">Size ${size}</label>
+                    <div class="flex gap-1">
+                        <div class="flex flex-col items-center flex-1">
+                            <span class="text-[8px] font-bold text-slate-400">L</span>
+                            <input type="number" id="${idBase}_l" data-size="${size}" data-side="L" min="0" value="0"
+                                class="size-input w-full bg-white border border-slate-200 p-1.5 rounded-lg text-center font-bold text-xs focus:ring-4 focus:ring-teal-100 outline-none transition-all">
+                        </div>
+                        <div class="flex flex-col items-center flex-1">
+                            <span class="text-[8px] font-bold text-slate-400">R</span>
+                            <input type="number" id="${idBase}_r" data-size="${size}" data-side="R" min="0" value="0"
+                                class="size-input w-full bg-white border border-slate-200 p-1.5 rounded-lg text-center font-bold text-xs focus:ring-4 focus:ring-teal-100 outline-none transition-all">
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
         return `
             <div class="flex flex-col gap-1">
                 <label class="text-[10px] font-black text-slate-500 text-center uppercase">Size ${size}</label>
-                <input type="number" id="${id}" data-size="${size}" min="0" value="0"
+                <input type="number" id="${idBase}" data-size="${size}" min="0" value="0"
                     class="size-input w-full bg-slate-50 border border-slate-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-teal-100 outline-none transition-all">
             </div>
         `;
@@ -221,6 +269,7 @@ function setupEventListeners() {
         btn.onclick = () => {
             currentRproType = btn.dataset.type;
             updateRproTypeUI();
+            renderSizeGrid(); // Re-render grid when switching modes
         };
     });
 
@@ -521,6 +570,10 @@ async function updateRPROSuggestions(value) {
             // promises.push(supabase.from('Masterdata').select('"PU DESCRIPTION", "FB DESCRIPTION"').ilike('FB DESCRIPTION', `%${safeValue}%`).limit(10));
         }
 
+        if (currentRproType === 'bom') {
+            promises.push(supabase.from('powerapp').select('"BOM"').ilike('BOM', `%${safeValue}%`).limit(10));
+        }
+
         const results = await Promise.all(promises);
         // ... (Phần xử lý kết quả giữ nguyên)
 
@@ -533,6 +586,10 @@ async function updateRPROSuggestions(value) {
         results.forEach(r => {
             if (r.data) {
                 r.data.forEach(d => {
+                    if (currentRproType === 'bom') {
+                        if (d.BOM) set.add(d.BOM);
+                        return;
+                    }
                     const pu = d['PU DESCRIPTION'] || d['pu'] || '';
                     const fb = d['FB DESCRIPTION'] || d['fabric'] || '';
 
@@ -565,6 +622,7 @@ function updateRproTypeUI() {
 
     const placeholders = {
         rpro: "RPRO hoặc Tên PU, Fabric...",
+        bom: "Nhập mã BOM để tìm kiếm...",
         pu: "Nhập tên PU DESCRIPTION để tìm...",
         fabric: "Nhập tên FABRIC DESCRIPTION để tìm..."
     };
@@ -760,6 +818,11 @@ async function handleScan(text) {
             paOrder = await supabase.from('powerapp').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
             if (!paOrder) {
                 mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('PU DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
+            }
+        } else if (currentRproType === 'bom') {
+            paOrder = await supabase.from('powerapp').select(selectCols).ilike('BOM', `%${rpro}%`).limit(1).then(r => (r.data && r.data.length > 0) ? r.data[0] : null);
+            if (!paOrder) {
+                mdOrder = await supabase.from('Masterdata').select(selectCols).ilike('BOM', `%${rpro}%`).limit(1).then(r => (r.data && r.data.length > 0) ? r.data[0] : null);
             }
         } else if (currentRproType === 'fabric') {
             paOrder = await supabase.from('powerapp').select(selectCols).ilike('FB DESCRIPTION', `%${rpro}%`).limit(1).maybeSingle().then(r => r.data);
@@ -1014,7 +1077,7 @@ function displayOrderInfo(order) {
         infoPu.title = '';
         infoFabric.title = fbFull;
     } else {
-        infoBrand.textContent = order['Brand Code'] || order['brand_code'] || '-';
+        infoBrand.textContent = currentRproType === 'bom' ? '-' : (order['Brand Code'] || order['brand_code'] || '-');
         infoMold.textContent = order['#MOLD'] || order['Mã Khuôn'] || order['mold'] || '-';
         infoBom.textContent = order['BOM'] || order['bom'] || '-';
 
@@ -1166,7 +1229,9 @@ async function saveSurplus() {
     btnSaveSurplus.textContent = "⏳ Đang lưu...";
 
     let rpro = activeOrderData['rpro'] || activeOrderData['PRO ODER'] || activeOrderData['PRO_ODER'] || '';
-    if (currentRproType === 'rpro' && rproInput.value.trim().toUpperCase().startsWith('RPRO-')) {
+    if (currentRproType === 'bom') {
+        rpro = infoBom.textContent.trim() !== '-' ? infoBom.textContent.trim() : rproInput.value.trim().toUpperCase();
+    } else if (currentRproType === 'rpro' && rproInput.value.trim().toUpperCase().startsWith('RPRO-')) {
         rpro = rproInput.value.trim().toUpperCase();
     }
 
@@ -1231,17 +1296,30 @@ async function saveSurplus() {
 
     let hasAnyQty = false;
     let totalGridSizingVal = 0;
+    const isBomMode = currentRproType === 'bom';
 
     // Collect standard sizes
     STANDARD_SIZES.forEach(size => {
-        const id = `size_${size.toString().replace('.', '_')}`;
-        const val = parseFloat(document.getElementById(id)?.value) || 0;
-        payload[`size_${size.toString().replace('.', '_')}`] = val;
-        totalGridSizingVal += val;
-        if (val > 0) hasAnyQty = true;
+        const idBase = `size_${size.toString().replace('.', '_')}`;
+        if (isBomMode) {
+            const valL = parseFloat(document.getElementById(`${idBase}_l`)?.value) || 0;
+            const valR = parseFloat(document.getElementById(`${idBase}_r`)?.value) || 0;
+            const total = valL + valR;
+            payload[idBase] = total;
+            totalGridSizingVal += total;
+            if (total > 0) {
+                hasAnyQty = true;
+                payload.dynamic_sizes[idBase] = { L: valL, R: valR };
+            }
+        } else {
+            const val = parseFloat(document.getElementById(idBase)?.value) || 0;
+            payload[idBase] = val;
+            totalGridSizingVal += val;
+            if (val > 0) hasAnyQty = true;
+        }
     });
 
-    // Collect extra sizes
+    // Collect extra sizes (Extra sizes in BOM mode currently not split, but could be handled if needed)
     extraSizes.forEach(size => {
         const id = `size_${size.toString().replace('.', '_')}`;
         const val = parseFloat(document.getElementById(id)?.value) || 0;
@@ -1251,19 +1329,34 @@ async function saveSurplus() {
     });
 
     // Handle Total Qty Override feature
-    const tOverrideObj = document.getElementById('total-qty-override');
-    if (tOverrideObj) {
-        const manualTotal = parseFloat(tOverrideObj.value) || 0;
+    if (isBomMode) {
+        const tOverL = parseFloat(document.getElementById('total-qty-override-l')?.value) || 0;
+        const tOverR = parseFloat(document.getElementById('total-qty-override-r')?.value) || 0;
+        const manualTotal = tOverL + tOverR;
         if (manualTotal > 0 && manualTotal !== totalGridSizingVal) {
-            // User manually overrode the total and it doesnt match grid. Store it purely in dynamicSizes, zero out the rest
             hasAnyQty = true;
-            payload.dynamic_sizes['Tổng SL (Không rõ size)'] = manualTotal;
+            payload.dynamic_sizes['Tổng SL (Không rõ size)'] = { L: tOverL, R: tOverR };
             STANDARD_SIZES.forEach(size => {
                 payload[`size_${size.toString().replace('.', '_')}`] = 0;
             });
-            Object.keys(payload.dynamic_sizes).forEach(k => {
-                if (k !== 'Tổng SL (Không rõ size)') delete payload.dynamic_sizes[k];
-            });
+            // Keep the breakdown but clear other keys if needed? 
+            // In BOM mode, we probably want to keep the size breakdown if it was entered.
+            // But if total override is used, the user might want to ignore sizes.
+        }
+    } else {
+        const tOverrideObj = document.getElementById('total-qty-override');
+        if (tOverrideObj) {
+            const manualTotal = parseFloat(tOverrideObj.value) || 0;
+            if (manualTotal > 0 && manualTotal !== totalGridSizingVal) {
+                hasAnyQty = true;
+                payload.dynamic_sizes['Tổng SL (Không rõ size)'] = manualTotal;
+                STANDARD_SIZES.forEach(size => {
+                    payload[`size_${size.toString().replace('.', '_')}`] = 0;
+                });
+                Object.keys(payload.dynamic_sizes).forEach(k => {
+                    if (k !== 'Tổng SL (Không rõ size)') delete payload.dynamic_sizes[k];
+                });
+            }
         }
     }
 
@@ -1367,11 +1460,29 @@ function loadSurplusDataToUI(data) {
     if (!data) return;
     entryNote.value = data.note || '';
 
+    const dyn = data.dynamic_sizes || {};
+    const hasLR = Object.values(dyn).some(v => v && typeof v === 'object' && ('L' in v || 'R' in v));
+    
+    if (hasLR && currentRproType !== 'bom') {
+        currentRproType = 'bom';
+        updateRproTypeUI();
+        renderSizeGrid();
+    }
+
     // Fill standard sizes
+    const isBomMode = currentRproType === 'bom';
     STANDARD_SIZES.forEach(size => {
-        const id = `size_${size.toString().replace('.', '_')}`;
-        const input = document.getElementById(id);
-        if (input) input.value = data[id] !== undefined && data[id] !== null ? data[id] : 0;
+        const idBase = `size_${size.toString().replace('.', '_')}`;
+        if (isBomMode) {
+            const inputL = document.getElementById(`${idBase}_l`);
+            const inputR = document.getElementById(`${idBase}_r`);
+            const valLR = dyn[idBase];
+            if (inputL) inputL.value = (valLR && valLR.L !== undefined) ? valLR.L : 0;
+            if (inputR) inputR.value = (valLR && valLR.R !== undefined) ? valLR.R : 0;
+        } else {
+            const input = document.getElementById(idBase);
+            if (input) input.value = data[idBase] !== undefined && data[idBase] !== null ? data[idBase] : 0;
+        }
     });
 
     // Handle extra sizes and manual total override
@@ -1379,13 +1490,20 @@ function loadSurplusDataToUI(data) {
     extraSizeGrid.innerHTML = '';
     extraSizesContainer.classList.add('hidden');
 
-    const dyn = data.dynamic_sizes || {};
-    
     // Handle manual total override if it exists
     const manualTotal = dyn['Tổng SL (Không rõ size)'];
-    const totalQtyOverride = document.getElementById('total-qty-override');
-    if (manualTotal !== undefined && manualTotal !== null && totalQtyOverride) {
-        totalQtyOverride.value = manualTotal;
+    if (isBomMode) {
+        const tOverL = document.getElementById('total-qty-override-l');
+        const tOverR = document.getElementById('total-qty-override-r');
+        if (manualTotal && typeof manualTotal === 'object') {
+            if (tOverL) tOverL.value = manualTotal.L || 0;
+            if (tOverR) tOverR.value = manualTotal.R || 0;
+        }
+    } else {
+        const tOver = document.getElementById('total-qty-override');
+        if (manualTotal !== undefined && manualTotal !== null && tOver) {
+            tOver.value = typeof manualTotal === 'object' ? (manualTotal.L + manualTotal.R) : manualTotal;
+        }
     }
 
     const dynKeys = Object.keys(dyn)
@@ -1457,8 +1575,15 @@ function clearFormFields() {
 
 
     // Clear totally override if exists
-    const tOverride = document.getElementById('total-qty-override');
-    if (tOverride) tOverride.value = '';
+    if (currentRproType === 'bom') {
+        const tOverL = document.getElementById('total-qty-override-l');
+        const tOverR = document.getElementById('total-qty-override-r');
+        if (tOverL) tOverL.value = '';
+        if (tOverR) tOverR.value = '';
+    } else {
+        const tOverride = document.getElementById('total-qty-override');
+        if (tOverride) tOverride.value = '';
+    }
 
     // Reset info text
     [infoBrand, infoMold, infoBom].forEach(el => el.textContent = '-');
@@ -1477,44 +1602,55 @@ function clearFormFields() {
 
 function updateSizeHighlights() {
     let total = 0;
+    let totalL = 0;
+    let totalR = 0;
+    const isBomMode = currentRproType === 'bom';
+
     document.querySelectorAll('.size-input').forEach(input => {
         const val = parseFloat(input.value) || 0;
         const isExtra = input.closest('#extra-size-grid');
+        const side = input.dataset.side; // L or R or undefined
+        
         total += val;
+        if (side === 'L') totalL += val;
+        if (side === 'R') totalR += val;
 
         if (val > 0) {
-            // Highlighted state: Soft color, dark font, readable selection
+            // Highlighted state
             if (isExtra) {
                 input.className = "size-input w-full bg-orange-200 border-2 border-orange-400 p-2 rounded-xl text-center font-black text-slate-800 shadow-md ring-4 ring-orange-50 outline-none transition-all scale-105 z-10";
             } else {
-                input.className = "size-input w-full bg-teal-200 border-2 border-teal-400 p-2 rounded-xl text-center font-black text-slate-800 shadow-md ring-4 ring-teal-50 outline-none transition-all scale-105 z-10";
+                const baseClass = isBomMode ? "p-1.5 text-xs" : "p-2";
+                input.className = `size-input w-full bg-teal-200 border-2 border-teal-400 ${baseClass} rounded-xl text-center font-black text-slate-800 shadow-md ring-4 ring-teal-50 outline-none transition-all scale-105 z-10`;
             }
         } else {
             // Normal state
             if (isExtra) {
                 input.className = "size-input w-full bg-orange-50 border border-orange-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-orange-100 outline-none transition-all";
             } else {
-                input.className = "size-input w-full bg-slate-50 border border-slate-200 p-2 rounded-xl text-center font-bold focus:ring-4 focus:ring-teal-100 outline-none transition-all";
+                const baseClass = isBomMode ? "p-1.5 text-xs bg-white" : "p-2 bg-slate-50";
+                input.className = `size-input w-full ${baseClass} border border-slate-200 rounded-xl text-center font-bold focus:ring-4 focus:ring-teal-100 outline-none transition-all`;
             }
         }
     });
 
-    const totalQtyOverride = document.getElementById('total-qty-override');
-    if (totalQtyOverride) {
-        if (total > 0) {
-            // Auto-update if something is in the grid
-            if (document.activeElement !== totalQtyOverride) {
-                totalQtyOverride.value = total;
+    if (isBomMode) {
+        const totalLInput = document.getElementById('total-qty-override-l');
+        const totalRInput = document.getElementById('total-qty-override-r');
+        if (totalLInput && document.activeElement !== totalLInput) totalLInput.value = totalL || '';
+        if (totalRInput && document.activeElement !== totalRInput) totalRInput.value = totalR || '';
+    } else {
+        const totalQtyOverride = document.getElementById('total-qty-override');
+        if (totalQtyOverride) {
+            if (total > 0) {
+                if (document.activeElement !== totalQtyOverride) {
+                    totalQtyOverride.value = total;
+                }
+            } else {
+                if (document.activeElement !== totalQtyOverride && totalQtyOverride.value === '0') {
+                    totalQtyOverride.value = '';
+                }
             }
-        } else if (total === 0) {
-             // grid is empty. only clear if user is not currently focused on it
-             // AND only if it doesn't already have a manual value we might want to keep
-             // Actually, if we just loaded a record, we want to keep the value from loadSurplusDataToUI.
-             // But if user manually clears the grid, they might want it cleared.
-             // Simple compromise: if total is 0, don't auto-clear it unless it's empty
-             if (document.activeElement !== totalQtyOverride && totalQtyOverride.value === '0') {
-                 totalQtyOverride.value = '';
-             }
         }
     }
 }
