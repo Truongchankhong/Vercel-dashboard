@@ -33,7 +33,7 @@
             <p class="text-slate-500 font-bold">Vui lòng chọn bộ phận (Section) để nhập hàng hoặc xem báo cáo</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <button onclick="window.location.href='surplus-goods.html?section=LPS'"
                 class="group relative bg-white p-6 rounded-2xl border-2 border-teal-100 shadow-sm hover:shadow-xl hover:border-teal-500 hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col items-center gap-4">
                 <div
@@ -56,15 +56,26 @@
                 <span class="font-black text-xl text-slate-700 group-hover:text-indigo-700 z-10">MOLDING</span>
             </button>
 
-            <button onclick="window.location.href='surplus-goods.html?section=LEANLINE'"
+            <button onclick="window.location.href='surplus-goods.html?section=LEANLINE_MOLDED'"
                 class="group relative bg-white p-6 rounded-2xl border-2 border-orange-100 shadow-sm hover:shadow-xl hover:border-orange-500 hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col items-center gap-4">
                 <div
                     class="absolute inset-0 bg-gradient-to-br from-orange-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                 </div>
                 <div
-                    class="h-16 w-16 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 text-2xl font-black group-hover:scale-110 transition-transform shadow-inner z-10">
-                    LL</div>
-                <span class="font-black text-xl text-slate-700 group-hover:text-orange-700 z-10">LEANLINE</span>
+                    class="h-16 w-16 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 text-xl font-black group-hover:scale-110 transition-transform shadow-inner z-10">
+                    LLM</div>
+                <span class="font-black text-base text-slate-700 group-hover:text-orange-700 z-10 text-center">LEANLINE<br>MOLDED</span>
+            </button>
+
+            <button onclick="window.location.href='surplus-goods.html?section=LEANLINE_DC'"
+                class="group relative bg-white p-6 rounded-2xl border-2 border-purple-100 shadow-sm hover:shadow-xl hover:border-purple-500 hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col items-center gap-4">
+                <div
+                    class="absolute inset-0 bg-gradient-to-br from-purple-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                </div>
+                <div
+                    class="h-16 w-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xl font-black group-hover:scale-110 transition-transform shadow-inner z-10">
+                    DC</div>
+                <span class="font-black text-base text-slate-700 group-hover:text-purple-700 z-10 text-center">LEANLINE<br>DC</span>
             </button>
         </div>
 
