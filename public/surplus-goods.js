@@ -677,15 +677,18 @@ function updateActiveSection(section) {
     const extraContainerTitle = document.querySelector('#extra-sizes-container p');
 
     if (dcPanel && sizeGrid) {
+        const sizePanelHeader = document.querySelector('#size-input-panel > div:first-child');
         if (isLeanlineDC) {
             sizeGrid.classList.add('hidden');
             dcPanel.classList.remove('hidden');
             if (overrideContainer) overrideContainer.classList.add('hidden');
             if (extraContainerTitle) extraContainerTitle.parentElement.classList.add('hidden');
+            if (sizePanelHeader) sizePanelHeader.classList.add('hidden');
         } else {
             sizeGrid.classList.remove('hidden');
             dcPanel.classList.add('hidden');
             if (overrideContainer) overrideContainer.classList.remove('hidden');
+            if (sizePanelHeader) sizePanelHeader.classList.remove('hidden');
             // extraContainer logic is managed in detectExtraSizes, just remove forced hidden if any
             if (extraSizes.length > 0) {
                  const exCont = document.getElementById('extra-sizes-container');
@@ -1822,8 +1825,8 @@ async function loadHistory() {
                                         <div class="flex justify-between items-end">
                                             <div class="space-y-0.5 overflow-hidden pr-2">
                                                 <p class="text-xs font-bold text-slate-700">BOM: ${item.bom || '-'}</p>
-                                                <p class="text-[10px] text-teal-700 font-semibold truncate" title="${puMap[item.pu_code || item.pu] || item.pu || '-'}">PU: ${puMap[item.pu_code || item.pu] || item.pu || '-'}</p>
-                                                <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}">FB: ${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}</p>
+                                                ${(puMap[item.pu_code || item.pu] || item.pu) ? `<p class="text-[10px] text-teal-700 font-semibold truncate" title="${puMap[item.pu_code || item.pu] || item.pu || '-'}">PU: ${puMap[item.pu_code || item.pu] || item.pu || '-'}</p>` : ''}
+                                                ${(fbMap[item.fb_code || item.fabric] || item.fabric) ? `<p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}">FB: ${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}</p>` : ''}
                                                 <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
                                             </div>
                                             <div class="text-right flex-shrink-0">
@@ -1963,10 +1966,10 @@ async function loadHistory() {
                 <div class="flex justify-between items-end">
                     <div class="space-y-0.5 overflow-hidden pr-2">
                         <p class="text-xs font-bold text-slate-700">BOM: ${item.bom || '-'}</p>
-                        ${item.section === 'MOLDING' || item.section === 'Molding' ? `
-                        <p class="text-[10px] text-teal-700 font-semibold truncate" title="${puMap[item.pu_code || item.pu] || item.pu || '-'}">PU: ${puMap[item.pu_code || item.pu] || item.pu || '-'}</p>
-                        <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}">FB: ${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}</p>
-                        ` : ''}
+                        ${(puMap[item.pu_code || item.pu] || item.pu) ? `
+                        <p class="text-[10px] text-teal-700 font-semibold truncate" title="${puMap[item.pu_code || item.pu] || item.pu || '-'}">PU: ${puMap[item.pu_code || item.pu] || item.pu || '-'}</p>` : ''}
+                        ${(fbMap[item.fb_code || item.fabric] || item.fabric) ? `
+                        <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}">FB: ${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}</p>` : ''}
                         <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
                     </div>
                     <div class="text-right flex-shrink-0">
