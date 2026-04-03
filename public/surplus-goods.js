@@ -1403,7 +1403,6 @@ async function saveSurplus() {
         if (!isNaN(dcRemain) && dcRemain >= 0) {
             hasAnyQty = true;
             payload.dynamic_sizes['DC_Số_tấm_còn_lại'] = dcRemain;
-            payload['Tổng SL (Không rõ size)'] = dcRemain;
 
             STANDARD_SIZES.forEach(size => {
                 payload[`size_${size.toString().replace('.', '_')}`] = 0;
