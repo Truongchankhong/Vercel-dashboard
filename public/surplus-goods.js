@@ -402,19 +402,6 @@ function setupEventListeners() {
         // We will update totalQtyOverride whenever updateSizeHighlights() runs.
     }
 
-    // Leanline DC Calculation
-    const dcCurrent = document.getElementById('dc-current-stock');
-    const dcUsed = document.getElementById('dc-used-stock');
-    const dcRemain = document.getElementById('dc-remaining-stock');
-    const calcDCRemain = () => {
-        if (!dcCurrent || !dcUsed || !dcRemain) return;
-        const current = parseFloat(dcCurrent.value) || 0;
-        const used = parseFloat(dcUsed.value) || 0;
-        dcRemain.value = current - used;
-    };
-    if (dcCurrent) dcCurrent.addEventListener('input', calcDCRemain);
-    if (dcUsed) dcUsed.addEventListener('input', calcDCRemain);
-
     // Tutorial
     if (btnTutorial) {
         btnTutorial.onclick = startTutorial;
@@ -1408,17 +1395,13 @@ async function saveSurplus() {
     }
 
     if (activeSection === 'LEANLINE_DC') {
-        const dcCurrent = parseFloat(document.getElementById('dc-current-stock')?.value) || 0;
-        const dcUsed = parseFloat(document.getElementById('dc-used-stock')?.value) || 0;
-        const dcRemain = parseFloat(document.getElementById('dc-remaining-stock')?.value) || 0;
+        const dcRemain = parseFloat(document.getElementById('dc-remaining-stock')?.value);
 
-        if (dcUsed > 0 || dcCurrent > 0) {
+        if (!isNaN(dcRemain) && dcRemain >= 0) {
             hasAnyQty = true;
-            payload.dynamic_sizes['DC_Số_tấm_tồn'] = dcCurrent;
-            payload.dynamic_sizes['DC_Số_tấm_sử_dụng'] = dcUsed;
             payload.dynamic_sizes['DC_Số_tấm_còn_lại'] = dcRemain;
-            payload['Tổng SL (Không rõ size)'] = dcUsed; // Store usage as total
-            
+            payload['Tổng SL (Không rõ size)'] = dcRemain;
+
             STANDARD_SIZES.forEach(size => {
                 payload[`size_${size.toString().replace('.', '_')}`] = 0;
             });
@@ -1483,21 +1466,9 @@ async function saveSurplus() {
 
         showToast("🎉 Lưu thông tin thành công!", "success");
         
-        let carryingDcRemain = null;
-        if (activeSection === 'LEANLINE_DC') {
-            carryingDcRemain = parseFloat(document.getElementById('dc-remaining-stock')?.value) || 0;
-        }
-
         if (btnDeleteSurplus) btnDeleteSurplus.classList.add('hidden');
         loadHistory();
         resetEntry();
-        
-        if (carryingDcRemain !== null) {
-            const dcCurrentInput = document.getElementById('dc-current-stock');
-            if (dcCurrentInput) {
-                dcCurrentInput.value = carryingDcRemain;
-            }
-        }
     } catch (err) {
         console.error(err);
         showToast("❌ Lỗi khi lưu: " + err.message, "error");
@@ -1584,11 +1555,7 @@ function loadSurplusDataToUI(data) {
     }
 
     // Load DC Panel data
-    const dcCurrentInput = document.getElementById('dc-current-stock');
-    const dcUsedInput = document.getElementById('dc-used-stock');
     const dcRemainInput = document.getElementById('dc-remaining-stock');
-    if (dyn['DC_Số_tấm_tồn'] !== undefined && dcCurrentInput) dcCurrentInput.value = dyn['DC_Số_tấm_tồn'];
-    if (dyn['DC_Số_tấm_sử_dụng'] !== undefined && dcUsedInput) dcUsedInput.value = dyn['DC_Số_tấm_sử_dụng'];
     if (dyn['DC_Số_tấm_còn_lại'] !== undefined && dcRemainInput) dcRemainInput.value = dyn['DC_Số_tấm_còn_lại'];
 
     const dynKeys = Object.keys(dyn)
@@ -1683,16 +1650,8 @@ function clearFormFields() {
     if (mFbInput) mFbInput.value = '';
 
     // Reset DC Panel
-    const dcCurrentInput = document.getElementById('dc-current-stock');
-    const dcUsedInput = document.getElementById('dc-used-stock');
     const dcRemainInput = document.getElementById('dc-remaining-stock');
-    if (!activeOrderData) { // If fully resetting (not loading history)
-        if (dcUsedInput) dcUsedInput.value = '';
-        if (dcRemainInput) dcRemainInput.value = '';
-        if (dcCurrentInput && !dcCurrentInput.value && activeSection !== 'LEANLINE_DC') {
-            dcCurrentInput.value = '';
-        }
-    }
+    if (dcRemainInput) dcRemainInput.value = '';
 
     updateSizeHighlights();
 }
@@ -1845,7 +1804,7 @@ async function loadHistory() {
                                     if (k.startsWith('size_') && !isNaN(item[k])) total += item[k];
                                 });
                                 if (item.section === 'LEANLINE_DC' && item.dynamic_sizes) {
-                                    total = item.dynamic_sizes['DC_Số_tấm_sử_dụng'] || 0;
+                                    total = item.dynamic_sizes['DC_Số_tấm_còn_lại'] ?? 0;
                                 } else {
                                     Object.values(item.dynamic_sizes || {}).forEach(v => {
                                         if (!isNaN(v)) total += v;
@@ -1985,7 +1944,7 @@ async function loadHistory() {
             if (k.startsWith('size_') && !isNaN(item[k])) total += item[k];
         });
         if (item.section === 'LEANLINE_DC' && item.dynamic_sizes) {
-            total = item.dynamic_sizes['DC_Số_tấm_sử_dụng'] || 0;
+            total = item.dynamic_sizes['DC_Số_tấm_còn_lại'] ?? 0;
         } else {
             Object.values(item.dynamic_sizes || {}).forEach(v => {
                 if (!isNaN(v)) total += v;
