@@ -1918,25 +1918,33 @@ async function loadHistory() {
     const fbMap = {};
 
     if (puCodes.length > 0) {
-        const { data: paPu } = await supabase.from('powerapp').select('"PU", "PU DESCRIPTION"').in('PU', puCodes);
-        if (paPu) paPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
-        
-        const missingPu = puCodes.filter(c => !puMap[c]);
-        if (missingPu.length > 0) {
-            const { data: mdPu } = await supabase.from('Masterdata').select('"PU", "PU DESCRIPTION"').in('PU', missingPu);
-            if (mdPu) mdPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
-        }
+        try {
+            const { data: paPu } = await supabase.from('powerapp').select('"PU", "PU DESCRIPTION"').in('PU', puCodes);
+            if (paPu) paPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
+            
+            const missingPu = puCodes.filter(c => !puMap[c]);
+            if (missingPu.length > 0) {
+                try {
+                    const { data: mdPu } = await supabase.from('Masterdata').select('"PU", "PU DESCRIPTION"').in('PU', missingPu);
+                    if (mdPu) mdPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
+                } catch (e) { console.warn('Masterdata PU lookup failed (non-critical):', e.message); }
+            }
+        } catch (e) { console.warn('PU lookup failed (non-critical):', e.message); }
     }
 
     if (fbCodes.length > 0) {
-        const { data: paFb } = await supabase.from('powerapp').select('"FB", "FB DESCRIPTION"').in('FB', fbCodes);
-        if (paFb) paFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
-        
-        const missingFb = fbCodes.filter(c => !fbMap[c]);
-        if (missingFb.length > 0) {
-            const { data: mdFb } = await supabase.from('Masterdata').select('"FB", "FB DESCRIPTION"').in('FB', missingFb);
-            if (mdFb) mdFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
-        }
+        try {
+            const { data: paFb } = await supabase.from('powerapp').select('"FB", "FB DESCRIPTION"').in('FB', fbCodes);
+            if (paFb) paFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
+            
+            const missingFb = fbCodes.filter(c => !fbMap[c]);
+            if (missingFb.length > 0) {
+                try {
+                    const { data: mdFb } = await supabase.from('Masterdata').select('"FB", "FB DESCRIPTION"').in('FB', missingFb);
+                    if (mdFb) mdFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
+                } catch (e) { console.warn('Masterdata FB lookup failed (non-critical):', e.message); }
+            }
+        } catch (e) { console.warn('FB lookup failed (non-critical):', e.message); }
     }
 
     historyList.innerHTML = filtered.map(item => {
