@@ -61,9 +61,13 @@
                         class="section-filter-btn px-6 py-3 rounded-2xl border-2 border-slate-100 text-slate-600 font-bold hover:bg-slate-50 transition-all active:scale-95">
                         MOLDING
                     </button>
-                    <button data-section="LEANLINE"
+                    <button data-section="LEANLINE_MOLDED"
                         class="section-filter-btn px-6 py-3 rounded-2xl border-2 border-slate-100 text-slate-600 font-bold hover:bg-slate-50 transition-all active:scale-95">
-                        LEANLINE
+                        LEANLINE MOLDED
+                    </button>
+                    <button data-section="LEANLINE_DC"
+                        class="section-filter-btn px-6 py-3 rounded-2xl border-2 border-slate-100 text-slate-600 font-bold hover:bg-slate-50 transition-all active:scale-95">
+                        LEANLINE DC
                     </button>
                 </div>
             </div>
@@ -110,6 +114,17 @@
                 <div class="h-[350px]">
                     <canvas id="chart-by-brand"></canvas>
                 </div>
+            </div>
+        </div>
+
+        <!-- Chart 3: By Section (only visible on ALL) -->
+        <div id="section-chart-container" class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
+            <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                <span class="w-2 h-8 bg-purple-500 rounded-full"></span>
+                TỶ LỆ THEO SECTION
+            </h3>
+            <div class="h-[350px]">
+                <canvas id="chart-by-section"></canvas>
             </div>
         </div>
 

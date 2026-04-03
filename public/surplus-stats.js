@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient.js';
 
 let dayChart = null;
 let brandChart = null;
+let sectionChart = null;
 let currentSection = 'ALL';
 
 document.addEventListener('DOMContentLoaded', init);
@@ -69,6 +70,7 @@ function clearStats() {
     document.getElementById('stat-top-brand').textContent = "-";
     if (dayChart) dayChart.destroy();
     if (brandChart) brandChart.destroy();
+    if (sectionChart) sectionChart.destroy();
     document.getElementById('top-orders-table').innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400 italic">Không có dữ liệu cho mục này</td></tr>`;
 }
 
@@ -78,6 +80,7 @@ function processAndRender(data) {
     const topOrders = [];
 
     let totalQty = 0;
+    const statsBySection = {};
 
     data.forEach(item => {
         // Calculate Total Qty for this item
@@ -88,11 +91,20 @@ function processAndRender(data) {
             }
         });
         const dyn = item.dynamic_sizes || {};
-        Object.values(dyn).forEach(v => {
-            if (!isNaN(v)) itemTotal += parseFloat(v) || 0;
-        });
+        // For LEANLINE_DC: only count the remaining stock, not sum all dynamic_sizes
+        if (item.section === 'LEANLINE_DC') {
+            itemTotal = parseFloat(dyn['DC_Số_tấm_còn_lại'] ?? 0) || 0;
+        } else {
+            Object.values(dyn).forEach(v => {
+                if (!isNaN(v)) itemTotal += parseFloat(v) || 0;
+            });
+        }
 
         totalQty += itemTotal;
+
+        // Group by Section
+        const sec = item.section || 'Unknown';
+        statsBySection[sec] = (statsBySection[sec] || 0) + itemTotal;
 
         // Group by Day (Lưu lượng tăng từng ngày)
         const dateObj = new Date(item.created_at);
@@ -138,7 +150,14 @@ function processAndRender(data) {
 
     renderDayChart(statsByDay);
     renderBrandChart(statsByBrand);
+    renderSectionChart(statsBySection);
     renderTopTable(topOrders);
+
+    // Hide section chart when filtering by specific section
+    const sectionChartContainer = document.getElementById('section-chart-container');
+    if (sectionChartContainer) {
+        sectionChartContainer.style.display = currentSection === 'ALL' ? '' : 'none';
+    }
 }
 
 function renderDayChart(stats) {
@@ -235,4 +254,58 @@ function renderTopTable(orders) {
             </td>
         </tr>
     `).join('');
+}
+
+function renderSectionChart(stats) {
+    const ctx = document.getElementById('chart-by-section').getContext('2d');
+
+    const SECTION_LABELS = {
+        'LPS': 'LPS',
+        'MOLDING': 'Molding',
+        'LEANLINE_MOLDED': 'Leanline Molded',
+        'LEANLINE_DC': 'Leanline DC',
+        'LEANLINE': 'Leanline (cũ)',
+    };
+    const SECTION_COLORS = {
+        'LPS': '#10b981',
+        'MOLDING': '#6366f1',
+        'LEANLINE_MOLDED': '#f59e0b',
+        'LEANLINE_DC': '#a855f7',
+        'LEANLINE': '#fb923c',
+    };
+
+    const labels = Object.keys(stats).map(k => SECTION_LABELS[k] || k);
+    const values = Object.values(stats);
+    const colors = Object.keys(stats).map(k => SECTION_COLORS[k] || '#94a3b8');
+
+    if (sectionChart) sectionChart.destroy();
+
+    sectionChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors,
+                borderWidth: 0,
+                hoverOffset: 20
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20, font: { weight: 'bold' } } },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                            return ` ${ctx.label}: ${ctx.parsed.toLocaleString()} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
