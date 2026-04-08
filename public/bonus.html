@@ -172,11 +172,16 @@
         <div class="premium-card animate-fade-in">
             <div class="flex flex-row justify-between items-center mb-2 gap-4">
                 <div class="flex items-baseline gap-4">
-                    <h1 class="heading-font text-5xl font-black header-gradient leading-none">Tháng 4-2026</h1>
+                    <h1 class="heading-font text-5xl font-black header-gradient leading-none" id="display-month">Tháng 04-2026</h1>
                     <p class="text-gray-500 font-black uppercase tracking-[0.2em] text-sm">KẾ HOẠCH & BẬC THƯỞNG</p>
                 </div>
-                <div class="flex gap-2">
-                    <button id="btn-edit" class="px-4 py-2 bg-amber-500 text-white font-black rounded-xl shadow-md shadow-amber-200 hover:bg-amber-600 transition-all active:scale-95 flex items-center text-sm">
+                <div class="flex gap-2 items-center">
+                    <div class="mr-4 flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200">
+                        <span class="text-gray-600 text-xs font-black uppercase">Tháng</span>
+                        <input type="month" id="month-picker" 
+                            class="bg-transparent text-blue-600 font-black outline-none border-none cursor-pointer text-sm">
+                    </div>
+                    <button id="btn-edit" class="px-4 py-2 bg-amber-500 text-white font-black rounded-xl shadow-sm hover:bg-amber-600 transition-all active:scale-95 flex items-center text-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
@@ -377,15 +382,39 @@
         const bonusInputs = document.querySelectorAll('.bonus-input');
         const bonusSelects = document.querySelectorAll('.bonus-input-select');
         const bonusTbody = document.getElementById('bonus-tbody');
+        const monthPicker = document.getElementById('month-picker');
+        const displayMonth = document.getElementById('display-month');
 
         const SECRET_PASS = "Deplao.1305";
 
+        // Set default month to current
+        const now = new Date();
+        const currentMonthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+        monthPicker.value = currentMonthKey;
+
+        function updateDisplayMonth() {
+            const [y, m] = monthPicker.value.split('-');
+            displayMonth.textContent = `Tháng ${m}-${y}`;
+        }
+        updateDisplayMonth();
+
         // Initial Load from Supabase
         async function loadBonusData() {
+            const monthKey = monthPicker.value;
+            updateDisplayMonth();
+
+            // Clear current inputs first
+            bonusInputs.forEach(input => input.value = input.classList.contains('bonus-note') ? '' : '0');
+            bonusSelects.forEach(select => {
+                select.value = '';
+                select.classList.remove('lvl-1', 'lvl-2', 'lvl-3', 'lvl-no', 'lvl-dropping');
+            });
+
             try {
                 const { data, error } = await supabase
                     .from('ovn_bonus_data')
                     .select('*')
+                    .eq('month_key', monthKey)
                     .order('row_no', { ascending: true });
 
                 if (error) {
@@ -417,6 +446,7 @@
 
         // Save Data to Supabase
         async function saveBonusData() {
+            const monthKey = monthPicker.value;
             const rowsData = [];
             const rows = bonusTbody.querySelectorAll('tr[data-row]');
             
@@ -428,6 +458,7 @@
 
                 rowsData.push({
                     row_no: rowNo,
+                    month_key: monthKey,
                     value_text: valInput ? valInput.value : '0',
                     note_text: noteInput ? noteInput.value : '',
                     level_selected: select ? select.value : null
@@ -437,15 +468,17 @@
             try {
                 const { error } = await supabase
                     .from('ovn_bonus_data')
-                    .upsert(rowsData, { onConflict: 'row_no' });
+                    .upsert(rowsData, { onConflict: 'row_no, month_key' });
 
                 if (error) throw error;
                 alert('Đã lưu dữ liệu thành công!');
             } catch (err) {
                 console.error('Error saving data:', err);
-                alert('Lỗi khi lưu dữ liệu vào hệ thống!');
+                alert('Lỗi khi lưu dữ liệu!');
             }
         }
+
+        monthPicker.addEventListener('change', loadBonusData);
 
         btnEdit.addEventListener('click', () => {
             passwordModal.classList.remove('hidden');
