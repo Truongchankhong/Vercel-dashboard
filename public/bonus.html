@@ -147,6 +147,38 @@
             font-size: 1.3rem !important;
         }
 
+        /* --- MOBILE RESPONSIVENESS --- */
+        @media (max-width: 768px) {
+            body { 
+                overflow-y: auto !important; 
+                height: auto !important;
+                padding: 10px;
+            }
+            .premium-card {
+                padding: 15px !important;
+                height: auto !important;
+                min-height: 100vh;
+            }
+            #clock { display: none; }
+            #display-month { font-size: 2.5rem !important; }
+            .col-index { width: 45%; }
+            .col-value { width: 15%; }
+            .col-unit { display: none; } /* Hide unit on small mobile to save space */
+            .col-level { width: 25%; }
+            .col-note { width: 15%; }
+            .input-premium {
+                font-size: 1rem !important;
+                padding: 0.1vh 0.4rem !important;
+                height: 3.5vh !important;
+            }
+            .metric-table td {
+                padding: 0.5vh 0.3rem !important;
+            }
+            .bonus-input-select {
+                padding-right: 15px !important; /* Smaller arrow area */
+            }
+        }
+
         #clock {
             font-family: 'Outfit', sans-serif;
             letter-spacing: 0.05em;
