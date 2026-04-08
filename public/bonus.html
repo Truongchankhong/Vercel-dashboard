@@ -447,6 +447,11 @@
         // Save Data to Supabase
         async function saveBonusData() {
             const monthKey = monthPicker.value;
+            if (!monthKey) {
+                alert('Vui lòng chọn tháng!');
+                return;
+            }
+
             const rowsData = [];
             const rows = bonusTbody.querySelectorAll('tr[data-row]');
             
@@ -455,10 +460,12 @@
                 const valInput = row.querySelector('.bonus-input:not(.bonus-note)');
                 const noteInput = row.querySelector('.bonus-note');
                 const select = row.querySelector('.bonus-input-select');
+                const indexName = row.querySelector('.font-semibold')?.textContent.trim() || '';
 
                 rowsData.push({
                     row_no: rowNo,
                     month_key: monthKey,
+                    index_name: indexName,
                     value_text: valInput ? valInput.value : '0',
                     note_text: noteInput ? noteInput.value : '',
                     level_selected: select ? select.value : null
