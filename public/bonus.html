@@ -200,7 +200,7 @@
                         <tr class="category-header">
                             <td colspan="6" class="py-1 px-6 text-center">Bậc thưởng sản lượng</td>
                         </tr>
-                        <tr>
+                        <tr data-row="1">
                             <td>1</td>
                             <td class="font-semibold text-gray-700">Mục tiêu sản lượng</td>
                             <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
@@ -208,7 +208,7 @@
                             <td class="text-center"></td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
                         </tr>
-                        <tr>
+                        <tr data-row="2">
                             <td>2</td>
                             <td class="font-semibold text-gray-700">Tổng sản lượng thực tế</td>
                             <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
@@ -224,7 +224,7 @@
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
                         </tr>
-                        <tr>
+                        <tr data-row="3">
                             <td>3</td>
                             <td class="font-semibold text-gray-700">Hiệu suất thực tế PPH_SMV</td>
                             <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
@@ -240,7 +240,7 @@
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
                         </tr>
-                        <tr>
+                        <tr data-row="4">
                             <td>4</td>
                             <td class="font-semibold text-gray-700">Hàng làm lại</td>
                             <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
@@ -256,7 +256,7 @@
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
                         </tr>
-                        <tr>
+                        <tr data-row="5">
                             <td>5</td>
                             <td class="font-semibold text-gray-700">Giao hàng đúng tiến độ</td>
                             <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
@@ -272,7 +272,7 @@
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
                         </tr>
-                        <tr>
+                        <tr data-row="6">
                             <td>6</td>
                             <td class="font-semibold text-gray-700">Hàng phế</td>
                             <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
@@ -288,7 +288,7 @@
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
                         </tr>
-                        <tr>
+                        <tr data-row="7">
                             <td>7</td>
                             <td class="font-semibold text-gray-700">Khiếu nại từ khách hàng</td>
                             <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
@@ -304,7 +304,7 @@
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
                         </tr>
-                        <tr>
+                        <tr data-row="8">
                             <td>8</td>
                             <td class="font-semibold text-gray-700">Thời gian tăng ca</td>
                             <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
@@ -312,7 +312,7 @@
                             <td class="text-center"></td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
                         </tr>
-                        <tr>
+                        <tr data-row="9">
                             <td>9</td>
                             <td class="font-semibold text-gray-700">Sản lượng tối thiểu SMV</td>
                             <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
@@ -328,7 +328,7 @@
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
                         </tr>
-                        <tr>
+                        <tr data-row="10">
                             <td>10</td>
                             <td class="font-semibold text-gray-700">Tổng số ngày làm việc</td>
                             <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
@@ -357,7 +357,10 @@
         </div>
     </div>
 
-    <script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module">
+        import { supabase } from './supabaseClient.js';
+
         const btnEdit = document.getElementById('btn-edit');
         const btnSave = document.getElementById('btn-save');
         const passwordModal = document.getElementById('password-modal');
@@ -366,8 +369,76 @@
         const btnCancelAuth = document.getElementById('btn-cancel-auth');
         const bonusInputs = document.querySelectorAll('.bonus-input');
         const bonusSelects = document.querySelectorAll('.bonus-input-select');
+        const bonusTbody = document.getElementById('bonus-tbody');
 
         const SECRET_PASS = "Deplao.1305";
+
+        // Initial Load from Supabase
+        async function loadBonusData() {
+            try {
+                const { data, error } = await supabase
+                    .from('ovn_bonus_data')
+                    .select('*')
+                    .order('row_no', { ascending: true });
+
+                if (error) {
+                    console.error('Error loading data:', error);
+                    return;
+                }
+
+                if (data && data.length > 0) {
+                    data.forEach(item => {
+                        const row = bonusTbody.querySelector(`tr[data-row="${item.row_no}"]`);
+                        if (row) {
+                            const valInput = row.querySelector('.bonus-input:not(.bonus-note)');
+                            const noteInput = row.querySelector('.bonus-note');
+                            const select = row.querySelector('.bonus-input-select');
+
+                            if (valInput) valInput.value = item.value_text || '0';
+                            if (noteInput) noteInput.value = item.note_text || '';
+                            if (select) {
+                                select.value = item.level_selected || '';
+                                updateLevelColor(select);
+                            }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('System error:', err);
+            }
+        }
+
+        // Save Data to Supabase
+        async function saveBonusData() {
+            const rowsData = [];
+            const rows = bonusTbody.querySelectorAll('tr[data-row]');
+            
+            rows.forEach(row => {
+                const rowNo = parseInt(row.getAttribute('data-row'));
+                const valInput = row.querySelector('.bonus-input:not(.bonus-note)');
+                const noteInput = row.querySelector('.bonus-note');
+                const select = row.querySelector('.bonus-input-select');
+
+                rowsData.push({
+                    row_no: rowNo,
+                    value_text: valInput ? valInput.value : '0',
+                    note_text: noteInput ? noteInput.value : '',
+                    level_selected: select ? select.value : null
+                });
+            });
+
+            try {
+                const { error } = await supabase
+                    .from('ovn_bonus_data')
+                    .upsert(rowsData, { onConflict: 'row_no' });
+
+                if (error) throw error;
+                alert('Đã lưu dữ liệu thành công!');
+            } catch (err) {
+                console.error('Error saving data:', err);
+                alert('Lỗi khi lưu dữ liệu vào hệ thống!');
+            }
+        }
 
         btnEdit.addEventListener('click', () => {
             passwordModal.classList.remove('hidden');
@@ -381,13 +452,11 @@
 
         btnConfirmAuth.addEventListener('click', () => {
             if (editPassword.value === SECRET_PASS) {
-                // Unlock all inputs
                 bonusInputs.forEach(input => {
                     input.disabled = false;
                     input.classList.add('bg-white');
                     input.classList.remove('bg-gray-50');
                 });
-                // Unlock selects
                 bonusSelects.forEach(select => {
                     select.disabled = false;
                 });
@@ -397,23 +466,18 @@
                 editPassword.value = '';
                 alert('Quyền Edit đã được mở!');
             } else {
-                alert('Sai mật khẩu! Vui lòng thử lại.');
-                editPassword.value = '';
-                editPassword.focus();
+                alert('Sai mật khẩu!');
             }
         });
 
-        // Add visual feedback when inputs are enabled
-        btnSave.addEventListener('click', () => {
-            // Here you would normally save to a database
-            alert('Đã lưu dữ liệu thành công!');
-            // Lock inputs back
+        btnSave.addEventListener('click', async () => {
+            await saveBonusData();
+            
             bonusInputs.forEach(input => {
                 input.disabled = true;
                 input.classList.remove('bg-white');
                 input.classList.add('bg-gray-50');
             });
-            // Lock selects back
             bonusSelects.forEach(select => {
                 select.disabled = true;
             });
@@ -421,12 +485,8 @@
             btnEdit.classList.remove('hidden');
         });
 
-        // Function to update Level colors
         function updateLevelColor(select) {
-            // Remove old lvl classes
-            select.classList.remove('lvl-1', 'lvl-2', 'lvl-3', 'lvl-no');
-            
-            // Add new class based on value
+            select.classList.remove('lvl-1', 'lvl-2', 'lvl-3', 'lvl-no', 'lvl-dropping');
             const val = select.value;
             if (val === 'Level 1') select.classList.add('lvl-1');
             else if (val === 'Level 2') select.classList.add('lvl-2');
@@ -435,17 +495,16 @@
             else if (val === 'Đang Rớt') select.classList.add('lvl-dropping');
         }
 
-        // Initialize colors for all selects
-        bonusSelects.forEach(select => updateLevelColor(select));
+        // Global exposing for onchange
+        window.updateLevelColor = updateLevelColor;
 
-        // Allow Enter key in password field
+        // Initialize
+        loadBonusData();
+
         editPassword.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                btnConfirmAuth.click();
-            }
+            if (e.key === 'Enter') btnConfirmAuth.click();
         });
 
-        // Add real-time clock
         function updateClock() {
             const now = new Date();
             const time = now.getHours().toString().padStart(2, '0') + ':' + 
