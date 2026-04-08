@@ -18,10 +18,18 @@
         body {
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%);
-            min-height: 100vh;
+            height: 100vh;
             color: #1e293b;
             margin: 0;
             padding: 0;
+            overflow: hidden; /* Prevent scrolling */
+        }
+
+        .main-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5vh 2vw;
         }
 
         .premium-card {
@@ -31,26 +39,41 @@
             border: 1px solid var(--glass-border);
             border-radius: 20px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 2vh 2vw;
         }
 
         .heading-font {
             font-family: 'Outfit', sans-serif;
         }
 
+        .table-container {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
         .metric-table {
             width: 100%;
             border-collapse: separate;
-            border-spacing: 0 10px;
+            border-spacing: 0 0.6vh;
+            flex: 1;
+            table-layout: fixed;
         }
 
         .metric-table th {
-            padding: 18px;
+            padding: 1vh 1rem;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: #64748b;
             text-align: left;
             border-bottom: 3px solid #e2e8f0;
+            font-size: 1.3rem;
         }
 
         .metric-table tr {
@@ -58,40 +81,28 @@
             transition: all 0.3s ease;
         }
 
-        .metric-table tr:not(.category-header):hover {
-            transform: scale(1.005);
-            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
-            z-index: 10;
-        }
-
         .metric-table td {
-            padding: 24px 18px;
+            padding: 0.8vh 1rem;
             border-top: 1px solid #f1f5f9;
             border-bottom: 1px solid #f1f5f9;
+            font-size: 1.7rem; /* Large font for TV */
+            font-weight: 600;
         }
 
         .metric-table td:first-child {
             border-left: 1px solid #f1f5f9;
-            border-top-left-radius: 16px;
-            border-bottom-left-radius: 16px;
-            font-weight: 800;
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+            font-weight: 900;
             color: var(--primary);
-            width: 80px;
-            font-size: 1.1rem;
+            width: 60px;
+            text-align: center;
         }
 
         .metric-table td:last-child {
             border-right: 1px solid #f1f5f9;
-            border-top-right-radius: 16px;
-            border-bottom-right-radius: 16px;
-        }
-
-        .status-badge {
-            padding: 8px 16px;
-            border-radius: 12px;
-            font-size: 0.85rem;
-            font-weight: 800;
-            text-transform: uppercase;
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
         }
 
         .header-gradient {
@@ -103,156 +114,321 @@
 
         .input-premium {
             background: #f8fafc;
-            border: 2px solid #e2e8f0;
+            border: 3px solid #e2e8f0;
             border-radius: 12px;
-            padding: 10px 16px;
+            padding: 0.5vh 1rem;
             transition: all 0.2s;
             width: 100%;
-            font-size: 1.1rem;
-        }
-
-        .input-premium:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-            background: white;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .animate-fade-in {
-            animation: fadeIn 0.5s ease-out forwards;
+            font-size: 1.8rem;
+            font-weight: 900;
         }
 
         .category-header {
-            background: #fef9c3; /* Yellow background like the image */
-            font-weight: 800;
+            background: #fef9c3;
+            font-weight: 900;
             color: #854d0e;
+            font-size: 1.6rem !important;
+        }
+
+        #clock {
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: 0.05em;
         }
     </style>
 </head>
-<body class="p-4 md:p-8">
-    <div class="w-full">
-        <!-- Floating Back Button -->
-        <a href="index.html" class="inline-flex items-center mb-8 px-6 py-3 bg-white text-gray-700 font-bold rounded-2xl shadow-sm hover:shadow-md transition-all group">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            QUAY LẠI DASHBOARD
-        </a>
+<body class="">
+    <div class="main-container">
+        <!-- Top Navigation & Clock -->
+        <div class="flex justify-between items-center mb-4">
+            <a href="index.html" class="inline-flex items-center px-6 py-2 bg-white text-gray-700 font-bold rounded-2xl shadow-sm hover:shadow-md transition-all group text-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                QUAY LẠI
+            </a>
+            <div class="flex items-center gap-6">
+                <span class="text-gray-400 font-black tracking-widest text-xl">ORTHOLITE VIETNAM</span>
+                <div id="clock" class="text-4xl font-black text-blue-600 bg-white px-8 py-2 rounded-2xl shadow-xl border border-blue-50">00:00:00</div>
+            </div>
+        </div>
 
-        <div class="premium-card p-6 md:p-10 animate-fade-in">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+        <div class="premium-card animate-fade-in">
+            <div class="flex flex-row justify-between items-center mb-6 gap-6">
                 <div>
-                    <h1 class="heading-font text-4xl md:text-5xl font-black header-gradient mb-2">Tháng 4-2026</h1>
-                    <p class="text-gray-500 font-medium uppercase tracking-[0.2em]">Bảng Kế Hoạch & Bậc Thưởng Sản Lượng</p>
+                    <h1 class="heading-font text-6xl font-black header-gradient leading-tight">Tháng 4-2026</h1>
+                    <p class="text-gray-500 font-black uppercase tracking-[0.3em] text-lg">Bảng Kế Hoạch & Bậc Thưởng Sản Lượng</p>
                 </div>
-                <div class="flex gap-4">
-                    <button class="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">
-                        Lưu Dữ Liệu
+                <div class="flex flex-wrap justify-center gap-4">
+                    <button id="btn-edit" class="px-8 py-3 bg-amber-500 text-white font-black rounded-2xl shadow-lg shadow-amber-200 hover:bg-amber-600 transition-all active:scale-95 flex items-center text-xl">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        CHỈNH SỬA
                     </button>
-                    <button class="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95">
-                        Xuất Excel
+                    <button id="btn-save" class="px-8 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95 hidden text-xl">
+                        LƯU DỮ LIỆU
+                    </button>
+                    <button class="px-8 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 text-xl">
+                        XUẤT EXCEL
                     </button>
                 </div>
             </div>
 
-            <div class="overflow-x-auto">
+            <div class="table-container">
                 <table class="metric-table">
                     <thead>
                         <tr>
-                            <th class="w-16">No.</th>
-                            <th>Nội Dung Chỉ Số (Index)</th>
-                            <th class="w-48 text-center">Giá Trị (Value)</th>
-                            <th class="w-40 text-center">Đơn Vị (Unit)</th>
-                            <th class="w-40 text-center">Cấp Độ (Level)</th>
+                            <th style="width: 80px" class="text-center">No.</th>
+                            <th style="width: 45%">Nội Dung Chỉ Số (Index)</th>
+                            <th style="width: 25%" class="text-center">Giá Trị (Value)</th>
+                            <th style="width: 15%" class="text-center">Đơn Vị</th>
+                            <th style="width: 15%" class="text-center">Cấp Độ</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="bonus-tbody">
                         <tr class="category-header">
-                            <td colspan="5" class="py-4 px-6">Bậc thưởng sản lượng</td>
+                            <td colspan="5" class="py-1 px-6">Bậc thưởng sản lượng</td>
                         </tr>
                         <tr>
                             <td>1</td>
                             <td class="font-semibold text-gray-700">Mục tiêu sản lượng</td>
-                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td><input type="text" class="input-premium text-center font-bold bonus-input" value="0" disabled></td>
                             <td class="text-center font-medium text-gray-500">Pair</td>
-                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                            <td class="text-center">
+                                <select class="input-premium text-center font-bold bonus-input-select" disabled>
+                                    <option value="Level 1">Level 1</option>
+                                    <option value="Level 2">Level 2</option>
+                                    <option value="Level 3">Level 3</option>
+                                </select>
+                            </td>
                         </tr>
                         <tr>
                             <td>2</td>
-                            <td class="font-semibold text-gray-700">Tổng sản lượng thực tế (2.1) + (2.2)</td>
-                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="font-semibold text-gray-700">Tổng sản lượng thực tế</td>
+                            <td><input type="text" class="input-premium text-center font-bold bonus-input" value="0" disabled></td>
                             <td class="text-center font-medium text-gray-500">Pair</td>
-                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                            <td class="text-center">
+                                <select class="input-premium text-center font-bold bonus-input-select" disabled>
+                                    <option value="Level 1">Level 1</option>
+                                    <option value="Level 2">Level 2</option>
+                                    <option value="Level 3">Level 3</option>
+                                </select>
+                            </td>
                         </tr>
                         <tr>
                             <td>3</td>
-                            <td class="font-semibold text-gray-700">Hiệu suất thực tế PPH_SMV ((2.1)*1+(2.2)*2.49)/(3)</td>
-                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="font-semibold text-gray-700">Hiệu suất thực tế PPH_SMV</td>
+                            <td><input type="text" class="input-premium text-center font-bold bonus-input" value="0" disabled></td>
                             <td class="text-center font-medium text-gray-500">Pair/hours</td>
-                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                            <td class="text-center">
+                                <select class="input-premium text-center font-bold bonus-input-select" disabled>
+                                    <option value="Level 1">Level 1</option>
+                                    <option value="Level 2">Level 2</option>
+                                    <option value="Level 3">Level 3</option>
+                                </select>
+                            </td>
                         </tr>
                         <tr>
                             <td>4</td>
                             <td class="font-semibold text-gray-700">Hàng làm lại</td>
-                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td><input type="text" class="input-premium text-center font-bold bonus-input" value="0" disabled></td>
                             <td class="text-center font-medium text-gray-500">%</td>
-                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                            <td class="text-center">
+                                <select class="input-premium text-center font-bold bonus-input-select" disabled>
+                                    <option value="Level 1">Level 1</option>
+                                    <option value="Level 2">Level 2</option>
+                                    <option value="Level 3">Level 3</option>
+                                </select>
+                            </td>
                         </tr>
                         <tr>
                             <td>5</td>
                             <td class="font-semibold text-gray-700">Giao hàng đúng tiến độ</td>
-                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td><input type="text" class="input-premium text-center font-bold bonus-input" value="0" disabled></td>
                             <td class="text-center font-medium text-gray-500">%</td>
-                            <td class="text-center"><span class="status-badge bg-emerald-100 text-emerald-700">Level 2</span></td>
+                            <td class="text-center">
+                                <select class="input-premium text-center font-bold bonus-input-select" disabled>
+                                    <option value="Level 1">Level 1</option>
+                                    <option value="Level 2">Level 2</option>
+                                    <option value="Level 3">Level 3</option>
+                                </select>
+                            </td>
                         </tr>
                         <tr>
                             <td>6</td>
                             <td class="font-semibold text-gray-700">Hàng phế</td>
-                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td><input type="text" class="input-premium text-center font-bold bonus-input" value="0" disabled></td>
                             <td class="text-center font-medium text-gray-500">%</td>
-                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                            <td class="text-center">
+                                <select class="input-premium text-center font-bold bonus-input-select" disabled>
+                                    <option value="Level 1">Level 1</option>
+                                    <option value="Level 2">Level 2</option>
+                                    <option value="Level 3">Level 3</option>
+                                </select>
+                            </td>
                         </tr>
                         <tr>
                             <td>7</td>
                             <td class="font-semibold text-gray-700">Khiếu nại từ khách hàng</td>
-                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td><input type="text" class="input-premium text-center font-bold bonus-input" value="0" disabled></td>
                             <td class="text-center font-medium text-gray-500">%</td>
-                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                            <td class="text-center">
+                                <select class="input-premium text-center font-bold bonus-input-select" disabled>
+                                    <option value="Level 1">Level 1</option>
+                                    <option value="Level 2">Level 2</option>
+                                    <option value="Level 3">Level 3</option>
+                                </select>
+                            </td>
                         </tr>
                         <tr>
                             <td>8</td>
                             <td class="font-semibold text-gray-700">Thời gian tăng ca</td>
-                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td><input type="text" class="input-premium text-center font-bold bonus-input" value="0" disabled></td>
                             <td class="text-center font-medium text-gray-500">Hours</td>
-                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                            <td class="text-center">
+                                <select class="input-premium text-center font-bold bonus-input-select" disabled>
+                                    <option value="Level 1">Level 1</option>
+                                    <option value="Level 2">Level 2</option>
+                                    <option value="Level 3">Level 3</option>
+                                </select>
+                            </td>
                         </tr>
                         <tr>
                             <td>9</td>
                             <td class="font-semibold text-gray-700">Sản lượng tối thiểu SMV</td>
-                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td><input type="text" class="input-premium text-center font-bold bonus-input" value="0" disabled></td>
                             <td class="text-center font-medium text-gray-500">Pairs</td>
-                            <td class="text-center bg-yellow-100 rounded-lg">Level 3</td>
+                            <td class="text-center">
+                                <select class="input-premium text-center font-bold bonus-input-select bg-yellow-400 text-yellow-900 border-yellow-500" disabled>
+                                    <option value="Level 1">Level 1</option>
+                                    <option value="Level 2">Level 2</option>
+                                    <option value="Level 3" selected>Level 3</option>
+                                </select>
+                            </td>
                         </tr>
                         <tr>
                             <td>10</td>
                             <td class="font-semibold text-gray-700">Tổng số ngày làm việc</td>
-                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td><input type="text" class="input-premium text-center font-bold bonus-input" value="0" disabled></td>
                             <td class="text-center font-medium text-gray-500">Days</td>
-                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                            <td class="text-center">
+                                <select class="input-premium text-center font-bold bonus-input-select" disabled>
+                                    <option value="Level 1">Level 1</option>
+                                    <option value="Level 2">Level 2</option>
+                                    <option value="Level 3">Level 3</option>
+                                </select>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
+    </div>
 
-        <div class="mt-8 text-center text-gray-400 text-sm font-medium">
-            &copy; 2026 Ortholite Vietnam - Production Dashboard System
+    <!-- Password Modal -->
+    <div id="password-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full mx-4 transform transition-all border border-gray-100">
+            <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Xác thực quyền Edit</h3>
+            <div class="mb-6">
+                <input type="password" id="edit-password" placeholder="Nhập Password..." 
+                    class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-amber-500 focus:outline-none transition-all text-center text-lg font-bold">
+            </div>
+            <div class="flex gap-3">
+                <button id="btn-cancel-auth" class="flex-1 px-4 py-3 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all">Hủy</button>
+                <button id="btn-confirm-auth" class="flex-1 px-4 py-3 bg-amber-500 text-white font-bold rounded-2xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-200">Xác nhận</button>
+            </div>
         </div>
     </div>
+
+    <script>
+        const btnEdit = document.getElementById('btn-edit');
+        const btnSave = document.getElementById('btn-save');
+        const passwordModal = document.getElementById('password-modal');
+        const editPassword = document.getElementById('edit-password');
+        const btnConfirmAuth = document.getElementById('btn-confirm-auth');
+        const btnCancelAuth = document.getElementById('btn-cancel-auth');
+        const bonusInputs = document.querySelectorAll('.bonus-input');
+        const bonusSelects = document.querySelectorAll('.bonus-input-select');
+
+        const SECRET_PASS = "Deplao.1305";
+
+        btnEdit.addEventListener('click', () => {
+            passwordModal.classList.remove('hidden');
+            editPassword.focus();
+        });
+
+        btnCancelAuth.addEventListener('click', () => {
+            passwordModal.classList.add('hidden');
+            editPassword.value = '';
+        });
+
+        btnConfirmAuth.addEventListener('click', () => {
+            if (editPassword.value === SECRET_PASS) {
+                // Unlock inputs
+                bonusInputs.forEach(input => {
+                    input.disabled = false;
+                    input.classList.add('bg-white');
+                    input.classList.remove('bg-gray-50');
+                });
+                // Unlock selects
+                bonusSelects.forEach(select => {
+                    select.disabled = false;
+                    if (!select.classList.contains('bg-yellow-400')) {
+                        select.classList.add('bg-white');
+                        select.classList.remove('bg-gray-50');
+                    }
+                });
+                btnEdit.classList.add('hidden');
+                btnSave.classList.remove('hidden');
+                passwordModal.classList.add('hidden');
+                editPassword.value = '';
+                alert('Quyền Edit đã được mở!');
+            } else {
+                alert('Sai mật khẩu! Vui lòng thử lại.');
+                editPassword.value = '';
+                editPassword.focus();
+            }
+        });
+
+        // Add visual feedback when inputs are enabled
+        btnSave.addEventListener('click', () => {
+            // Here you would normally save to a database
+            alert('Đã lưu dữ liệu thành công!');
+            // Lock inputs back
+            bonusInputs.forEach(input => {
+                input.disabled = true;
+                input.classList.remove('bg-white');
+                input.classList.add('bg-gray-50');
+            });
+            // Lock selects back
+            bonusSelects.forEach(select => {
+                select.disabled = true;
+                if (!select.classList.contains('bg-yellow-400')) {
+                    select.classList.add('bg-white');
+                    select.classList.remove('bg-gray-50');
+                }
+            });
+            btnSave.classList.add('hidden');
+            btnEdit.classList.remove('hidden');
+        });
+
+        // Allow Enter key in password field
+        editPassword.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                btnConfirmAuth.click();
+            }
+        });
+
+        // Add real-time clock
+        function updateClock() {
+            const now = new Date();
+            const time = now.getHours().toString().padStart(2, '0') + ':' + 
+                         now.getMinutes().toString().padStart(2, '0') + ':' + 
+                         now.getSeconds().toString().padStart(2, '0');
+            document.getElementById('clock').textContent = time;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
 </body>
 </html>
