@@ -29,7 +29,7 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            padding: 1.5vh 2vw;
+            padding: 1vh 1vw; /* Reduced padding */
         }
 
         .premium-card {
@@ -37,13 +37,13 @@
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
             flex: 1;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            padding: 2vh 2vw;
+            padding: 1.5vh 1.5vw;
         }
 
         .heading-font {
@@ -60,20 +60,20 @@
         .metric-table {
             width: 100%;
             border-collapse: separate;
-            border-spacing: 0 0.6vh;
+            border-spacing: 0 0.4vh; /* Even tighter spacing */
             flex: 1;
             table-layout: fixed;
         }
 
         .metric-table th {
-            padding: 1vh 1rem;
+            padding: 0.8vh 1rem;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.1em;
             color: #64748b;
             text-align: left;
-            border-bottom: 3px solid #e2e8f0;
-            font-size: 1.3rem;
+            border-bottom: 2px solid #e2e8f0;
+            font-size: 1.1rem;
         }
 
         .metric-table tr {
@@ -82,27 +82,27 @@
         }
 
         .metric-table td {
-            padding: 0.8vh 1rem;
+            padding: 0.5vh 1rem; /* Very tight vertical padding */
             border-top: 1px solid #f1f5f9;
             border-bottom: 1px solid #f1f5f9;
-            font-size: 1.7rem; /* Large font for TV */
-            font-weight: 600;
+            font-size: 1.4rem; /* Slightly smaller but still clear */
+            font-weight: 700;
         }
 
         .metric-table td:first-child {
             border-left: 1px solid #f1f5f9;
-            border-top-left-radius: 12px;
-            border-bottom-left-radius: 12px;
+            border-top-left-radius: 10px;
+            border-bottom-left-radius: 10px;
             font-weight: 900;
             color: var(--primary);
-            width: 60px;
+            width: 50px;
             text-align: center;
         }
 
         .metric-table td:last-child {
             border-right: 1px solid #f1f5f9;
-            border-top-right-radius: 12px;
-            border-bottom-right-radius: 12px;
+            border-top-right-radius: 10px;
+            border-bottom-right-radius: 10px;
         }
 
         .header-gradient {
@@ -114,20 +114,21 @@
 
         .input-premium {
             background: #f8fafc;
-            border: 3px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 0.5vh 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.3vh 1rem;
             transition: all 0.2s;
             width: 100%;
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             font-weight: 900;
+            height: 4vh; /* Reduced height for inputs/selects */
         }
 
         .category-header {
             background: #fef9c3;
             font-weight: 900;
             color: #854d0e;
-            font-size: 1.6rem !important;
+            font-size: 1.4rem !important;
         }
 
         #clock {
@@ -139,36 +140,36 @@
 <body class="">
     <div class="main-container">
         <!-- Top Navigation & Clock -->
-        <div class="flex justify-between items-center mb-4">
-            <a href="index.html" class="inline-flex items-center px-6 py-2 bg-white text-gray-700 font-bold rounded-2xl shadow-sm hover:shadow-md transition-all group text-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div class="flex justify-between items-center mb-2">
+            <a href="index.html" class="inline-flex items-center px-4 py-1 bg-white text-gray-700 font-bold rounded-xl shadow-sm hover:shadow-md transition-all group text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
                 QUAY LẠI
             </a>
-            <div class="flex items-center gap-6">
-                <span class="text-gray-400 font-black tracking-widest text-xl">ORTHOLITE VIETNAM</span>
-                <div id="clock" class="text-4xl font-black text-blue-600 bg-white px-8 py-2 rounded-2xl shadow-xl border border-blue-50">00:00:00</div>
+            <div class="flex items-center gap-4">
+                <span class="text-gray-400 font-black tracking-widest text-sm">ORTHOLITE VIETNAM</span>
+                <div id="clock" class="text-3xl font-black text-blue-600 bg-white px-6 py-1 rounded-xl shadow-lg border border-blue-50">00:00:00</div>
             </div>
         </div>
 
         <div class="premium-card animate-fade-in">
-            <div class="flex flex-row justify-between items-center mb-6 gap-6">
-                <div>
-                    <h1 class="heading-font text-6xl font-black header-gradient leading-tight">Tháng 4-2026</h1>
-                    <p class="text-gray-500 font-black uppercase tracking-[0.3em] text-lg">Bảng Kế Hoạch & Bậc Thưởng Sản Lượng</p>
+            <div class="flex flex-row justify-between items-center mb-2 gap-4">
+                <div class="flex items-baseline gap-4">
+                    <h1 class="heading-font text-5xl font-black header-gradient leading-none">Tháng 4-2026</h1>
+                    <p class="text-gray-500 font-black uppercase tracking-[0.2em] text-sm">KẾ HOẠCH & BẬC THƯỞNG</p>
                 </div>
-                <div class="flex flex-wrap justify-center gap-4">
-                    <button id="btn-edit" class="px-8 py-3 bg-amber-500 text-white font-black rounded-2xl shadow-lg shadow-amber-200 hover:bg-amber-600 transition-all active:scale-95 flex items-center text-xl">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div class="flex gap-2">
+                    <button id="btn-edit" class="px-4 py-2 bg-amber-500 text-white font-black rounded-xl shadow-md shadow-amber-200 hover:bg-amber-600 transition-all active:scale-95 flex items-center text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                         CHỈNH SỬA
                     </button>
-                    <button id="btn-save" class="px-8 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95 hidden text-xl">
-                        LƯU DỮ LIỆU
+                    <button id="btn-save" class="px-4 py-2 bg-blue-600 text-white font-black rounded-xl shadow-md shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95 hidden text-sm">
+                        LƯU DATA
                     </button>
-                    <button class="px-8 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 text-xl">
+                    <button class="px-4 py-2 bg-emerald-600 text-white font-black rounded-xl shadow-md shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 text-sm">
                         XUẤT EXCEL
                     </button>
                 </div>
