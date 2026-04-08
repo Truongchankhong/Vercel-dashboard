@@ -8,6 +8,7 @@
 CREATE INDEX IF NOT EXISTS idx_masterdata_pro_oder ON "Masterdata" ("PRO ODER");
 CREATE INDEX IF NOT EXISTS idx_masterdata_pu_description ON "Masterdata" ("PU DESCRIPTION");
 CREATE INDEX IF NOT EXISTS idx_masterdata_fb_description ON "Masterdata" ("FB DESCRIPTION");
+CREATE INDEX IF NOT EXISTS idx_masterdata_finish_date ON "Masterdata" ("Finish date");
 
 -- 2. Index cho bảng powerapp
 CREATE INDEX IF NOT EXISTS idx_powerapp_pro_oder ON "powerapp" ("PRO ODER");

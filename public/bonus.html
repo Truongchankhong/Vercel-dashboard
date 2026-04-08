@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng Bậc Thưởng Sản Lượng - OVN</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --primary: #2563eb;
+            --secondary: #4f46e5;
+            --accent: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%);
+            min-height: 100vh;
+            color: #1e293b;
+            margin: 0;
+            padding: 0;
+        }
+
+        .premium-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+        }
+
+        .heading-font {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .metric-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px;
+        }
+
+        .metric-table th {
+            padding: 18px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #64748b;
+            text-align: left;
+            border-bottom: 3px solid #e2e8f0;
+        }
+
+        .metric-table tr {
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .metric-table tr:not(.category-header):hover {
+            transform: scale(1.005);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .metric-table td {
+            padding: 24px 18px;
+            border-top: 1px solid #f1f5f9;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .metric-table td:first-child {
+            border-left: 1px solid #f1f5f9;
+            border-top-left-radius: 16px;
+            border-bottom-left-radius: 16px;
+            font-weight: 800;
+            color: var(--primary);
+            width: 80px;
+            font-size: 1.1rem;
+        }
+
+        .metric-table td:last-child {
+            border-right: 1px solid #f1f5f9;
+            border-top-right-radius: 16px;
+            border-bottom-right-radius: 16px;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .header-gradient {
+            background: linear-gradient(to right, #0f172a, #334155);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .input-premium {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px 16px;
+            transition: all 0.2s;
+            width: 100%;
+            font-size: 1.1rem;
+        }
+
+        .input-premium:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            background: white;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .category-header {
+            background: #fef9c3; /* Yellow background like the image */
+            font-weight: 800;
+            color: #854d0e;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="w-full">
+        <!-- Floating Back Button -->
+        <a href="index.html" class="inline-flex items-center mb-8 px-6 py-3 bg-white text-gray-700 font-bold rounded-2xl shadow-sm hover:shadow-md transition-all group">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            QUAY LẠI DASHBOARD
+        </a>
+
+        <div class="premium-card p-6 md:p-10 animate-fade-in">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+                <div>
+                    <h1 class="heading-font text-4xl md:text-5xl font-black header-gradient mb-2">Tháng 4-2026</h1>
+                    <p class="text-gray-500 font-medium uppercase tracking-[0.2em]">Bảng Kế Hoạch & Bậc Thưởng Sản Lượng</p>
+                </div>
+                <div class="flex gap-4">
+                    <button class="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95">
+                        Lưu Dữ Liệu
+                    </button>
+                    <button class="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95">
+                        Xuất Excel
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="metric-table">
+                    <thead>
+                        <tr>
+                            <th class="w-16">No.</th>
+                            <th>Nội Dung Chỉ Số (Index)</th>
+                            <th class="w-48 text-center">Giá Trị (Value)</th>
+                            <th class="w-40 text-center">Đơn Vị (Unit)</th>
+                            <th class="w-40 text-center">Cấp Độ (Level)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="category-header">
+                            <td colspan="5" class="py-4 px-6">Bậc thưởng sản lượng</td>
+                        </tr>
+                        <tr>
+                            <td>1</td>
+                            <td class="font-semibold text-gray-700">Mục tiêu sản lượng</td>
+                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="text-center font-medium text-gray-500">Pair</td>
+                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td class="font-semibold text-gray-700">Tổng sản lượng thực tế (2.1) + (2.2)</td>
+                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="text-center font-medium text-gray-500">Pair</td>
+                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td class="font-semibold text-gray-700">Hiệu suất thực tế PPH_SMV ((2.1)*1+(2.2)*2.49)/(3)</td>
+                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="text-center font-medium text-gray-500">Pair/hours</td>
+                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td class="font-semibold text-gray-700">Hàng làm lại</td>
+                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="text-center font-medium text-gray-500">%</td>
+                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td class="font-semibold text-gray-700">Giao hàng đúng tiến độ</td>
+                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="text-center font-medium text-gray-500">%</td>
+                            <td class="text-center"><span class="status-badge bg-emerald-100 text-emerald-700">Level 2</span></td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td class="font-semibold text-gray-700">Hàng phế</td>
+                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="text-center font-medium text-gray-500">%</td>
+                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                        </tr>
+                        <tr>
+                            <td>7</td>
+                            <td class="font-semibold text-gray-700">Khiếu nại từ khách hàng</td>
+                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="text-center font-medium text-gray-500">%</td>
+                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                        </tr>
+                        <tr>
+                            <td>8</td>
+                            <td class="font-semibold text-gray-700">Thời gian tăng ca</td>
+                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="text-center font-medium text-gray-500">Hours</td>
+                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                        </tr>
+                        <tr>
+                            <td>9</td>
+                            <td class="font-semibold text-gray-700">Sản lượng tối thiểu SMV</td>
+                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="text-center font-medium text-gray-500">Pairs</td>
+                            <td class="text-center bg-yellow-100 rounded-lg">Level 3</td>
+                        </tr>
+                        <tr>
+                            <td>10</td>
+                            <td class="font-semibold text-gray-700">Tổng số ngày làm việc</td>
+                            <td><input type="text" class="input-premium text-center font-bold" value="0"></td>
+                            <td class="text-center font-medium text-gray-500">Days</td>
+                            <td class="text-center"><span class="status-badge bg-blue-100 text-blue-700">Level 1</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center text-gray-400 text-sm font-medium">
+            &copy; 2026 Ortholite Vietnam - Production Dashboard System
+        </div>
+    </div>
+</body>
+</html>

@@ -373,7 +373,8 @@ function Send-DataToSupabase {
                 "Content-Type"  = "application/json; charset=utf-8";
                 "Prefer"        = "resolution=merge-duplicates"
             } `
-                -InFile $tempFile
+                -InFile $tempFile `
+                -TimeoutSec 300
             $success = $true
         }
         catch {
@@ -408,7 +409,7 @@ $storedOrders = $jsonData | Where-Object { $_.STATUS -eq "9.STORED" }
 
 if ($storedOrders.Count -gt 0) {
     Write-Host "--- Found $($storedOrders.Count) stored orders. Backing up to Masterdata..."
-    $chunkSize = 1000
+    $chunkSize = 400
     for ($i = 0; $i -lt $storedOrders.Count; $i += $chunkSize) {
         $end = [Math]::Min($i + $chunkSize - 1, $storedOrders.Count - 1)
         $chunk = $storedOrders[$i..$end]
@@ -428,7 +429,8 @@ Write-Host "--- Cleaning up data older than 1 year (Before $oneYearAgo)..."
 try {
     Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/Masterdata?Finish%20date=lt.$oneYearAgo" `
         -Method Delete `
-        -Headers @{ "apikey" = "$supabaseKey"; "Authorization" = "Bearer $supabaseKey" } | Out-Null
+        -Headers @{ "apikey" = "$supabaseKey"; "Authorization" = "Bearer $supabaseKey" } `
+        -TimeoutSec 300 | Out-Null
 }
 catch { Write-Warning "!!! Masterdata cleanup warning: $_" }
 
@@ -442,9 +444,10 @@ catch { Write-Warning "!!! supplement_tracking cleanup warning: $_" }
 
 # 3. Cleanup supplement_confirm 
 try {
-    Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/supplement_confirm?Confirm_date=lt.$oneYearAgo" `
+    Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/supplement_confirm?created_at=lt.$oneYearAgo" `
         -Method Delete `
-        -Headers @{ "apikey" = "$supabaseKey"; "Authorization" = "Bearer $supabaseKey" } | Out-Null
+        -Headers @{ "apikey" = "$supabaseKey"; "Authorization" = "Bearer $supabaseKey" } `
+        -TimeoutSec 300 | Out-Null
 }
 catch { Write-Warning "!!! supplement_confirm cleanup warning: $_" }
 
@@ -456,18 +459,19 @@ try {
         -Headers @{ 
         "apikey"        = "$supabaseKey"; 
         "Authorization" = "Bearer $supabaseKey" 
-    } | Out-Null
+    } -TimeoutSec 300 | Out-Null
 }
 catch {
     Write-Warning "!!! Clear data warning: $_"
 }
 
-$chunkSize = 1000
+$chunkSize = 100
 for ($i = 0; $i -lt $jsonData.Count; $i += $chunkSize) {
     Write-Host "--- Uploading chunk starting at $i..."
     $end = [Math]::Min($i + $chunkSize - 1, $jsonData.Count - 1)
     $chunk = $jsonData[$i..$end]
     Send-BatchToSupabase -chunk $chunk
+    Start-Sleep -Milliseconds 1000 # Wait 1s between chunks to avoid overloading DB
 }
 
 # 3. WRITE METADATA (Last Updated)
