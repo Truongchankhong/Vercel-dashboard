@@ -131,6 +131,7 @@
         .lvl-2 { background-color: #eab308 !important; color: white !important; } /* Yellow */
         .lvl-3 { background-color: #f97316 !important; color: white !important; } /* Orange */
         .lvl-no { background-color: #ef4444 !important; color: white !important; } /* Red */
+        .lvl-dropping { background-color: #f472b6 !important; color: white !important; } /* Pink */
 
         .category-header {
             background: #fef9c3;
@@ -218,6 +219,7 @@
                                     <option value="Level 2">Level 2</option>
                                     <option value="Level 3">Level 3</option>
                                     <option value="Không Đạt">Không Đạt</option>
+                                    <option value="Đang Rớt">Đang Rớt</option>
                                 </select>
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
@@ -233,6 +235,7 @@
                                     <option value="Level 2">Level 2</option>
                                     <option value="Level 3">Level 3</option>
                                     <option value="Không Đạt">Không Đạt</option>
+                                    <option value="Đang Rớt">Đang Rớt</option>
                                 </select>
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
@@ -248,6 +251,7 @@
                                     <option value="Level 2">Level 2</option>
                                     <option value="Level 3">Level 3</option>
                                     <option value="Không Đạt">Không Đạt</option>
+                                    <option value="Đang Rớt">Đang Rớt</option>
                                 </select>
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
@@ -263,6 +267,7 @@
                                     <option value="Level 2">Level 2</option>
                                     <option value="Level 3">Level 3</option>
                                     <option value="Không Đạt">Không Đạt</option>
+                                    <option value="Đang Rớt">Đang Rớt</option>
                                 </select>
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
@@ -278,6 +283,7 @@
                                     <option value="Level 2">Level 2</option>
                                     <option value="Level 3">Level 3</option>
                                     <option value="Không Đạt">Không Đạt</option>
+                                    <option value="Đang Rớt">Đang Rớt</option>
                                 </select>
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
@@ -293,6 +299,7 @@
                                     <option value="Level 2">Level 2</option>
                                     <option value="Level 3">Level 3</option>
                                     <option value="Không Đạt">Không Đạt</option>
+                                    <option value="Đang Rớt">Đang Rớt</option>
                                 </select>
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
@@ -316,6 +323,7 @@
                                     <option value="Level 2">Level 2</option>
                                     <option value="Level 3" selected>Level 3</option>
                                     <option value="Không Đạt">Không Đạt</option>
+                                    <option value="Đang Rớt">Đang Rớt</option>
                                 </select>
                             </td>
                             <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
@@ -424,6 +432,7 @@
             else if (val === 'Level 2') select.classList.add('lvl-2');
             else if (val === 'Level 3') select.classList.add('lvl-3');
             else if (val === 'Không Đạt') select.classList.add('lvl-no');
+            else if (val === 'Đang Rớt') select.classList.add('lvl-dropping');
         }
 
         // Initialize colors for all selects
