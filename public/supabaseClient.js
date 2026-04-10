@@ -54,11 +54,7 @@ const customFetch = async (url, options) => {
 };
 
 // Create the Supabase client
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    global: {
-        fetch: customFetch
-    }
-});
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Attach to window using a distinct name to avoid clashing with the 'supabase' library global
 window.supabaseClient = supabase;

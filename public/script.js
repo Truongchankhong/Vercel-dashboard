@@ -37,19 +37,36 @@ function hideLoading() {
   }, 500);
 }
 
+// --- Global Cache ---
+let allOrdersData = null;
+let lastFetchTimestamp = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 // --- Helper: Fetch all data from Supabase (pagination) ---
-async function fetchAllPowerAppData() {
+async function fetchAllPowerAppData(forceRefresh = false) {
+  const now = Date.now();
+  if (allOrdersData && !forceRefresh && (now - lastFetchTimestamp < CACHE_DURATION)) {
+      console.log("Using cached PowerApp data...");
+      return { data: allOrdersData };
+  }
+
   let allRows = [];
   let from = 0;
   const step = 1000;
   
+  // OPTIMIZED: Only fetch orders from the last 60 days to drastically reduce EGRESS
+  const sixtyDaysAgo = new Date();
+  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+  const dateStr = sixtyDaysAgo.toISOString();
+
   // Get total count first for progress calculation
   const { count, error: countError } = await supabase
     .from('powerapp')
-    .select('*', { count: 'exact', head: true });
+    .select('*', { count: 'exact', head: true })
+    .gt('created_at', dateStr);
   
   if (countError) console.error('Count error:', countError);
-  const totalItems = count || 5000; // Fallback
+  const totalItems = count || 2000; // Fallback
 
   // OPTIMIZED: Select only needed columns for dashboard views (with Aliases for mismatched names)
   const selectCols = [
@@ -61,13 +78,14 @@ async function fetchAllPowerAppData() {
     '"IN lean Line (Pro)"', '"IN lean Line (MACHINE)"', '"Out lean Line (Pro)"',
     '"STORED"', '"PPC Confirm"', '"LAMINATION MACHINE (PLAN)"', '"LAMINATION MACHINE (REALTIME)"',
     '"LEANLINE PLAN"', '"LEANLINE (REALTIME)"', '"Check":"Check2"', '"CheckLL"',
-    '"Delay/Urgent":"Delay-Urgent"', '"Giới tính":"GENDER"', '"CUSTOMERS"', '"DL PU"'
+    '"Delay/Urgent":"Delay-Urgent"', '"Giới tính":"GENDER"', '"CUSTOMERS"', '"DL PU"', '"created_at"'
   ].join(',');
 
   while (true) {
     const { data, error } = await supabase
       .from('powerapp')
       .select(selectCols)
+      .gt('created_at', dateStr) // Server-side filter
       .range(from, from + step - 1);
 
     if (error) {
@@ -79,13 +97,16 @@ async function fetchAllPowerAppData() {
     allRows = allRows.concat(data);
     
     // Update progress
-    const percent = Math.min(90, (allRows.length / totalItems) * 100);
-    updateLoading(percent, `Đang tải: ${allRows.length} / ${totalItems} dòng...`);
+    const percent = Math.min(95, (allRows.length / totalItems) * 100);
+    updateLoading(percent, `Đang tải: ${allRows.length} dòng...`);
 
     if (data.length < step) break;
     from += step;
   }
-  updateLoading(95, 'Đang xử lý dữ liệu...');
+  
+  allOrdersData = allRows;
+  lastFetchTimestamp = now;
+  updateLoading(100, 'Tải dữ liệu hoàn tất!');
   return { data: allRows };
 }
 

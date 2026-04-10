@@ -185,19 +185,30 @@ async function loadOrderInfo(rpro) {
     sizeFixData = {};
     removedSizeFix = false; // Reset lại trạng thái bỏ giảm size
 
-    // 2. Nếu là Nữ, TẢI TIẾP file sizefix và CHỜ nó tải xong (await)
+    // 2. Nếu là Nữ, TẢI TỪ DATABASE SUPABASE (Thay vì tải toàn bộ file JSON 4MB)
     if (gender === "Women's") {
       try {
-        const resFix = await fetch("/sizefix.json?v=" + Date.now(), { cache: "no-store" });
-        const sizefixJson = await resFix.json();
-        sizeFixData = sizefixJson[rpro] || {};
+        console.log(`🔍 Fetching sizefix from DB for ${rpro}...`);
+        const { data, error: fetchError } = await supabase
+          .from('ovn_sizefix')
+          .select('fix_data')
+          .eq('rpro', rpro)
+          .single();
 
-        // Chỉ bật cờ dùng size fix nếu tìm thấy data
-        if (Object.keys(sizeFixData).length > 0) {
+        if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = No rows found
+           console.warn("Lỗi tải sizefix từ DB:", fetchError);
+        }
+
+        if (data && data.fix_data) {
+          sizeFixData = data.fix_data;
+          console.log("✅ SizeFix data loaded from DB.");
           useSizeFix = true;
+        } else {
+          console.log("ℹ️ No sizefix data for this RPRO.");
+          useSizeFix = false;
         }
       } catch (err) {
-        console.warn("Không thể tải sizefix.json:", err);
+        console.warn("Không thể tải sizefix:", err);
       }
     }
 

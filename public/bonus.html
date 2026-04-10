@@ -152,30 +152,62 @@
             body { 
                 overflow-y: auto !important; 
                 height: auto !important;
-                padding: 10px;
+                padding: 5px;
+            }
+            .main-container {
+                height: auto !important;
+                padding: 5px !important;
             }
             .premium-card {
-                padding: 15px !important;
+                padding: 10px !important;
                 height: auto !important;
                 min-height: 100vh;
+                margin-bottom: 20px;
+                overflow: visible !important;
             }
             #clock { display: none; }
-            #display-month { font-size: 2.5rem !important; }
-            .col-index { width: 45%; }
-            .col-value { width: 15%; }
-            .col-unit { display: none; } /* Hide unit on small mobile to save space */
-            .col-level { width: 25%; }
+            #display-month { font-size: 2rem !important; }
+            .col-index { width: 40%; }
+            .col-value { width: 18%; }
+            .col-unit { display: none; }
+            .col-level { width: 27%; }
             .col-note { width: 15%; }
+            
             .input-premium {
-                font-size: 1rem !important;
-                padding: 0.1vh 0.4rem !important;
-                height: 3.5vh !important;
+                font-size: 0.85rem !important;
+                padding: 2px 4px !important;
+                height: 34px !important; /* Slightly taller for better touch/visibility */
+                min-height: 34px !important;
+                line-height: 28px !important;
+                display: block; /* Select works better with block */
             }
             .metric-table td {
-                padding: 0.5vh 0.3rem !important;
+                padding: 6px 2px !important;
+                font-size: 0.85rem !important;
+                line-height: 1.2;
+            }
+            .category-header {
+                font-size: 0.9rem !important;
+                padding: 8px 2px !important;
             }
             .bonus-input-select {
-                padding-right: 15px !important; /* Smaller arrow area */
+                padding-right: 2px !important; /* Minimal padding for mobile */
+                text-align: center;
+                text-align-last: center;
+            }
+            .table-container {
+                overflow: visible !important;
+                height: auto !important;
+            }
+            .header-row {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 12px !important;
+            }
+            .main-container {
+                height: auto !important;
+                padding: 8px !important;
+                padding-bottom: 100px !important; /* Ensure last item is fully visible above system bars */
             }
         }
 
@@ -202,10 +234,10 @@
         </div>
 
         <div class="premium-card animate-fade-in">
-            <div class="flex flex-row justify-between items-center mb-2 gap-4">
-                <div class="flex items-baseline gap-4">
-                    <h1 class="heading-font text-5xl font-black header-gradient leading-none" id="display-month">Tháng 04-2026</h1>
-                    <p class="text-gray-500 font-black uppercase tracking-[0.2em] text-sm">KẾ HOẠCH & BẬC THƯỞNG</p>
+            <div class="flex flex-row justify-between items-center mb-2 gap-4 header-row">
+                <div class="flex flex-col sm:flex-row items-baseline gap-1 sm:gap-4">
+                    <h1 class="heading-font text-3xl sm:text-5xl font-black header-gradient leading-none" id="display-month">Tháng 04-2026</h1>
+                    <p class="text-gray-500 font-black uppercase tracking-[0.1em] text-[10px] sm:text-sm">KẾ HOẠCH & BẬC THƯỞNG</p>
                 </div>
                 <div class="flex gap-2 items-center">
                     <div class="mr-4 flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200">

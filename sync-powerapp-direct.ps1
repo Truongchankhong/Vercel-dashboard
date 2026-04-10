@@ -485,6 +485,29 @@ $metadata = @{
 $metaChunk = @($metadata)
 Send-BatchToSupabase -chunk $metaChunk
 
+# 4. SYNC SIZE RUN FIX TO SUPABASE (Table: ovn_sizefix)
+if ($sizeFixMap -and $sizeFixMap.Count -gt 0) {
+    Write-Host "--- Syncing SizeFix to Supabase (ovn_sizefix)..."
+    $sizeFixRows = @()
+    foreach ($rproFix in $sizeFixMap.Keys) {
+        $sizeFixRows += @{
+            rpro      = $rproFix;
+            fix_data  = $sizeFixMap[$rproFix];
+            updated_at = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+        }
+    }
+
+    if ($sizeFixRows.Count -gt 0) {
+        $chunkSizeFix = 200
+        for ($i = 0; $i -lt $sizeFixRows.Count; $i += $chunkSizeFix) {
+            $end = [Math]::Min($i + $chunkSizeFix - 1, $sizeFixRows.Count - 1)
+            $chunk = $sizeFixRows[$i..$end]
+            Send-DataToSupabase -chunk $chunk -tableName "ovn_sizefix"
+        }
+        Write-Host "--- SizeFix sync complete!"
+    }
+}
+
 # Cleanup
 if (Test-Path $tempFile) { Remove-Item $tempFile }
 

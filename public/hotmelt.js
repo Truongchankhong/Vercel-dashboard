@@ -583,14 +583,23 @@ async function fetchAllPowerApp(forceRefresh = false) {
     let from = 0;
     const batchSize = 1000;
     
-    // Optimize egress by only selecting needed columns (Removed non-existent columns like Brand, PU DESCRIPTION, updated_at to fix 400 error)
+    // Optimize egress: Select only needed columns
     const selectCols = '"PRO ODER", "Brand Code", "PU", "FB DESCRIPTION", "#MOLD", "Total Qty", "Finish date", "Laminating (Pro)", "Prefitting (Pro)", "Molding Pro (IN)", "Molding Pro", "IN lean Line (Pro)", "Out lean Line (Pro)", "LAMINATION MACHINE (REALTIME)", "LAMINATION MACHINE (PLAN)", "created_at"';
 
+    // Calculate dynamic date filter (records from last 30 days) to further reduce egress
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dateStr = thirtyDaysAgo.toISOString();
+
     while (true) {
+        // --- SEVERE OPTIMIZATION: Filter on server-side instead of fetching all ---
+        // Only fetch records related to Hotmelt OR recent records
         const { data: batch, error } = await supabase
             .from('powerapp')
             .select(selectCols)
+            .or(`"LAMINATION MACHINE (REALTIME)".eq.Hotmelt,"LAMINATION MACHINE (PLAN)".eq.Hotmelt,created_at.gt.${dateStr}`)
             .range(from, from + batchSize - 1);
+
         if (error) throw error;
         if (!batch || batch.length === 0) break;
         allData = allData.concat(batch);
