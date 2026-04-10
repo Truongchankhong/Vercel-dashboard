@@ -149,65 +149,74 @@
 
         /* --- MOBILE RESPONSIVENESS --- */
         @media (max-width: 768px) {
-            body { 
+            html, body { 
                 overflow-y: auto !important; 
+                overflow-x: hidden !important;
                 height: auto !important;
-                padding: 5px;
+                position: relative !important;
             }
             .main-container {
                 height: auto !important;
-                padding: 5px !important;
+                min-height: 100vh !important;
+                padding: 10px !important;
+                padding-bottom: 80px !important;
+                display: block !important;
             }
             .premium-card {
-                padding: 10px !important;
+                padding: 12px !important;
                 height: auto !important;
-                min-height: 100vh;
-                margin-bottom: 20px;
+                min-height: auto !important;
+                margin-bottom: 30px !important;
                 overflow: visible !important;
-            }
-            #clock { display: none; }
-            #display-month { font-size: 2rem !important; }
-            .col-index { width: 40%; }
-            .col-value { width: 18%; }
-            .col-unit { display: none; }
-            .col-level { width: 27%; }
-            .col-note { width: 15%; }
-            
-            .input-premium {
-                font-size: 0.85rem !important;
-                padding: 2px 4px !important;
-                height: 34px !important; /* Slightly taller for better touch/visibility */
-                min-height: 34px !important;
-                line-height: 28px !important;
-                display: block; /* Select works better with block */
-            }
-            .metric-table td {
-                padding: 6px 2px !important;
-                font-size: 0.85rem !important;
-                line-height: 1.2;
-            }
-            .category-header {
-                font-size: 0.9rem !important;
-                padding: 8px 2px !important;
-            }
-            .bonus-input-select {
-                padding-right: 2px !important; /* Minimal padding for mobile */
-                text-align: center;
-                text-align-last: center;
+                display: block !important;
             }
             .table-container {
                 overflow: visible !important;
                 height: auto !important;
+                display: block !important;
+            }
+            .metric-table {
+                table-layout: auto !important; /* Allow columns to fit content */
+                border-spacing: 0 4px !important;
+            }
+            .col-no { width: 8% !important; }
+            .col-index { width: 42% !important; }
+            .col-value { width: 15% !important; }
+            .col-unit { display: none !important; }
+            .col-level { width: 25% !important; }
+            .col-note { width: 10% !important; }
+
+            #clock { display: none !important; }
+            #display-month { font-size: 1.8rem !important; }
+            
+            .input-premium {
+                font-size: 0.8rem !important;
+                padding: 4px 2px !important;
+                height: auto !important;
+                min-height: 36px !important;
+                line-height: normal !important;
+                display: block !important;
+                width: 100% !important;
+            }
+            .metric-table td {
+                padding: 6px 3px !important;
+                font-size: 0.8rem !important;
+                word-break: break-word !important;
+            }
+            .category-header {
+                font-size: 0.9rem !important;
+                padding: 10px 5px !important;
+            }
+            .bonus-input-select {
+                padding: 2px 2px !important;
+                text-align: center !important;
+                text-align-last: center !important;
+                background-position: right 2px center !important;
             }
             .header-row {
                 flex-direction: column !important;
                 align-items: flex-start !important;
                 gap: 12px !important;
-            }
-            .main-container {
-                height: auto !important;
-                padding: 8px !important;
-                padding-bottom: 100px !important; /* Ensure last item is fully visible above system bars */
             }
         }
 
