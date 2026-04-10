@@ -199,6 +199,12 @@
                 flex: none !important;
             }
 
+            /* ===== QUAN TRỌNG: Ẩn CẢ th VÀ td của cột đơn vị (cột thứ 4) ===== */
+            .metric-table th:nth-child(4),
+            .metric-table td:nth-child(4) {
+                display: none !important;
+            }
+
             /* Table layout tự động để tránh cắt chữ */
             .metric-table {
                 table-layout: auto !important;
@@ -224,7 +230,7 @@
 
             /* Cột Số thứ tự */
             .col-no {
-                width: 6% !important;
+                width: 5% !important;
                 font-size: 0.75rem !important;
             }
 
@@ -720,13 +726,32 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // Apply mobile scroll fix via JS as backup
-        if (window.innerWidth <= 768) {
-            document.documentElement.style.overflowY = 'scroll';
-            document.documentElement.style.height = 'auto';
-            document.body.style.overflow = 'visible';
-            document.body.style.height = 'auto';
-        }
+        // ===== MOBILE FIXES =====
+        (function() {
+            const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                // 1. Force scroll on html and body
+                document.documentElement.style.setProperty('overflow-y', 'scroll', 'important');
+                document.documentElement.style.setProperty('height', 'auto', 'important');
+                document.body.style.setProperty('overflow', 'visible', 'important');
+                document.body.style.setProperty('height', 'auto', 'important');
+                document.body.style.setProperty('min-height', '100vh', 'important');
+
+                // 2. Shorten select option labels to prevent text clipping
+                const labelMap = {
+                    'Level 1': 'Lv. 1',
+                    'Level 2': 'Lv. 2',
+                    'Level 3': 'Lv. 3',
+                    'Không Đạt': 'Kh.Đạt',
+                    'Đang Rớt': 'Đang Rớt'
+                };
+                document.querySelectorAll('.bonus-input-select option').forEach(opt => {
+                    const short = labelMap[opt.value];
+                    if (short) opt.textContent = short;
+                });
+            }
+        })();
     </script>
 </body>
 </html>
