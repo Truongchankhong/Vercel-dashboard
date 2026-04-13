@@ -420,7 +420,7 @@ async function fetchDetails(rawRpro) {
             if (activeSection === 'Cắt') stagesToSearch.push('Dán');
             if (activeSection === 'Molding') stagesToSearch.push('Cắt', 'Dán');
             if (activeSection === 'DC') stagesToSearch.push('Molding', 'Cắt', 'Dán');
-            if (activeSection === 'Molded') stagesToSearch.push('DC', 'Molding', 'Cắt', 'Dán');
+            if (activeSection === 'Molded') stagesToSearch.push('Molding', 'Cắt', 'Dán');
 
             let qtyFromPrev = null;
             let foundInStage = null;
@@ -586,7 +586,7 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
         if (activeSection === 'Cắt') stagesToSearch.push('Dán');
         if (activeSection === 'Molding') stagesToSearch.push('Cắt', 'Dán');
         if (activeSection === 'DC') stagesToSearch.push('Molding', 'Cắt', 'Dán');
-        if (activeSection === 'Molded') stagesToSearch.push('DC', 'Molding', 'Cắt', 'Dán');
+        if (activeSection === 'Molded') stagesToSearch.push('Molding', 'Cắt', 'Dán');
 
         if (stagesToSearch.length > 0) {
             console.log(`🛡️ Flow Guard: Checking if any stage ${stagesToSearch.join('/')} has Scan OUT for ${rpro}...`);
