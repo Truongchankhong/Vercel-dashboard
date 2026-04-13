@@ -414,38 +414,67 @@ async function fetchDetails(rawRpro) {
             // Hide PU info for non-Dán sections
             if (puInfoContainer) puInfoContainer.classList.add('hidden');
 
-            const prevSection = getPreviousSection(activeSection);
-            if (prevSection) {
-                console.log(`🔍 Seeking OUT record from ${prevSection} as default for ${activeSection}...`);
-                const { data: prevOut, error: prevErr } = await supabase
+            // NEW: Cascading fallback for quantity (Look through all possible previous sections)
+            // Sequence: Dán -> Cắt -> Molding -> DC -> Molded
+            const stagesToSearch = [];
+            if (activeSection === 'Cắt') stagesToSearch.push('Dán');
+            if (activeSection === 'Molding') stagesToSearch.push('Cắt', 'Dán');
+            if (activeSection === 'DC') stagesToSearch.push('Molding', 'Cắt', 'Dán');
+            if (activeSection === 'Molded') stagesToSearch.push('DC', 'Molding', 'Cắt', 'Dán');
+
+            let qtyFromPrev = null;
+            let foundInStage = null;
+
+            // 1. Try to find the latest OUT record from any previous stage
+            for (const stage of stagesToSearch) {
+                console.log(`🔍 Seeking OUT record from ${stage} as default for ${activeSection}...`);
+                const { data: prevOut } = await supabase
                     .from('supplement_tracking')
                     .select('quantity')
                     .eq('rpro', rpro)
-                    .eq('section', prevSection)
+                    .eq('section', stage)
                     .eq('action', 'OUT')
                     .order('created_at', { ascending: false })
                     .limit(1);
 
-                if (!prevErr && prevOut && prevOut.length > 0) {
-                    defaultQty = prevOut[0].quantity;
-                    console.log(`✅ ${activeSection}: Mặc định lấy SL Scan OUT của ${prevSection}: ${defaultQty}`);
-                    foundAnyData = true;
-                } else {
-                    console.warn(`⚠️ Không tìm thấy bản ghi Scan OUT của ${prevSection} cho ${rpro}`);
-                    const { data: lastAny } = await supabase
-                        .from('supplement_tracking')
-                        .select('quantity')
-                        .eq('rpro', rpro)
-                        .order('created_at', { ascending: false })
-                        .limit(1);
-                    if (lastAny && lastAny.length > 0) {
-                        defaultQty = lastAny[0].quantity;
-                        foundAnyData = true;
+                if (prevOut && prevOut.length > 0 && prevOut[0].quantity > 0) {
+                    // Critical Fix: If we find a quantity > 1, we definitely take it.
+                    // If we find 1, we keep looking just in case there's a better one in an earlier stage (optional, but safer)
+                    if (prevOut[0].quantity > 1) {
+                        qtyFromPrev = prevOut[0].quantity;
+                        foundInStage = stage;
+                        console.log(`✅ ${activeSection}: Found quantity ${qtyFromPrev} from ${stage}`);
+                        break;
+                    } else if (qtyFromPrev === null) {
+                        qtyFromPrev = prevOut[0].quantity;
+                        foundInStage = stage;
                     }
                 }
             }
 
+            if (qtyFromPrev !== null) {
+                defaultQty = qtyFromPrev;
+                foundAnyData = true;
+                console.log(`✅ ${activeSection}: Mặc định lấy SL Scan OUT của ${foundInStage}: ${defaultQty}`);
+            } else {
+                console.warn(`⚠️ Không tìm thấy bản ghi Scan OUT ở bất kỳ công đoạn trước nào cho ${rpro}`);
+                // Fallback to absolute last scan of any action across ALL sections
+                const { data: lastAny } = await supabase
+                    .from('supplement_tracking')
+                    .select('quantity, section')
+                    .eq('rpro', rpro)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (lastAny && lastAny.length > 0 && lastAny[0].quantity > 0) {
+                    defaultQty = lastAny[0].quantity;
+                    foundAnyData = true;
+                    console.log(`✅ Fallback to last absolute scan (${lastAny[0].section}) quantity: ${defaultQty}`);
+                }
+            }
+
             // FINAL FALLBACK: If still 1 or no data found above, try supplement_confirm
+            // We only do this if we haven't found a strong quantity (>1) yet
             if (defaultQty <= 1) {
                 const { data: confirmData } = await supabase
                     .from('supplement_confirm')
@@ -456,9 +485,12 @@ async function fetchDetails(rawRpro) {
 
                 if (confirmData && confirmData.length > 0) {
                     const rec = confirmData[0];
-                    defaultQty = (rec.available_supplement !== null) ? rec.available_supplement : rec.total;
-                    foundAnyData = true;
-                    console.log(`📦 Fallback to supplement_confirm total: ${defaultQty}`);
+                    const confirmQty = (rec.available_supplement !== null) ? rec.available_supplement : rec.total;
+                    if (confirmQty > 0) {
+                        defaultQty = confirmQty;
+                        foundAnyData = true;
+                        console.log(`📦 Fallback to supplement_confirm total: ${defaultQty}`);
+                    }
                 }
             }
         } else {
@@ -549,34 +581,36 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
 
         console.log("📄 Last Record found:", lastRecord);
 
-        // 2. NEW: Validation Stage Sequence (Strict flow check)
-        const prevSection = getPreviousSection(activeSection);
-        if (prevSection) {
-            console.log(`🛡️ Flow Guard: Checking if ${prevSection} has Scan OUT for ${rpro}...`);
-            const { data: prevOut, error: prevErr } = await supabase
+        // 2. NEW: Validation Stage Sequence (Cascading flow check)
+        const stagesToSearch = [];
+        if (activeSection === 'Cắt') stagesToSearch.push('Dán');
+        if (activeSection === 'Molding') stagesToSearch.push('Cắt', 'Dán');
+        if (activeSection === 'DC') stagesToSearch.push('Molding', 'Cắt', 'Dán');
+        if (activeSection === 'Molded') stagesToSearch.push('DC', 'Molding', 'Cắt', 'Dán');
+
+        if (stagesToSearch.length > 0) {
+            console.log(`🛡️ Flow Guard: Checking if any stage ${stagesToSearch.join('/')} has Scan OUT for ${rpro}...`);
+            const { data: anyPrevOut, error: prevErr } = await supabase
                 .from('supplement_tracking')
-                .select('id')
+                .select('section')
                 .eq('rpro', rpro)
-                .eq('section', prevSection)
+                .in('section', stagesToSearch)
                 .eq('action', 'OUT')
                 .limit(1);
 
             if (prevErr) throw prevErr;
 
-            if (!prevOut || prevOut.length === 0) {
-                const errorMsg = `❌ Lỗi: Phải Scan OUT công đoạn ${prevSection} trước!`;
+            if (!anyPrevOut || anyPrevOut.length === 0) {
+                const errorMsg = `❌ Lỗi: Phải Scan OUT ít nhất một công đoạn trước (${stagesToSearch.join(', ')})!`;
                 showFeedback(errorMsg, "text-red-700 bg-red-50 p-3 rounded-xl border-2 border-red-200 animate-pulse");
                 showToast(errorMsg, "error");
                 playAudioFeedback(false);
-                addScanHistoryEntry(rpro, 1, "MISSING_PREV", false, `Thiếu Scan Out ${prevSection}`);
+                addScanHistoryEntry(rpro, 1, "MISSING_PREV", false, `Thiếu Scan Out các trạm trước`);
                 if (!isInBatch) isProcessing = false;
                 return;
             }
-            console.log(`✅ Flow Guard passed: ${prevSection} Scan OUT found.`);
+            console.log(`✅ Flow Guard passed: Found Scan OUT for ${anyPrevOut[0].section}.`);
         }
-
-        // 2. Validate IN/OUT logic (Existing logic kept same)
-        // ... (Logic skipping for brevity as it remains same, proceed to Insert)
 
         const quantity = parseInt(inputQty.value) || 1;
         if (quantity < 1) {
