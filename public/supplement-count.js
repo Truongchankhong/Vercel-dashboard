@@ -492,17 +492,6 @@ function playAudioFeedback(success) {
 
 window.addEventListener('DOMContentLoaded', () => {
     if (manualRproInput) {
-        manualRproInput.setAttribute('inputmode', 'none');
-        
-        if (btnToggleKbd) {
-            btnToggleKbd.addEventListener('click', () => {
-                const mode = manualRproInput.getAttribute('inputmode');
-                manualRproInput.setAttribute('inputmode', mode === 'none' ? 'text' : 'none');
-                btnToggleKbd.classList.toggle('text-blue-600', mode === 'none');
-                manualRproInput.focus();
-            });
-        }
-
         manualRproInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -511,19 +500,32 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    setInterval(() => {
-        if (!cameraActive && activeSection && activeAction) {
-            if (document.activeElement !== manualRproInput) manualRproInput.focus();
-            updateScannerStatusUI();
-        }
-    }, 400);
-
     sectionBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             sectionBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             activeSection = btn.dataset.section;
             activeSectionLabel.innerText = btn.innerText;
+
+            if (puInfoContainer) puInfoContainer.classList.add('hidden');
+            if (manualNoteInput) manualNoteInput.value = "";
+
+            if (activeSection === 'Dán' || activeSection === 'Cắt') {
+                activeAction = 'OUT';
+                activeActionLabel.innerText = '⬆️ XUẤT ĐI (OUT)';
+                actionContainer.classList.add('hidden');
+                actionBtns.forEach(b => b.classList.remove('active'));
+                scannerContainer.classList.remove('hidden');
+                setTimeout(() => { if (manualRproInput) manualRproInput.focus(); }, 100);
+            } else {
+                actionContainer.classList.remove('hidden');
+                activeAction = null;
+                actionBtns.forEach(b => b.classList.remove('active'));
+                scannerContainer.classList.add('hidden');
+            }
+
+            const rpro = manualRproInput ? manualRproInput.value.trim() : "";
+            if (rpro) fetchDetails(rpro);
         });
     });
 
@@ -533,20 +535,30 @@ window.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             activeAction = btn.dataset.action;
             activeActionLabel.innerText = btn.innerText;
+            scannerContainer.classList.remove('hidden');
+
+            if (activeSection === 'Dán' && puSheetsEdit && puSheetsDisplay) {
+                puSheetsEdit.classList.remove('hidden');
+                puSheetsDisplay.classList.add('hidden');
+            }
+
+            // Auto-focus on manual input so scanner works immediately
+            setTimeout(() => { if (manualRproInput) manualRproInput.focus(); }, 100);
+        });
     });
 
-    // Handle clicking on the status box explicitly
-    if (handheldStatusBox) {
-        handheldStatusBox.addEventListener('click', (e) => {
-            if (scannerInputOverlay) {
-                scannerInputOverlay.focus();
-                updateScannerStatusUI();
-                showToast("🎯 Đã kích hoạt máy quét!", "success");
-            }
-        });
+    const params = new URLSearchParams(window.location.search);
+    const rproParam = params.get('rpro');
+    if (rproParam) {
+        manualRproInput.value = rproParam;
+        showFeedback(`📍 Đã load đơn: ${rproParam}. Chọn Công đoạn & Hành động.`, "text-blue-600 font-bold bg-blue-50 p-2 rounded-lg border border-blue-200");
+
+        sectionBtns.forEach(btn => btn.classList.add('animate-pulse', 'border-2', 'border-blue-400'));
+        setTimeout(() => {
+            sectionBtns.forEach(btn => btn.classList.remove('animate-pulse', 'border-2', 'border-blue-400'));
+        }, 8000);
     }
 
-    // 5. Initialize components
     initAutoSave();
     updateStatsUI();
 });
