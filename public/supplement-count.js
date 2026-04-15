@@ -497,6 +497,152 @@ function playAudioFeedback(success) {
     } catch (e) {}
 }
 
+// ==================== UI HELPERS ====================
+function showFeedback(msg, className) {
+    if (!scanFeedback) return;
+    scanFeedback.innerText = msg;
+    scanFeedback.className = `mt-3 text-center min-h-[50px] font-bold text-lg ${className}`;
+}
+
+// ==================== AUTO SAVE ====================
+function initAutoSave() {
+    if (autoSaveCheckbox) {
+        const savedState = localStorage.getItem("supplement-count-auto-save");
+        autoSaveCheckbox.checked = (savedState === "true");
+        autoSaveCheckbox.addEventListener("change", (e) => {
+            localStorage.setItem("supplement-count-auto-save", e.target.checked);
+        });
+    }
+}
+
+// ==================== BATCH IMPORT LOGIC ====================
+async function handleBatchImport() {
+    if (!activeSection || !activeAction) {
+        showToast("⚠️ Vui lòng chọn bộ phận và hành động trước!", "error");
+        return;
+    }
+
+    const text = batchRproTextarea.value.trim();
+    if (!text) {
+        showToast("⚠️ Vui lòng dán danh sách mã RPRO!", "error");
+        return;
+    }
+
+    const rproMatches = text.match(/RPRO-?[\d-]+/gi) || [];
+    if (rproMatches.length === 0) {
+        showToast("❌ Không tìm thấy mã RPRO hợp lệ nào!", "error");
+        return;
+    }
+
+    if (scanHistoryList) scanHistoryList.innerHTML = '';
+    scanCountTotalVal = 0;
+    scanCountErrorVal = 0;
+    updateStatsUI();
+    pendingBatchScans = [];
+    btnSaveAllBatch.classList.add('hidden');
+    scanHistoryContainer.classList.remove('hidden');
+
+    showFeedback(`⏳ Đang xử lý ${rproMatches.length} mã...`, "text-blue-600");
+    showToast(`🔄 Đang phân tích ${rproMatches.length} đơn hàng...`, "success");
+
+    for (const rawCode of rproMatches) {
+        const code = normalizeRPRO(rawCode);
+        const status = await fetchDetails(code);
+
+        const item = {
+            rpro: code,
+            quantity: parseInt(inputQty.value) || 1,
+            note: manualNoteInput ? manualNoteInput.value.trim() : '',
+            pu_sheets: (activeSection === 'Dán' && inputPuSheets) ? parseInt(inputPuSheets.value) : null,
+            status: status,
+        };
+
+        pendingBatchScans.push(item);
+        addBatchScanHistoryEntry(item);
+        await new Promise(r => setTimeout(r, 50));
+    }
+
+    if (pendingBatchScans.length > 0) {
+        showFeedback(`✅ Đã phân tích xong ${pendingBatchScans.length} mã. Vui lòng kiểm tra và lưu.`, "text-green-600");
+        btnSaveAllBatch.classList.remove('hidden');
+        btnSaveAllBatch.innerText = `LƯU TẤT CẢ (${pendingBatchScans.length})`;
+    } else {
+        showFeedback("❌ Không có mã hợp lệ để xử lý.", "text-red-500");
+    }
+}
+
+function addBatchScanHistoryEntry(item) {
+    if (!scanHistoryList) return;
+    const entry = document.createElement('div');
+    const isSuccess = item.status === 'found';
+    entry.className = `flex justify-between items-center gap-2 p-1.5 rounded border ${isSuccess ? 'bg-blue-900/20 border-blue-800/50 text-blue-300' : 'bg-amber-900/20 border-amber-800/50 text-amber-300'}`;
+    const actionSymbol = activeAction === 'IN' ? '⬇️' : '⬆️';
+    entry.innerHTML = `
+        <div class="flex flex-col flex-1 min-w-0">
+            <div class="flex items-center gap-1.5">
+                <span class="text-[9px] opacity-60 shrink-0">CHỜ LƯU</span>
+                <span class="font-bold truncate text-sm leading-none">${item.rpro}</span>
+            </div>
+            <div class="flex items-center gap-2 text-[10px] mt-0.5 opacity-80">
+                <span>${actionSymbol} ${activeSection}</span>
+                <span class="bg-gray-800 px-1 rounded">SL: ${item.quantity}</span>
+                ${!isSuccess ? `<span class="italic text-orange-300 font-bold">⚠️ Ko có data</span>` : `<span class="text-green-400 font-bold">OK</span>`}
+            </div>
+        </div>
+    `;
+    scanHistoryList.prepend(entry);
+    scanCountTotalVal++;
+    updateStatsUI();
+}
+
+async function saveBatchScans() {
+    if (pendingBatchScans.length === 0) return;
+    if (!confirm(`Bạn có chắc chắn muốn lưu ${pendingBatchScans.length} đơn hàng này vào hệ thống?`)) return;
+
+    btnSaveAllBatch.disabled = true;
+    btnSaveAllBatch.innerText = "ĐANG LƯU...";
+    showFeedback("⏳ Đang lưu dữ liệu vào hệ thống...", "text-blue-600");
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const item of pendingBatchScans) {
+        try {
+            const insertRecord = {
+                rpro: item.rpro,
+                section: activeSection,
+                action: activeAction,
+                operator: 'User',
+                quantity: item.quantity,
+                note: item.note,
+                scan_date: new Date().toISOString().split('T')[0]
+            };
+            if (item.pu_sheets) insertRecord.pu_sheets = item.pu_sheets;
+
+            const { error } = await supabase.from('supplement_tracking').insert([insertRecord]);
+            if (error) throw error;
+            successCount++;
+        } catch (err) {
+            console.error(`Error saving ${item.rpro}:`, err);
+            failCount++;
+        }
+    }
+
+    showToast(`✅ Đã lưu ${successCount} đơn thành công!${failCount > 0 ? ` ❌ Lỗi: ${failCount}` : ''}`, successCount > 0 ? "success" : "error");
+    showFeedback(`✅ Hoàn tất: Lưu ${successCount} đơn thành công.`, "text-green-600");
+
+    pendingBatchScans = [];
+    btnSaveAllBatch.classList.add('hidden');
+    btnSaveAllBatch.disabled = false;
+    batchRproTextarea.value = '';
+
+    if (importListCheckbox) {
+        importListCheckbox.checked = false;
+        batchInputContainer.classList.add('hidden');
+    }
+    if (manualNoteInput) manualNoteInput.value = '';
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     if (manualRproInput) {
         manualRproInput.addEventListener('keydown', (e) => {
