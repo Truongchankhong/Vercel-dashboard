@@ -157,7 +157,7 @@ async function fetchProgressData() {
         updateLoading(35, 'Đang tổng hợp danh sách đơn hàng...');
         // Reset and rebuild
         progressMap = {};
-        data.forEach(updateLocalState);
+        data.forEach(record => updateLocalState(record));
         const rproList = Object.keys(progressMap);
         if (rproList.length > 0) {
             updateLoading(50, `Đang tải chi tiết cho ${rproList.length} đơn hàng...`);
