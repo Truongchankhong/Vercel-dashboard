@@ -280,21 +280,22 @@ async function fetchDetails(rawRpro) {
 
             let qtyFromPrev = null;
             for (const stage of stagesToSearch) {
-                const { data: prevOut } = await supabase
+                const { data: prevData } = await supabase
                     .from('supplement_tracking')
                     .select('quantity')
                     .eq('rpro', rpro)
                     .eq('section', stage)
-                    .eq('action', 'OUT')
-                    .order('created_at', { ascending: false })
-                    .limit(1);
+                    .order('created_at', { ascending: false });
 
-                if (prevOut && prevOut.length > 0 && prevOut[0].quantity > 0) {
-                    if (prevOut[0].quantity > 1) {
-                        qtyFromPrev = prevOut[0].quantity;
+                if (prevData && prevData.length > 0) {
+                    // Tìm xem trong công đoạn này (cả IN và OUT), có bản ghi nào số lượng > 1 không
+                    const largerQtyRecord = prevData.find(r => r.quantity > 1);
+                    if (largerQtyRecord) {
+                        qtyFromPrev = largerQtyRecord.quantity;
                         break;
                     } else if (qtyFromPrev === null) {
-                        qtyFromPrev = prevOut[0].quantity;
+                        // Nếu tất cả đều là 1 (hoặc <= 1), lấy tạm 1 làm mốc, nhưng chưa break để tìm tiếp ở công đoạn trước
+                        qtyFromPrev = prevData[0].quantity;
                     }
                 }
             }
