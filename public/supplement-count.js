@@ -44,6 +44,9 @@ const batchRproTextarea = document.getElementById('batch-rpro-textarea');
 const btnProcessBatch = document.getElementById('btn-process-batch');
 const btnSaveAllBatch = document.getElementById('btn-save-all-batch');
 const hbkdListCheckbox = document.getElementById('hbkd-list-checkbox');
+const handheldStatusBox = document.getElementById('handheld-status-box');
+const handheldDot = document.getElementById('handheld-dot');
+const handheldStatusText = document.getElementById('handheld-status-text');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -176,29 +179,32 @@ async function onCameraScanSuccess(decodedText) {
 // Global keydown listener for handheld scanner
 document.addEventListener('keydown', (e) => {
     // Ignore if user is typing in an actual input field or textarea (except our hidden overlay)
-    const isEditing = (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
-    const isOverlay = document.activeElement.id === 'scanner-input-overlay';
+    const activeElem = document.activeElement;
+    if (!activeElem) return;
 
+    const isEditing = (activeElem.tagName === 'INPUT' || activeElem.tagName === 'TEXTAREA');
+    const isOverlay = activeElem.id === 'scanner-input-overlay';
+
+    // If focused on a manual input, let standard character input flow
     if (isEditing && !isOverlay) {
         return;
     }
 
-    // Prevent default browser shortcuts
-    if (e.key.length === 1 || e.key === 'Enter') {
-        e.preventDefault();
-    }
+    // Capture characters even if no input is focused (e.g. click on background)
+    // Most scanners simulate keyboard events.
 
     // Clear timeout on each keypress
     clearTimeout(scanTimeout);
 
     if (e.key === 'Enter') {
         // Process the buffer
-        if (scanBuffer.length > 0) {
-            const scannedText = scanBuffer.trim();
+        const scannedText = scanBuffer.trim();
+        if (scannedText) {
+            e.preventDefault();
             scanBuffer = '';
             console.log("🔫 Handheld scan raw:", scannedText);
 
-            // Tự động tách mã nếu bị dính nhau (RPRO-1RPRO-2...)
+            // Auto-split RPRO if joined
             const rproMatches = scannedText.match(/RPRO-[\d-]+/g);
 
             if (rproMatches && rproMatches.length > 1) {
@@ -206,8 +212,6 @@ document.addEventListener('keydown', (e) => {
                 showMultiRproConfirmation(rproMatches, "HANDHELD", note);
             } else {
                 const code = (rproMatches && rproMatches.length === 1) ? rproMatches[0] : scannedText;
-
-                // NEW: Push to queue instead of processing directly
                 if (code) {
                     console.log(`📥 Added to queue: ${code}`);
                     scanQueue.push({ code, mode: "HANDHELD" });
@@ -216,10 +220,16 @@ document.addEventListener('keydown', (e) => {
             }
         }
     } else if (e.key.length === 1) {
-        // Append character to buffer
+        // Capture character to buffer
         scanBuffer += e.key;
+        
+        // Optional: If we are focused on the overlay, let it also receive the key
+        // But prevent default if focused on BODY/BUTTON to avoid page scrolling or unwanted clicks
+        if (!isOverlay && !isEditing) {
+            // e.preventDefault();
+        }
 
-        // Auto-reset buffer after 150ms of inactivity (tăng nhẹ thời gian cho máy quét chậm)
+        // Auto-reset buffer after 150ms of inactivity
         scanTimeout = setTimeout(() => {
             scanBuffer = '';
         }, 150);
@@ -1146,7 +1156,28 @@ window.addEventListener('DOMContentLoaded', () => {
         }, 8000);
     }
 
-    // 4. Initialize components
+    // 4. Magnetic Focus: Click any non-input area to refocus the scanner
+    document.addEventListener('mousedown', (e) => {
+        // Only trigger if we have section and action selected
+        if (!activeSection || !activeAction) return;
+
+        const tag = e.target.tagName;
+        const isInput = (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || e.target.closest('button'));
+
+        if (!isInput) {
+            // Small delay to let selection happen
+            setTimeout(() => {
+                const isStillNotEditing = !(document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+                if (isStillNotEditing && scannerInputOverlay) {
+                    console.log("🧲 Magnetic focus to scanner");
+                    scannerInputOverlay.focus();
+                    updateScannerStatusUI();
+                }
+            }, 10);
+        }
+    });
+
+    // 5. Initialize components
     initAutoSave();
     updateStatsUI();
 });
@@ -1242,15 +1273,48 @@ if (btnDecSheets && inputPuSheets) {
 // Keep focus on hidden input for handheld scanner
 setInterval(() => {
     // Only auto-focus if Camera is OFF (to prevent mobile keyboard pop-up)
-    if (!cameraActive && activeSection && activeAction &&
-        document.activeElement !== scannerInputOverlay &&
-        document.activeElement !== manualRproInput &&
-        document.activeElement !== inputQty &&
-        document.activeElement !== manualNoteInput &&
-        document.activeElement !== batchRproTextarea) {
-        scannerInputOverlay.focus();
+    if (!cameraActive && activeSection && activeAction) {
+        const activeElem = document.activeElement;
+        const isForbidden = (
+            activeElem === manualRproInput ||
+            activeElem === inputQty ||
+            activeElem === manualNoteInput ||
+            activeElem === batchRproTextarea ||
+            activeElem === inputPuSheets
+        );
+
+        if (!isForbidden && activeElem !== scannerInputOverlay) {
+            scannerInputOverlay.focus();
+        }
+        updateScannerStatusUI();
     }
-}, 500);
+}, 300);
+
+function updateScannerStatusUI() {
+    if (!handheldStatusBox || !handheldDot || !handheldStatusText) return;
+
+    if (!activeSection || !activeAction) {
+        handheldDot.className = "w-3 h-3 rounded-full bg-gray-400";
+        handheldStatusText.innerText = "Chọn Section/Action...";
+        handheldStatusBox.className = "p-4 scanner-status-inactive border rounded-lg mb-4 transition-all duration-300";
+        return;
+    }
+
+    const isFocused = (document.activeElement === scannerInputOverlay);
+
+    if (isFocused) {
+        handheldDot.className = "w-3 h-3 rounded-full bg-green-500 animate-pulse";
+        handheldStatusText.innerText = "Sẵn sàng quét!";
+        handheldStatusText.className = "text-green-600 font-bold";
+        handheldStatusBox.className = "p-4 scanner-status-active border rounded-lg mb-4 transition-all duration-300 bg-green-50 border-green-200";
+    } else {
+        const isEditing = (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+        handheldDot.className = "w-3 h-3 rounded-full bg-amber-500";
+        handheldStatusText.innerText = isEditing ? "Đang nhập tay..." : "Đang chờ focus...";
+        handheldStatusText.className = "text-amber-600";
+        handheldStatusBox.className = "p-4 bg-amber-50 border border-amber-200 rounded-lg mb-4 transition-all duration-300";
+    }
+}
 
 function updateStatsUI() {
     if (scanCountTotalElem) scanCountTotalElem.textContent = scanCountTotalVal;
