@@ -158,110 +158,10 @@ async function fetchProgressData() {
         // Reset and rebuild
         progressMap = {};
         data.forEach(updateLocalState);
-
-        // BULK FETCH FINISH DATES, MOLD AND CONFIRMATION
         const rproList = Object.keys(progressMap);
         if (rproList.length > 0) {
-            // Find which RPROs actually need fetching
-            const missingInfoRpros = rproList.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].so);
-            const missingQtyRpros = rproList.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].qty_sup);
-            
-            if (missingInfoRpros.length > 0 || missingQtyRpros.length > 0) {
-                updateLoading(50, `Đang tải chi tiết cho ${missingInfoRpros.length + missingQtyRpros.length} đơn hàng mới...`);
-            }
-
-            // 1. Fetch missing PowerApp Details
-            if (missingInfoRpros.length > 0) {
-                const { data: orderDetails } = await supabase
-                    .from('powerapp')
-                    .select('"PRO ODER", "Finish date", "SO", "Brand Code", "CUSTOMERS", "Total Qty", "#MOLD"')
-                    .in('"PRO ODER"', missingInfoRpros);
-
-                if (orderDetails) {
-                    orderDetails.forEach(item => {
-                        const code = item['PRO ODER'];
-                        if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
-                        Object.assign(orderDetailsCache[code], {
-                            finish_date: item['Finish date'],
-                            so: item['SO'],
-                            brand: item['Brand Code'],
-                            customer: item['CUSTOMERS'],
-                            total_qty: item['Total Qty'],
-                            mold: item['#MOLD']
-                        });
-                    });
-                }
-
-                // Fallback for Masterdata
-                const stillMissingInfo = missingInfoRpros.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].so);
-                if (stillMissingInfo.length > 0) {
-                    const { data: masterDetails } = await supabase
-                        .from('Masterdata')
-                        .select('"PRO ODER", "Finish date", "SO", "Brand Code", "CUSTOMERS", "Total Qty", "#MOLD"')
-                        .in('"PRO ODER"', stillMissingInfo);
-
-                    if (masterDetails) {
-                        masterDetails.forEach(item => {
-                            const code = item['PRO ODER'];
-                            if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
-                            Object.assign(orderDetailsCache[code], {
-                                finish_date: item['Finish date'],
-                                so: item['SO'],
-                                brand: item['Brand Code'],
-                                customer: item['CUSTOMERS'],
-                                total_qty: item['Total Qty'],
-                                mold: item['#MOLD']
-                            });
-                        });
-                    }
-                }
-            }
-
-            // 2. Fetch missing Confirmation Details
-            if (missingQtyRpros.length > 0) {
-                const { data: confirmDetails } = await supabase
-                    .from('supplement_confirm')
-                    .select('rpro, total, available_supplement, confirm, updated_at')
-                    .in('rpro', missingQtyRpros);
-
-                if (confirmDetails) {
-                    confirmDetails.forEach(item => {
-                        const code = item.rpro;
-                        if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
-                        Object.assign(orderDetailsCache[code], {
-                            qty_sup: (item.available_supplement !== null) ? item.available_supplement : item.total,
-                            confirm_date: item.updated_at,
-                            confirm_status: item.confirm
-                        });
-                    });
-                }
-
-                // Fallback for Supplement table
-                const stillMissingQty = missingQtyRpros.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].qty_sup);
-                if (stillMissingQty.length > 0) {
-                    const { data: supplementDetails } = await supabase
-                        .from('supplement')
-                        .select('rpro, total')
-                        .in('rpro', stillMissingQty);
-
-                    if (supplementDetails) {
-                        supplementDetails.forEach(item => {
-                            const code = item.rpro;
-                            if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
-                            if (!orderDetailsCache[code].qty_sup) {
-                                orderDetailsCache[code].qty_sup = item.total;
-                            }
-                        });
-                    }
-                }
-            }
-
-            // 3. Apply Cache to ProgressMap
-            rproList.forEach(code => {
-                if (progressMap[code] && orderDetailsCache[code]) {
-                    Object.assign(progressMap[code], orderDetailsCache[code]);
-                }
-            });
+            updateLoading(50, `Đang tải chi tiết cho ${rproList.length} đơn hàng...`);
+            await enrichProgressMapMetadata(progressMap, rproList);
         }
 
         updateLoading(95, 'Đang chuẩn bị hiển thị...');
@@ -283,12 +183,126 @@ async function fetchProgressData() {
     }
 }
 
+async function enrichProgressMapMetadata(targetMap, rproList) {
+    if (!rproList || rproList.length === 0) return;
+
+    // Find which RPROs actually need fetching (not in cache or incomplete)
+    const missingInfoRpros = rproList.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].so);
+    const missingQtyRpros = rproList.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].qty_sup);
+
+    // 1. Fetch missing PowerApp Details
+    if (missingInfoRpros.length > 0) {
+        // Chunk requests of 100 to avoid URL length issues
+        for (let i = 0; i < missingInfoRpros.length; i += 100) {
+            const chunk = missingInfoRpros.slice(i, i + 100);
+            const { data: orderDetails } = await supabase
+                .from('powerapp')
+                .select('"PRO ODER", "Finish date", "SO", "Brand Code", "CUSTOMERS", "Total Qty", "#MOLD"')
+                .in('"PRO ODER"', chunk);
+
+            if (orderDetails) {
+                orderDetails.forEach(item => {
+                    const code = item['PRO ODER'];
+                    if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
+                    Object.assign(orderDetailsCache[code], {
+                        finish_date: item['Finish date'],
+                        so: item['SO'],
+                        brand: item['Brand Code'],
+                        customer: item['CUSTOMERS'],
+                        total_qty: item['Total Qty'],
+                        mold: item['#MOLD']
+                    });
+                });
+            }
+        }
+
+        // Fallback for Masterdata
+        const stillMissingInfo = missingInfoRpros.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].so);
+        if (stillMissingInfo.length > 0) {
+            for (let i = 0; i < stillMissingInfo.length; i += 100) {
+                const chunk = stillMissingInfo.slice(i, i + 100);
+                const { data: masterDetails } = await supabase
+                    .from('Masterdata')
+                    .select('"PRO ODER", "Finish date", "SO", "Brand Code", "CUSTOMERS", "Total Qty", "#MOLD"')
+                    .in('"PRO ODER"', chunk);
+
+                if (masterDetails) {
+                    masterDetails.forEach(item => {
+                        const code = item['PRO ODER'];
+                        if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
+                        Object.assign(orderDetailsCache[code], {
+                            finish_date: item['Finish date'],
+                            so: item['SO'],
+                            brand: item['Brand Code'],
+                            customer: item['CUSTOMERS'],
+                            total_qty: item['Total Qty'],
+                            mold: item['#MOLD']
+                        });
+                    });
+                }
+            }
+        }
+    }
+
+    // 2. Fetch missing Confirmation Details
+    if (missingQtyRpros.length > 0) {
+        for (let i = 0; i < missingQtyRpros.length; i += 100) {
+            const chunk = missingQtyRpros.slice(i, i + 100);
+            const { data: confirmDetails } = await supabase
+                .from('supplement_confirm')
+                .select('rpro, total, available_supplement, confirm, updated_at')
+                .in('rpro', chunk);
+
+            if (confirmDetails) {
+                confirmDetails.forEach(item => {
+                    const code = item.rpro;
+                    if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
+                    Object.assign(orderDetailsCache[code], {
+                        qty_sup: (item.available_supplement !== null) ? item.available_supplement : item.total,
+                        confirm_date: item.updated_at,
+                        confirm_status: item.confirm
+                    });
+                });
+            }
+        }
+
+        // Fallback for Supplement table
+        const stillMissingQty = missingQtyRpros.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].qty_sup);
+        if (stillMissingQty.length > 0) {
+            for (let i = 0; i < stillMissingQty.length; i += 100) {
+                const chunk = stillMissingQty.slice(i, i + 100);
+                const { data: supplementDetails } = await supabase
+                    .from('supplement')
+                    .select('rpro, total')
+                    .in('rpro', chunk);
+
+                if (supplementDetails) {
+                    supplementDetails.forEach(item => {
+                        const code = item.rpro;
+                        if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
+                        if (!orderDetailsCache[code].qty_sup) {
+                            orderDetailsCache[code].qty_sup = item.total;
+                        }
+                    });
+                }
+            }
+        }
+    }
+
+    // 3. Apply Cache to map
+    rproList.forEach(code => {
+        if (targetMap[code] && orderDetailsCache[code]) {
+            Object.assign(targetMap[code], orderDetailsCache[code]);
+        }
+    });
+}
+
 // ==================== UPDATE LOCAL STATE ====================
-function updateLocalState(record) {
+function updateLocalState(record, targetMap = progressMap) {
     const rpro = record.rpro;
 
-    if (!progressMap[rpro]) {
-        progressMap[rpro] = {
+    if (!targetMap[rpro]) {
+        targetMap[rpro] = {
             rpro: rpro,
             last_updated: record.created_at,
             finish_date: null, // Init
@@ -302,7 +316,7 @@ function updateLocalState(record) {
         };
     }
 
-    const item = progressMap[rpro];
+    const item = targetMap[rpro];
     const stage = item.stages[record.section];
 
     if (stage) {
@@ -877,24 +891,80 @@ btnSaveNote.addEventListener('click', async () => {
 });
 
 // ==================== EXPORT LOGIC ====================
-window.exportToExcel = () => {
-    const searchTerm = searchInput.value.trim().toUpperCase();
-    const finishDateFilterVal = finishDateFilterInput ? finishDateFilterInput.value : '';
+// ==================== EXPORT LOGIC (NO LIMIT) ====================
+window.exportToExcel = async () => {
+    const fromDateTime = dateStartInput.value;
+    const toDateTime = dateEndInput.value;
 
-    const filtered = progressData.filter(item => {
-        const codeMatch = item.rpro.includes(searchTerm);
-        if (!finishDateFilterVal) return codeMatch;
-        const itemDateStr = getComparableDateStr(item.finish_date);
-        return codeMatch && itemDateStr === finishDateFilterVal;
-    });
-
-    if (filtered.length === 0) {
-        alert('Không có dữ liệu để xuất!');
+    if (!fromDateTime || !toDateTime) {
+        alert("Vui lòng chọn khoảng thời gian!");
         return;
     }
 
-    const exportData = filtered.map(item => {
-        // Stage mapping for display
+    const searchTerm = searchInput.value.trim().toUpperCase();
+    const finishDateFilterVal = finishDateFilterInput ? finishDateFilterInput.value : '';
+
+    // Step 1: UI Feedback
+    btnExport.disabled = true;
+    const originalText = btnExport.textContent;
+    btnExport.textContent = '⌛ ...';
+    
+    try {
+        showToast("⏳ Đang chuẩn bị dữ liệu xuất... (Vui lòng đợi)", "info");
+
+        // Step 2: Fetch ALL tracking data for the range (Paginated)
+        let allTracking = [];
+        let page = 0;
+        const PAGE_SIZE = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+            const { data, error } = await supabase
+                .from('supplement_tracking')
+                .select('id, rpro, section, action, quantity, note, created_at')
+                .gte('created_at', new Date(fromDateTime).toISOString())
+                .lte('created_at', new Date(toDateTime).toISOString())
+                .order('created_at', { ascending: true }) // Asc so updateLocalState works naturally
+                .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                allTracking = allTracking.concat(data);
+                hasMore = data.length === PAGE_SIZE;
+                page++;
+            } else {
+                hasMore = false;
+            }
+        }
+
+        if (allTracking.length === 0) {
+            alert('Không có dữ liệu trong khoảng thời gian này!');
+            return;
+        }
+
+        // Step 3: Aggregate into local map
+        const exportMap = {};
+        allTracking.forEach(record => updateLocalState(record, exportMap));
+
+        // Step 4: Metadata Enrichment
+        const rproList = Object.keys(exportMap);
+        await enrichProgressMapMetadata(exportMap, rproList);
+
+        // Step 5: Filter (Apply UI filters to export too)
+        let filtered = Object.values(exportMap).filter(item => {
+            const codeMatch = item.rpro.includes(searchTerm);
+            if (!finishDateFilterVal) return codeMatch;
+            const itemDateStr = getComparableDateStr(item.finish_date);
+            return codeMatch && itemDateStr === finishDateFilterVal;
+        });
+
+        if (filtered.length === 0) {
+            alert('Không có dữ liệu phù hợp với bộ lọc hiện tại!');
+            return;
+        }
+
+        // Step 6: Map to Excel Rows
         const stageNames = {
             'Dán': 'Dán',
             'Cắt': 'Cắt',
@@ -903,69 +973,59 @@ window.exportToExcel = () => {
             'Molded': 'Leanline Molded'
         };
 
-        const lastScan = item.last_scan;
-        const stageId = lastScan ? `${stageNames[lastScan.section]} - ${lastScan.action}` : '-';
+        const exportData = filtered.map(item => {
+            const lastScan = item.last_scan;
+            const stageId = lastScan ? `${stageNames[lastScan.section]} - ${lastScan.action}` : '-';
 
-        const row = {
-            'SO': item.so || '',
-            'Mã đơn (RPRO)': item.rpro,
-            'Brand': item.brand || '',
-            'Customer': item.customer || '',
-            '#MOLD': item.mold || '',
-            'Total Qty': item.total_qty || '',
-            'Qty_Sup': item.qty_sup || '',
-            'Stage_ID': stageId,
-            'Date make order': item.confirm_date ? new Date(item.confirm_date).toLocaleDateString('vi-VN') : '',
-        };
+            const row = {
+                'SO': item.so || '',
+                'Mã đơn (RPRO)': item.rpro,
+                'Brand': item.brand || '',
+                'Customer': item.customer || '',
+                '#MOLD': item.mold || '',
+                'Total Qty': item.total_qty || '',
+                'Qty_Sup': item.qty_sup || '',
+                'Stage_ID': stageId,
+                'Date make order': item.confirm_date ? new Date(item.confirm_date).toLocaleDateString('vi-VN') : '',
+            };
 
-        let combinedNotes = [];
-
-        ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'].forEach(stage => {
-            const data = item.stages[stage];
-            const displayName = stageNames[stage];
-            row[`${displayName} - IN Time`] = data.in ? new Date(data.in.time).toLocaleString('vi-VN') : '';
-            row[`${displayName} - OUT Time`] = data.out ? new Date(data.out.time).toLocaleString('vi-VN') : '';
-
-            // Collect notes
-            if (data.note && data.note.trim() !== '') {
-                combinedNotes.push(`${stage}: ${data.note.trim()}`);
-            }
+            let combinedNotes = [];
+            ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'].forEach(stage => {
+                const data = item.stages[stage];
+                const displayName = stageNames[stage];
+                row[`${displayName} - IN Time`] = data.in ? new Date(data.in.time).toLocaleString('vi-VN') : '';
+                row[`${displayName} - OUT Time`] = data.out ? new Date(data.out.time).toLocaleString('vi-VN') : '';
+                if (data.note && data.note.trim() !== '') {
+                    combinedNotes.push(`${stage}: ${data.note.trim()}`);
+                }
+            });
+            row['Note'] = combinedNotes.join('\n');
+            return row;
         });
 
-        // Add combined note column
-        row['Note'] = combinedNotes.join('\n');
+        // Step 7: Generate File
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Tiến Độ Hàng Bù");
 
-        return row;
-    });
+        const wscols = [ { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 15 } ];
+        for (let i = 0; i < 5 * 2; i++) wscols.push({ wch: 18 });
+        wscols.push({ wch: 40 });
+        worksheet['!cols'] = wscols;
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Tiến Độ Hàng Bù");
+        const fileName = `Export_BùHàng_${fromDateTime.split('T')[0]}_den_${toDateTime.split('T')[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+        showToast("✅ Đã tải file thành công!", "success");
 
-    // Fix column widths
-    const wscols = [
-        { wch: 15 }, // SO
-        { wch: 20 }, // RPRO
-        { wch: 15 }, // Brand
-        { wch: 20 }, // Customer
-        { wch: 15 }, // #MOLD
-        { wch: 12 }, // Total Qty
-        { wch: 12 }, // Qty_Sup
-        { wch: 25 }, // Stage_ID
-        { wch: 15 }, // Date make order
-    ];
-    // Add widths for stages (5 stages * 2 columns each: IN Time, OUT Time)
-    for (let i = 0; i < 5 * 2; i++) wscols.push({ wch: 18 });
-    // Add width for note
-    wscols.push({ wch: 40 });
-    // Enable multi-line in the note column
-    // (Note: sheetjs basic object-to-sheet doesn't apply styling, 
-    // but the \n will work in Excel if the user enables "Wrap Text")
-    worksheet['!cols'] = wscols;
-
-    const fileName = `TienDoHangBu_${dateStartInput.value}_to_${dateEndInput.value}.xlsx`;
-    XLSX.writeFile(workbook, fileName);
+    } catch (err) {
+        console.error("Export Error:", err);
+        alert("Lỗi xuất Excel: " + err.message);
+    } finally {
+        btnExport.disabled = false;
+        btnExport.textContent = originalText;
+    }
 };
+
 
 // ==================== MODAL LOGIC (DELETE SUPPORT) ====================
 window.openDetailModal = async (rpro) => {
