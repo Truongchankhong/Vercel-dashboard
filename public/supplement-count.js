@@ -150,7 +150,7 @@ async function onCameraScanSuccess(decodedText) {
             if (isHbkdMode && manualNoteInput && !manualNoteInput.value.includes('HBKD')) {
                 manualNoteInput.value = manualNoteInput.value ? 'HBKD ' + manualNoteInput.value : 'HBKD';
             }
-            setTimeout(() => handleManualSave(), 800);
+            setTimeout(() => handleManualSave(true), 800);
         }
     }
 }
@@ -458,7 +458,7 @@ async function undoLastRecord() {
     } catch (err) { alert("Lỗi khi xóa: " + err.message); }
 }
 
-async function handleManualSave() {
+async function handleManualSave(forceSave = false) {
     if (isProcessing) return;
     if (!activeSection) {
         showToast("⚠️ Vui lòng chọn bộ phận trước!", "error");
@@ -472,10 +472,16 @@ async function handleManualSave() {
     const val = manualRproInput.value.trim().toUpperCase();
     if (!val) return;
 
-    // Always await fetchDetails first to load qty/PU info from Supabase
-    // before saving, even if scanner sends Enter immediately after RPRO
+    const isAutoSave = autoSaveCheckbox ? autoSaveCheckbox.checked : false;
+
     showFeedback("🔍 Đang tìm thông tin đơn hàng...", "text-blue-500");
     await fetchDetails(val);
+
+    if (!forceSave && !isAutoSave) {
+        // Just fetched, do not save yet
+        showFeedback(`✅ Đã tìm thấy: ${val}. Vui lòng kiểm tra và NHẤN LƯU!`, "text-blue-600");
+        return;
+    }
 
     const note = manualNoteInput ? manualNoteInput.value.trim() : '';
     await processRPRO(val, "MANUAL", note);
@@ -601,7 +607,7 @@ if (btnViewSummary) {
 }
 
 if (btnSaveManual) {
-    btnSaveManual.addEventListener('click', handleManualSave);
+    btnSaveManual.addEventListener('click', () => handleManualSave(true));
 }
 
 if (btnQuickHbkd) {
@@ -615,11 +621,10 @@ if (btnQuickHbkd) {
 }
 
 if (manualRproInput) {
-    // Ensure Enter key triggers save
     manualRproInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            handleManualSave();
+            handleManualSave(false);
         }
     });
 
