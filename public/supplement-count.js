@@ -460,9 +460,25 @@ async function undoLastRecord() {
 
 async function handleManualSave() {
     if (isProcessing) return;
+    if (!activeSection) {
+        showToast("⚠️ Vui lòng chọn bộ phận trước!", "error");
+        return;
+    }
+    if (!activeAction) {
+        showToast("⚠️ Vui lòng chọn hành động (IN/OUT) trước!", "error");
+        return;
+    }
+
     const val = manualRproInput.value.trim().toUpperCase();
     if (!val) return;
-    await processRPRO(val, "MANUAL", manualNoteInput ? manualNoteInput.value.trim() : '');
+
+    // Always await fetchDetails first to load qty/PU info from Supabase
+    // before saving, even if scanner sends Enter immediately after RPRO
+    showFeedback("🔍 Đang tìm thông tin đơn hàng...", "text-blue-500");
+    await fetchDetails(val);
+
+    const note = manualNoteInput ? manualNoteInput.value.trim() : '';
+    await processRPRO(val, "MANUAL", note);
     manualRproInput.value = "";
 }
 
