@@ -1607,6 +1607,31 @@ if (btnClearDateFilter) {
     });
 }
 
+// ==================== UI HELPERS ====================
+function showToast(msg, type = "success") {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+
+    const colors = {
+        success: "bg-emerald-600 border-b-4 border-emerald-800",
+        error: "bg-rose-600 border-b-4 border-rose-800",
+        info: "bg-sky-600 border-b-4 border-sky-800",
+        orange: "bg-orange-500 border-b-4 border-orange-700"
+    };
+
+    toast.className = `fixed bottom-10 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 rounded-2xl shadow-2xl text-white font-bold transition-all duration-300 transform translate-y-0 opacity-100 ${colors[type] || colors.success}`;
+
+    setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translate(-50%, 20px)";
+    }, 3000);
+}
+
 // Init
 document.addEventListener('DOMContentLoaded', () => {
     initDates();
