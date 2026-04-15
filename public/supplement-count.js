@@ -43,8 +43,8 @@ const batchRproTextarea = document.getElementById('batch-rpro-textarea');
 const btnProcessBatch = document.getElementById('btn-process-batch');
 const btnSaveAllBatch = document.getElementById('btn-save-all-batch');
 const hbkdListCheckbox = document.getElementById('hbkd-list-checkbox');
-const btnToggleKbd = document.getElementById('btn-toggle-kbd');
-const scannerReadyDot = document.getElementById('scanner-ready-dot');
+const handheldDot = document.getElementById('handheld-dot');
+const handheldStatusText = document.getElementById('handheld-status-text');
 
 // ==================== STATE VARIABLES ====================
 let activeSection = null;
@@ -657,19 +657,22 @@ setInterval(() => {
 }, 400);
 
 function updateScannerStatusUI() {
-    if (!scannerReadyDot) return;
+    if (!handheldDot || !handheldStatusText) return;
 
     if (!activeSection || !activeAction) {
-        scannerReadyDot.className = "absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 bg-gray-400 rounded-full";
+        handheldDot.className = "w-3 h-3 rounded-full bg-gray-400 flex-shrink-0";
+        handheldStatusText.innerText = "Chọn Section & Action để bắt đầu";
         return;
     }
 
     const isFocused = (document.activeElement === manualRproInput);
     if (isFocused) {
-        scannerReadyDot.className = "absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]";
+        handheldDot.className = "w-3 h-3 rounded-full bg-green-500 animate-pulse flex-shrink-0";
+        handheldStatusText.innerHTML = "<b class='text-green-600'>Sẵn sàng! Quét mã ngay không cần click.</b>";
     } else {
         const isEditing = (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
-        scannerReadyDot.className = "absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 bg-amber-500 rounded-full";
+        handheldDot.className = "w-3 h-3 rounded-full bg-amber-500 flex-shrink-0";
+        handheldStatusText.innerText = isEditing ? "Đang nhập liệu khác, bấm ra ngoài để quay lại quét." : "Đang chờ focus...";
     }
 }
 
