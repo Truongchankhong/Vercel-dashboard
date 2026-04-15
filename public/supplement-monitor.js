@@ -986,7 +986,7 @@ window.exportToExcel = async () => {
                 'Total Qty': item.total_qty || '',
                 'Qty_Sup': item.qty_sup || '',
                 'Stage_ID': stageId,
-                'Date make order': item.confirm_date ? new Date(item.confirm_date).toLocaleDateString('vi-VN') : '',
+                'Date Confirm Material (LPS)': item.confirm_date ? new Date(item.confirm_date).toLocaleDateString('vi-VN') : '',
             };
 
             let combinedNotes = [];
