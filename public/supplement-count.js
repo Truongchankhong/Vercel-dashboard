@@ -504,15 +504,6 @@ function playAudioFeedback(success) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    if (manualRproInput) {
-        manualRproInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                handleManualSave();
-            }
-        });
-    }
-
     sectionBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             sectionBtns.forEach(b => b.classList.remove('active'));
