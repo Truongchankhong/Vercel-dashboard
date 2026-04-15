@@ -177,86 +177,19 @@ async function onCameraScanSuccess(decodedText) {
 
 // ==================== HANDHELD SCANNER ====================
 // -------------------- SCANNER HANDLERS --------------------
-// Most reliable method: Use 'input' event on focused overlay
-if (scannerInputOverlay) {
-    scannerInputOverlay.addEventListener('input', (e) => {
-        const val = e.target.value;
-        if (val) {
-            console.log("⌨️ Overlay input received");
-            // If the scanner sends an Enter key directly, it might trigger Enter keydown first.
-            // But some scanners just 'type' very fast.
-            // If it ends with a newline, process it.
-            if (val.includes('\n') || val.includes('\r')) {
-                processScannerBuffer(val);
-                e.target.value = '';
-            }
-        }
-    });
-
-    scannerInputOverlay.addEventListener('focus', () => {
-        console.log("🎯 Scanner focus gained");
-        updateScannerStatusUI();
-    });
-
-    scannerInputOverlay.addEventListener('blur', () => {
-        console.log("💤 Scanner focus lost");
-        // Don't update immediately if we are clicking an input
-        setTimeout(updateScannerStatusUI, 100);
-    });
-}
-
+// Most reliable method: Focus the actual manual input field
 function processScannerBuffer(text) {
     const code = text.trim();
     if (!code) return;
-
-    console.log("🔫 Processing text:", code);
-    // Auto-split RPRO if joined
-    const rproMatches = code.match(/RPRO-[\d-]+/g);
-
-    if (rproMatches && rproMatches.length > 1) {
-        const note = manualNoteInput ? manualNoteInput.value.trim() : '';
-        showMultiRproConfirmation(rproMatches, "HANDHELD", note);
-    } else {
-        const finalCode = (rproMatches && rproMatches.length === 1) ? rproMatches[0] : code;
-        if (finalCode) {
-            console.log(`📥 Added to queue: ${finalCode}`);
-            scanQueue.push({ code: finalCode, mode: "HANDHELD" });
-            processQueue();
-        }
-    }
+    // Handled by manualRproInput events
 }
 
-// Fallback keydown listener (handles scans when focus is lost or on Enter)
+// Global keydown listener for fallback/Enter
 document.addEventListener('keydown', (e) => {
-    const activeElem = document.activeElement;
-    if (!activeElem) return;
-
-    const isEditing = (activeElem.tagName === 'INPUT' || activeElem.tagName === 'TEXTAREA');
-    const isOverlay = activeElem.id === 'scanner-input-overlay';
-
-    // If focused on manual input, don't interfere
-    if (isEditing && !isOverlay) return;
-
     if (e.key === 'Enter') {
-        if (isOverlay) {
-            // Buffer is already in the input value, handled by 'input' or this:
-            if (scannerInputOverlay.value) {
-                e.preventDefault();
-                processScannerBuffer(scannerInputOverlay.value);
-                scannerInputOverlay.value = '';
-            }
-        } else if (scanBuffer) {
-            // Fallback buffer
+        if (document.activeElement === manualRproInput) {
             e.preventDefault();
-            processScannerBuffer(scanBuffer);
-            scanBuffer = '';
-        }
-    } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        // Collect into fallback buffer if not focused on anything
-        if (!isEditing) {
-            scanBuffer += e.key;
-            clearTimeout(scanTimeout);
-            scanTimeout = setTimeout(() => { scanBuffer = ''; }, 200);
+            handleManualSave();
         }
     }
 });
@@ -294,49 +227,8 @@ async function fetchDetails(rawRpro) {
 
     let foundAnyData = false;
     try {
-        console.log(`ℹ️ Fetching details for ${rpro} in ${activeSection}...`);
-
-        // 1. Fetch Note
-        const { data: noteData, error: noteError } = await supabase
-            .from('supplement_tracking')
-            .select('note')
-            .eq('rpro', rpro)
-            .eq('section', activeSection)
-            .neq('note', '')
-            .not('note', 'is', null)
-            .order('created_at', { ascending: false })
-            .limit(1);
-
-        if (!noteError && noteData && noteData.length > 0) {
-            console.log("📝 Found existing note:", noteData[0].note);
-            if (manualNoteInput) manualNoteInput.value = noteData[0].note;
-            foundAnyData = true;
-        }
-
-        // 1.5 Cascading HBKD logic
-        if (manualNoteInput && (!manualNoteInput.value || !manualNoteInput.value.includes("HBKD"))) {
-            const sectionsToCheck = [];
-            if (activeSection === 'Cắt') sectionsToCheck.push('Dán');
-            if (activeSection === 'Molding') sectionsToCheck.push('Dán', 'Cắt');
-            if (activeSection === 'DC' || activeSection === 'Molded') sectionsToCheck.push('Dán', 'Cắt', 'Molding');
-
-            if (sectionsToCheck.length > 0) {
-                const { data: hbData } = await supabase
-                    .from('supplement_tracking')
-                    .select('note')
-                    .eq('rpro', rpro)
-                    .in('section', sectionsToCheck)
-                    .ilike('note', '%HBKD%')
-                    .limit(1);
-
-                if (hbData && hbData.length > 0) {
-                    console.log("🆘 Cascading HBKD found in previous sections");
-                    manualNoteInput.value = "HBKD";
-                    foundAnyData = true;
-                }
-            }
-        }
-
+        console.log(`ℹ️ Fetching info for ${rpro}...`);
+        
         // 2. Fetch Default Quantity
         let defaultQty = 1;
 
@@ -660,11 +552,7 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
 
         console.log("💾 Inserting new record...");
         // 3. Save to Supabase
-        // Determine note - HBKD mode forces HBKD note
         let finalNote = note || (manualNoteInput ? manualNoteInput.value.trim() : '');
-        if (isHbkdMode && !finalNote.includes('HBKD')) {
-            finalNote = finalNote ? 'HBKD ' + finalNote : 'HBKD';
-        }
 
         // Build insert record
         const insertRecord = {
@@ -674,7 +562,7 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
             operator: 'User',
             quantity: quantity,
             note: finalNote,
-            scan_date: isHbkdMode ? null : new Date().toISOString().split('T')[0]
+            scan_date: new Date().toISOString().split('T')[0]
         };
 
         // Add pu_sheets for Dán section (OUT only now)
@@ -702,7 +590,6 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
         playAudioFeedback(true);
         addScanHistoryEntry(rpro, quantity, "SUCCESS", true, '', finalNote);
 
-        // if (mode === 'CAMERA') alert(`✅ Scan thành công:\n${rpro}`); // Alert is redundant now with Toast
         undoContainer.classList.remove('hidden');
 
         // Clear note input after successful save
@@ -720,7 +607,6 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
     } finally {
         if (!isInBatch) {
             isProcessing = false;
-            // Removed 2-second artificial lock here to speed up
         }
     }
 }
@@ -890,7 +776,6 @@ async function handleManualSave() {
 
     await processRPRO(val, "MANUAL", note);
     manualRproInput.value = ""; // Clear after success
-    // Không cần focus lại ở đây vì setInterval sẽ tự động focus
 }
 
 // ==================== BATCH IMPORT LOGIC ====================
@@ -907,7 +792,6 @@ async function handleBatchImport() {
     }
 
     // Extract all RPRO codes using regex
-    // Matches RPRO- followed by digits and dashes, or just RPRO followed by digits
     const rproMatches = text.match(/RPRO-?[\d-]+/gi) || [];
     if (rproMatches.length === 0) {
         showToast("❌ Không tìm thấy mã RPRO hợp lệ nào!", "error");
@@ -929,21 +813,12 @@ async function handleBatchImport() {
     for (const rawCode of rproMatches) {
         const code = normalizeRPRO(rawCode);
 
-        // Fetch details (Qty, Note, PU)
-        // Note: fetchDetails updates global inputs (qty, manualNoteInput, inputPuSheets)
-        // We need to capture these values for each item
         const status = await fetchDetails(code);
-
-        // If HBKD mode is on, force HBKD note for each item
-        let itemNote = manualNoteInput.value.trim();
-        if (isHbkdMode && !itemNote.includes('HBKD')) {
-            itemNote = itemNote ? 'HBKD ' + itemNote : 'HBKD';
-        }
 
         const item = {
             rpro: code,
             quantity: parseInt(inputQty.value) || 1,
-            note: itemNote,
+            note: manualNoteInput.value.trim(),
             pu_sheets: (activeSection === 'Dán' && inputPuSheets) ? parseInt(inputPuSheets.value) : null,
             status: status,
             isHbkd: isHbkdMode
@@ -1010,7 +885,6 @@ async function saveBatchScans() {
 
     for (const item of pendingBatchScans) {
         try {
-            // Build record
             const insertRecord = {
                 rpro: item.rpro,
                 section: activeSection,
@@ -1018,7 +892,7 @@ async function saveBatchScans() {
                 operator: 'User',
                 quantity: item.quantity,
                 note: item.note,
-                scan_date: item.isHbkd ? null : new Date().toISOString().split('T')[0]
+                scan_date: new Date().toISOString().split('T')[0]
             };
 
             if (item.pu_sheets) insertRecord.pu_sheets = item.pu_sheets;
@@ -1035,12 +909,10 @@ async function saveBatchScans() {
     showToast(`✅ Đã lưu ${successCount} đơn thành công! ${failCount > 0 ? `❌ Lỗi: ${failCount}` : ''}`, successCount > 0 ? "success" : "error");
     showFeedback(`✅ Hoàn tất: Lưu ${successCount} đơn thành công.`, "text-green-600");
 
-    // Clear pending
     pendingBatchScans = [];
     btnSaveAllBatch.classList.add('hidden');
     batchRproTextarea.value = '';
 
-    // Auto-uncheck both checkboxes to prevent accidental HBKD on next orders
     if (importListCheckbox) {
         importListCheckbox.checked = false;
         batchInputContainer.classList.add('hidden');
@@ -1050,12 +922,8 @@ async function saveBatchScans() {
         isHbkdMode = false;
     }
     if (manualNoteInput) manualNoteInput.value = '';
-
-    // Refresh history list to show real records from DB (or just leave as is)
-    // For simplicity, let's just clear the "PREVIEW" tags
 }
 
-// Khôi phục trạng thái checkbox tự động lưu
 function initAutoSave() {
     if (autoSaveCheckbox) {
         const savedState = localStorage.getItem("supplement-count-auto-save");
@@ -1065,8 +933,6 @@ function initAutoSave() {
         });
     }
 }
-
-// Merged fetchExistingNote into fetchDetails above
 
 // ==================== UI HELPERS ====================
 function showFeedback(msg, className) {
@@ -1101,7 +967,6 @@ function playAudioFeedback(success) {
 
 // ==================== INITIALIZATION & EVENT LISTENERS ====================
 window.addEventListener('DOMContentLoaded', () => {
-    // 1. Setup Section Buttons
     sectionBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             sectionBtns.forEach(b => b.classList.remove('active', 'bg-blue-600', 'text-white'));
@@ -1110,40 +975,27 @@ window.addEventListener('DOMContentLoaded', () => {
             activeSection = btn.dataset.section;
             activeSectionLabel.innerText = btn.innerText;
 
-            // Hide PU info panel (will be shown on scan/fetch for Dán)
             if (puInfoContainer) puInfoContainer.classList.add('hidden');
-
-            // Reset note input
             if (manualNoteInput) manualNoteInput.value = "";
 
-            // Dán & Cắt: only OUT, skip action selection
             if (activeSection === 'Dán' || activeSection === 'Cắt') {
                 activeAction = 'OUT';
                 activeActionLabel.innerText = '⬆️ XUẤT ĐI (OUT)';
                 actionContainer.classList.add('hidden');
                 actionBtns.forEach(b => b.classList.remove('active'));
                 scannerContainer.classList.remove('hidden');
-
-                // Focus scanner
-                if (scannerInputOverlay) {
-                    scannerInputOverlay.setAttribute('inputmode', 'none');
-                    scannerInputOverlay.focus();
-                }
             } else {
-                // Other sections: show action selection (IN/OUT)
                 actionContainer.classList.remove('hidden');
                 activeAction = null;
                 actionBtns.forEach(b => b.classList.remove('active'));
                 scannerContainer.classList.add('hidden');
             }
 
-            // Re-fetch if RPRO exists
             const rpro = manualRproInput ? manualRproInput.value.trim() : "";
             if (rpro) fetchDetails(rpro);
         });
     });
 
-    // 2. Setup Action Buttons
     actionBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             actionBtns.forEach(b => b.classList.remove('active'));
@@ -1153,46 +1005,47 @@ window.addEventListener('DOMContentLoaded', () => {
             activeActionLabel.innerText = btn.innerText;
             scannerContainer.classList.remove('hidden');
 
-            // For Dán: PU sheets always editable (only OUT action available)
             if (activeSection === 'Dán' && puSheetsEdit && puSheetsDisplay) {
                 puSheetsEdit.classList.remove('hidden');
                 puSheetsDisplay.classList.add('hidden');
             }
-
-            // Focus on hidden input for handheld scanner
-            if (scannerInputOverlay) {
-                scannerInputOverlay.setAttribute('inputmode', 'none');
-                scannerInputOverlay.focus();
-            }
         });
     });
 
-    // 3. Handle URL Parameter ?rpro=
     const params = new URLSearchParams(window.location.search);
     const rproParam = params.get('rpro');
     if (rproParam) {
         manualRproInput.value = rproParam;
-        showFeedback(`📍 Đã load đơn: ${rproParam}. Chọn Công đoạn & Hành động.`, "text-blue-600 font-bold bg-blue-50 p-2 rounded-lg border border-blue-200");
-        
-        // Guidance animation
-        sectionBtns.forEach(btn => btn.classList.add('animate-pulse', 'border-2', 'border-blue-400'));
-        setTimeout(() => {
-            sectionBtns.forEach(btn => btn.classList.remove('animate-pulse', 'border-2', 'border-blue-400'));
-        }, 8000);
+        showFeedback(`📍 Đã load đơn: ${rproParam}. Vui lòng F5 trang nếu máy quét không nhận diện.`, "text-blue-600 font-bold bg-blue-50 p-2 rounded-lg border border-blue-200");
     }
 
-    // 4. Magnetic Focus: Click any non-input area to refocus the scanner
+    if (manualRproInput) {
+        // Essential for physical scanners that send ENTER
+        manualRproInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleManualSave();
+            }
+        });
+
+        // Instant fetch info when scanner types
+        manualRproInput.addEventListener('input', (e) => {
+            const val = e.target.value.trim().toUpperCase();
+            if (val.length >= 8) fetchDetails(val);
+        });
+    }
+
+    // 4. Strong Focus: Focus the manual input box directly
     document.addEventListener('click', (e) => {
-        // Only trigger if we have section and action selected
         if (!activeSection || !activeAction) return;
 
         const tag = e.target.tagName;
-        const isInput = (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || e.target.closest('button'));
+        const isInteractive = (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || e.target.closest('button'));
 
-        if (!isInput) {
-            if (scannerInputOverlay) {
-                console.log("🧲 Re-focusing scanner...");
-                scannerInputOverlay.focus();
+        if (!isInteractive) {
+            if (manualRproInput) {
+                console.log("🎯 Auto-focusing manual input...");
+                manualRproInput.focus();
                 updateScannerStatusUI();
             }
         }
@@ -1201,7 +1054,6 @@ window.addEventListener('DOMContentLoaded', () => {
     // Handle clicking on the status box explicitly
     if (handheldStatusBox) {
         handheldStatusBox.addEventListener('click', (e) => {
-            e.stopPropagation();
             if (scannerInputOverlay) {
                 scannerInputOverlay.focus();
                 updateScannerStatusUI();
@@ -1260,21 +1112,19 @@ if (btnQuickHbkd) {
 }
 
 if (manualRproInput) {
-    // Note: REMOVED Enter listener to prevent handheld scanner from auto-saving when focus is here.
-    // User MUST click Save manually for review.
-
+    // Ensure Enter key triggers save
+    manualRproInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleManualSave();
+        }
+    });
 
     // Add event listener to fetch details when user types or paste code
     manualRproInput.addEventListener('input', (e) => {
         const val = e.target.value.trim().toUpperCase();
-        if (val.startsWith('RPRO')) {
-            // Debounce or just fetch if it looks complete
-            if (val.length >= 8) fetchDetails(val);
-        }
+        if (val.length >= 8) fetchDetails(val);
     });
-
-    // Note: REMOVED Enter listener to prevent handheld scanner from auto-saving when focus is here.
-    // User MUST click Save manually for review or when scanning into this field.
 }
 
 if (inputQty) {
@@ -1303,25 +1153,24 @@ if (btnDecSheets && inputPuSheets) {
 }
 
 // ==================== FOCUS MANAGEMENT ====================
-// Keep focus on hidden input for handheld scanner
+// Keep focus on manual input for handheld scanner
 setInterval(() => {
-    // Only auto-focus if Camera is OFF (to prevent mobile keyboard pop-up)
+    // Only auto-focus if Camera is OFF (to prevent mobile keyboard pop-up on wrong screens)
     if (!cameraActive && activeSection && activeAction) {
         const activeElem = document.activeElement;
         const isForbidden = (
-            activeElem === manualRproInput ||
             activeElem === inputQty ||
             activeElem === manualNoteInput ||
             activeElem === batchRproTextarea ||
             activeElem === inputPuSheets
         );
 
-        if (!isForbidden && activeElem !== scannerInputOverlay) {
-            scannerInputOverlay.focus();
+        if (!isForbidden && activeElem !== manualRproInput) {
+            manualRproInput.focus();
         }
         updateScannerStatusUI();
     }
-}, 300);
+}, 400);
 
 function updateScannerStatusUI() {
     if (!handheldStatusBox || !handheldDot || !handheldStatusText) return;
@@ -1329,23 +1178,23 @@ function updateScannerStatusUI() {
     if (!activeSection || !activeAction) {
         handheldDot.className = "w-3 h-3 rounded-full bg-gray-400";
         handheldStatusText.innerText = "Chọn Section/Action...";
-        handheldStatusBox.className = "p-4 scanner-status-inactive border rounded-lg mb-4 transition-all duration-300";
+        handheldStatusBox.className = "p-4 scanner-status-inactive border rounded-lg mb-4";
         return;
     }
 
-    const isFocused = (document.activeElement === scannerInputOverlay);
+    const isFocused = (document.activeElement === manualRproInput);
 
     if (isFocused) {
         handheldDot.className = "w-3 h-3 rounded-full bg-green-500 animate-pulse";
         handheldStatusText.innerText = "Sẵn sàng quét!";
         handheldStatusText.className = "text-green-600 font-bold";
-        handheldStatusBox.className = "p-4 scanner-status-active border rounded-lg mb-4 transition-all duration-300 bg-green-50 border-green-200";
+        handheldStatusBox.className = "p-4 scanner-status-active border rounded-lg mb-4 bg-green-50 border-green-200";
     } else {
         const isEditing = (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
         handheldDot.className = "w-3 h-3 rounded-full bg-amber-500";
-        handheldStatusText.innerText = isEditing ? "Đang nhập tay..." : "Đang chờ focus...";
+        handheldStatusText.innerText = isEditing ? "Đang nhập liệu khác..." : "Đang chờ focus...";
         handheldStatusText.className = "text-amber-600";
-        handheldStatusBox.className = "p-4 bg-amber-50 border border-amber-200 rounded-lg mb-4 transition-all duration-300";
+        handheldStatusBox.className = "p-4 bg-amber-50 border border-amber-200 rounded-lg mb-4";
     }
 }
 

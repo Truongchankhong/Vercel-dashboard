@@ -22,19 +22,23 @@
 
         #scanner-input-overlay {
             position: absolute;
-            left: 50%;
-            top: 50%;
+            inset: 0;
+            width: 100%;
+            height: 100%;
             opacity: 0;
-            pointer-events: none;
-            z-index: -1;
-            width: 1px;
-            height: 1px;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        #handheld-status-box {
+            position: relative;
+            overflow: hidden;
         }
 
         .scanner-status-active {
-            border-color: #3b82f6;
-            background-color: #eff6ff;
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+            border-color: #22c55e;
+            background-color: #f0fdf4;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.2);
         }
 
         .scanner-status-inactive {
@@ -144,14 +148,17 @@
             <div id="scan-feedback" class="mt-2 text-center min-h-[40px] font-bold text-lg"></div>
 
             <!-- Handheld Scanner Status -->
-            <div id="handheld-status-box" class="p-4 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg mb-4 transition-all duration-300 cursor-pointer hover:border-blue-400 active:scale-[0.98]">
-                <div class="flex items-center justify-center gap-3">
+            <div id="handheld-status-box" class="p-4 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg mb-4 transition-all duration-300 cursor-pointer hover:border-blue-400">
+                <!-- Hidden input inside the box for immediate focus -->
+                <input type="text" id="scanner-input-overlay" autocomplete="off" inputmode="none" />
+                
+                <div class="flex items-center justify-center gap-3 relative z-0">
                     <div id="handheld-dot" class="w-4 h-4 rounded-full bg-gray-400 shadow-sm"></div>
                     <div>
                         <p class="text-blue-900 font-bold text-sm">
                             🔫 MÁY QUÉT CẦM TAY: <span id="handheld-status-text">Đang chờ...</span>
                         </p>
-                        <p class="text-[10px] text-blue-700/60 font-medium">Bấm vào đây nếu không quét được</p>
+                        <p class="text-[10px] text-blue-700/60 font-medium">Bấm vào đây để kích hoạt máy quét</p>
                     </div>
                 </div>
             </div>
@@ -206,35 +213,6 @@
                 </p>
             </div>
 
-            <!-- Manual Input Section -->
-            <div class="p-4 bg-gray-50 border-2 border-gray-200 rounded-xl mb-4">
-                <p class="text-xs font-bold text-gray-600 mb-2 uppercase">Hoặc nhập mã bằng tay:</p>
-                <div class="flex gap-2">
-                    <input type="text" id="manual-rpro" placeholder="Ví dụ: RPRO12345"
-                        class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg uppercase font-mono text-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-400 outline-none">
-                    <button id="btn-save-manual"
-                        class="px-6 py-3 bg-orange-600 text-white rounded-lg font-bold hover:bg-orange-700 transition shadow-md">
-                        💾 Lưu
-                    </button>
-                </div>
-                <!-- Auto Save Checkbox -->
-                <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="auto-save-checkbox"
-                            class="w-4 h-4 rounded text-orange-600 focus:ring-orange-500" />
-                        <span class="text-sm font-bold text-gray-700">Lưu tự động</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer group">
-                        <input type="checkbox" id="import-list-checkbox"
-                            class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
-                        <span class="text-sm font-bold text-blue-700 group-hover:underline">Nhập từ danh sách</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer group">
-                        <input type="checkbox" id="hbkd-list-checkbox"
-                            class="w-4 h-4 rounded text-amber-600 focus:ring-amber-500" />
-                        <span class="text-sm font-bold text-amber-700 group-hover:underline">🆘 Scan danh sách
-                            HBKD</span>
-                    </label>
                     <span class="text-[10px] text-gray-400 italic block w-full">(Dành cho máy quét Bluetooth ở
                         xa)</span>
                 </div>
@@ -348,7 +326,6 @@
     </div>
 
     <!-- Hidden input for handheld scanner -->
-    <input type="text" id="scanner-input-overlay" autocomplete="off" inputmode="none" />
 
     <!-- Scripts -->
     <script src="https://unpkg.com/html5-qrcode" defer></script>
