@@ -176,63 +176,88 @@ async function onCameraScanSuccess(decodedText) {
 }
 
 // ==================== HANDHELD SCANNER ====================
-// Global keydown listener for handheld scanner
+// -------------------- SCANNER HANDLERS --------------------
+// Most reliable method: Use 'input' event on focused overlay
+if (scannerInputOverlay) {
+    scannerInputOverlay.addEventListener('input', (e) => {
+        const val = e.target.value;
+        if (val) {
+            console.log("⌨️ Overlay input received");
+            // If the scanner sends an Enter key directly, it might trigger Enter keydown first.
+            // But some scanners just 'type' very fast.
+            // If it ends with a newline, process it.
+            if (val.includes('\n') || val.includes('\r')) {
+                processScannerBuffer(val);
+                e.target.value = '';
+            }
+        }
+    });
+
+    scannerInputOverlay.addEventListener('focus', () => {
+        console.log("🎯 Scanner focus gained");
+        updateScannerStatusUI();
+    });
+
+    scannerInputOverlay.addEventListener('blur', () => {
+        console.log("💤 Scanner focus lost");
+        // Don't update immediately if we are clicking an input
+        setTimeout(updateScannerStatusUI, 100);
+    });
+}
+
+function processScannerBuffer(text) {
+    const code = text.trim();
+    if (!code) return;
+
+    console.log("🔫 Processing text:", code);
+    // Auto-split RPRO if joined
+    const rproMatches = code.match(/RPRO-[\d-]+/g);
+
+    if (rproMatches && rproMatches.length > 1) {
+        const note = manualNoteInput ? manualNoteInput.value.trim() : '';
+        showMultiRproConfirmation(rproMatches, "HANDHELD", note);
+    } else {
+        const finalCode = (rproMatches && rproMatches.length === 1) ? rproMatches[0] : code;
+        if (finalCode) {
+            console.log(`📥 Added to queue: ${finalCode}`);
+            scanQueue.push({ code: finalCode, mode: "HANDHELD" });
+            processQueue();
+        }
+    }
+}
+
+// Fallback keydown listener (handles scans when focus is lost or on Enter)
 document.addEventListener('keydown', (e) => {
-    // Ignore if user is typing in an actual input field or textarea (except our hidden overlay)
     const activeElem = document.activeElement;
     if (!activeElem) return;
 
     const isEditing = (activeElem.tagName === 'INPUT' || activeElem.tagName === 'TEXTAREA');
     const isOverlay = activeElem.id === 'scanner-input-overlay';
 
-    // If focused on a manual input, let standard character input flow
-    if (isEditing && !isOverlay) {
-        return;
-    }
-
-    // Capture characters even if no input is focused (e.g. click on background)
-    // Most scanners simulate keyboard events.
-
-    // Clear timeout on each keypress
-    clearTimeout(scanTimeout);
+    // If focused on manual input, don't interfere
+    if (isEditing && !isOverlay) return;
 
     if (e.key === 'Enter') {
-        // Process the buffer
-        const scannedText = scanBuffer.trim();
-        if (scannedText) {
-            e.preventDefault();
-            scanBuffer = '';
-            console.log("🔫 Handheld scan raw:", scannedText);
-
-            // Auto-split RPRO if joined
-            const rproMatches = scannedText.match(/RPRO-[\d-]+/g);
-
-            if (rproMatches && rproMatches.length > 1) {
-                const note = manualNoteInput ? manualNoteInput.value.trim() : '';
-                showMultiRproConfirmation(rproMatches, "HANDHELD", note);
-            } else {
-                const code = (rproMatches && rproMatches.length === 1) ? rproMatches[0] : scannedText;
-                if (code) {
-                    console.log(`📥 Added to queue: ${code}`);
-                    scanQueue.push({ code, mode: "HANDHELD" });
-                    processQueue();
-                }
+        if (isOverlay) {
+            // Buffer is already in the input value, handled by 'input' or this:
+            if (scannerInputOverlay.value) {
+                e.preventDefault();
+                processScannerBuffer(scannerInputOverlay.value);
+                scannerInputOverlay.value = '';
             }
-        }
-    } else if (e.key.length === 1) {
-        // Capture character to buffer
-        scanBuffer += e.key;
-        
-        // Optional: If we are focused on the overlay, let it also receive the key
-        // But prevent default if focused on BODY/BUTTON to avoid page scrolling or unwanted clicks
-        if (!isOverlay && !isEditing) {
-            // e.preventDefault();
-        }
-
-        // Auto-reset buffer after 150ms of inactivity
-        scanTimeout = setTimeout(() => {
+        } else if (scanBuffer) {
+            // Fallback buffer
+            e.preventDefault();
+            processScannerBuffer(scanBuffer);
             scanBuffer = '';
-        }, 150);
+        }
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Collect into fallback buffer if not focused on anything
+        if (!isEditing) {
+            scanBuffer += e.key;
+            clearTimeout(scanTimeout);
+            scanTimeout = setTimeout(() => { scanBuffer = ''; }, 200);
+        }
     }
 });
 
@@ -1157,7 +1182,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // 4. Magnetic Focus: Click any non-input area to refocus the scanner
-    document.addEventListener('mousedown', (e) => {
+    document.addEventListener('click', (e) => {
         // Only trigger if we have section and action selected
         if (!activeSection || !activeAction) return;
 
@@ -1165,17 +1190,25 @@ window.addEventListener('DOMContentLoaded', () => {
         const isInput = (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'BUTTON' || e.target.closest('button'));
 
         if (!isInput) {
-            // Small delay to let selection happen
-            setTimeout(() => {
-                const isStillNotEditing = !(document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
-                if (isStillNotEditing && scannerInputOverlay) {
-                    console.log("🧲 Magnetic focus to scanner");
-                    scannerInputOverlay.focus();
-                    updateScannerStatusUI();
-                }
-            }, 10);
+            if (scannerInputOverlay) {
+                console.log("🧲 Re-focusing scanner...");
+                scannerInputOverlay.focus();
+                updateScannerStatusUI();
+            }
         }
     });
+
+    // Handle clicking on the status box explicitly
+    if (handheldStatusBox) {
+        handheldStatusBox.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (scannerInputOverlay) {
+                scannerInputOverlay.focus();
+                updateScannerStatusUI();
+                showToast("🎯 Đã kích hoạt máy quét!", "success");
+            }
+        });
+    }
 
     // 5. Initialize components
     initAutoSave();
