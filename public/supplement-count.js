@@ -471,11 +471,6 @@ function updateStatsUI() {
     if (scanCountErrorElem) scanCountErrorElem.textContent = scanCountErrorVal;
 }
 
-function updateScannerStatusUI() {
-    if (!scannerReadyDot) return;
-    const isFocused = (document.activeElement === manualRproInput);
-    scannerReadyDot.className = `absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full ${isFocused ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`;
-}
 
 function playAudioFeedback(success) {
     try {
