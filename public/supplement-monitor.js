@@ -87,6 +87,21 @@ const getComparableDateStr = (serial) => {
     return d.toISOString().split('T')[0];
 };
 
+// Helper to format Excel Serial Date or String Date
+const formatExcelDate = (serial) => {
+    if (!serial) return '-';
+    const num = Number(serial);
+    // If numeric and looks like Excel Serial (e.g. 45000+)
+    if (!isNaN(num) && num > 20000) {
+        // 25569 is offset for 1970-01-01
+        const date = new Date((num - 25569) * 86400 * 1000);
+        return date.toLocaleDateString('vi-VN'); // DD/MM/YYYY
+    }
+    // Fallback
+    const d = new Date(serial);
+    return isNaN(d.getTime()) ? serial : d.toLocaleDateString('vi-VN');
+};
+
 // ==================== LOADING LOGIC ====================
 function updateLoading(percent, text) {
     if (progressBarFill) progressBarFill.style.width = `${percent}%`;
@@ -572,24 +587,8 @@ function updateSortIcons() {
 }
 
 // ==================== RENDER TABLE ====================
-// ==================== RENDER TABLE ====================
 function renderTable() {
     const searchTerm = searchInput.value.trim().toUpperCase();
-
-    // Helper to format Excel Serial Date or String Date
-    const formatExcelDate = (serial) => {
-        if (!serial) return '-';
-        const num = Number(serial);
-        // If numeric and looks like Excel Serial (e.g. 45000+)
-        if (!isNaN(num) && num > 20000) {
-            // 25569 is offset for 1970-01-01
-            const date = new Date((num - 25569) * 86400 * 1000);
-            return date.toLocaleDateString('vi-VN'); // DD/MM/YYYY
-        }
-        // Fallback
-        const d = new Date(serial);
-        return isNaN(d.getTime()) ? serial : d.toLocaleDateString('vi-VN');
-    };
 
     const finishDateFilterVal = finishDateFilterInput ? finishDateFilterInput.value : '';
 
@@ -890,7 +889,6 @@ btnSaveNote.addEventListener('click', async () => {
     }
 });
 
-// ==================== EXPORT LOGIC ====================
 // ==================== EXPORT LOGIC (NO LIMIT) ====================
 window.exportToExcel = async () => {
     const fromDateTime = dateStartInput.value;
@@ -1000,6 +998,7 @@ window.exportToExcel = async () => {
                 }
             });
             row['Note'] = combinedNotes.join('\n');
+            row['Finish date'] = formatExcelDate(item.finish_date);
             return row;
         });
 
@@ -1010,7 +1009,8 @@ window.exportToExcel = async () => {
 
         const wscols = [ { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 15 } ];
         for (let i = 0; i < 5 * 2; i++) wscols.push({ wch: 18 });
-        wscols.push({ wch: 40 });
+        wscols.push({ wch: 40 }); // For Note
+        wscols.push({ wch: 15 }); // For Finish date
         worksheet['!cols'] = wscols;
 
         const fileName = `Export_BùHàng_${fromDateTime.split('T')[0]}_den_${toDateTime.split('T')[0]}.xlsx`;

@@ -113,7 +113,7 @@ async function syncPowerApp() {
   console.log(`\n✅ PowerApp sync complete! Inserted ${totalInserted}/${cleanRows.length} rows.`);
 
   // 5. Backup 9.STORED to Masterdata
-  const storedRows = cleanRows.filter(row => row.STATUS === '9.STORED');
+  const storedRows = cleanRows.filter(row => row.STATUS && row.STATUS.toString().trim().toUpperCase() === '9.STORED');
   if (storedRows.length > 0) {
     console.log(`📦 Backing up ${storedRows.length} STORED orders to Masterdata...`);
     const { error: masterError } = await supabase

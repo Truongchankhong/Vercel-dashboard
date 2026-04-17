@@ -123,9 +123,9 @@ async function uploadToMasterdata() {
     }
     console.log(`\n✅ Found ${existingProOders.size} existing RPRO(s) in database.`);
 
-    const filteredRows = cleanRows.filter(row => !existingProOders.has(row['PRO ODER']));
-    console.log(`⏭️  Skipping ${cleanRows.length - filteredRows.length} existing rows.`);
-    console.log(`🚀 Uploading ${filteredRows.length} new rows...`);
+    // We no longer filter by PRO ODER to allow updating status/details for existing records
+    const filteredRows = cleanRows; 
+    console.log(`🚀 Uploading ${filteredRows.length} rows...`);
 
     if (filteredRows.length === 0) {
         console.log('✅ All rows already exist in Supabase. Nothing to upload.');

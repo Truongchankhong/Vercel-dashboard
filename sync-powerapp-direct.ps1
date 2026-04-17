@@ -405,7 +405,8 @@ function Send-BatchToSupabase {
 
 # 2.A BACKUP TO MASTERDATA (Only 9.STORED status)
 Write-Host "--- Checking for 9.STORED orders to backup..."
-$storedOrders = $jsonData | Where-Object { $_.STATUS -eq "9.STORED" }
+# Forced array @() to handle cases with only 1 match, and trimmed comparison
+$storedOrders = @($jsonData | Where-Object { $null -ne $_.STATUS -and $_.STATUS.ToString().Trim().ToUpper() -eq "9.STORED" })
 
 if ($storedOrders.Count -gt 0) {
     Write-Host "--- Found $($storedOrders.Count) stored orders. Backing up to Masterdata..."
