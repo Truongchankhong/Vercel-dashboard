@@ -425,6 +425,14 @@ function setupEventListeners() {
     const msnvInput = document.getElementById('msnv-input');
     const msnvModal = document.getElementById('msnv-modal');
 
+    if (msnvInput) {
+        msnvInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && btnMsnvOk) {
+                btnMsnvOk.click();
+            }
+        });
+    }
+
     if (btnMsnvOk && msnvInput) {
         btnMsnvOk.onclick = () => {
             const val = msnvInput.value.trim();
@@ -1709,6 +1717,15 @@ function resetEntry() {
     if (btnSplitSurplus) btnSplitSurplus.classList.add('hidden');
     extraSizes = [];
     rproInput.value = '';
+    
+    // Reset Molding Search Inputs
+    const mMoldInput = document.getElementById('molding-mold-input');
+    const mPuInput = document.getElementById('molding-pu-input');
+    const mFbInput = document.getElementById('molding-fb-input');
+    if (mMoldInput) mMoldInput.value = '';
+    if (mPuInput) mPuInput.value = '';
+    if (mFbInput) mFbInput.value = '';
+
     clearFormFields();
     rproInput.focus();
 }
@@ -1756,14 +1773,6 @@ function clearFormFields() {
     // Reset info text
     [infoBrand, infoMold, infoBom].forEach(el => el.textContent = '-');
     [infoPu, infoFabric].forEach(el => el.value = '');
-
-    // Reset Molding Search Inputs
-    const mMoldInput = document.getElementById('molding-mold-input');
-    const mPuInput = document.getElementById('molding-pu-input');
-    const mFbInput = document.getElementById('molding-fb-input');
-    if (mMoldInput) mMoldInput.value = '';
-    if (mPuInput) mPuInput.value = '';
-    if (mFbInput) mFbInput.value = '';
 
     // Reset DC Panel
     const dcRemainInput = document.getElementById('dc-remaining-stock');
