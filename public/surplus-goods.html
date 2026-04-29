@@ -135,6 +135,10 @@
                                             class="px-6 py-3 bg-teal-100 text-teal-700 rounded-2xl border-2 border-teal-200 hover:bg-teal-200 transition">
                                             📷 Quét Mã
                                         </button>
+                                        <button id="btn-default-inout-history"
+                                            class="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg transition active:scale-95 whitespace-nowrap">
+                                            ⏱️ Lịch sử xuất/nhập
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -167,6 +171,10 @@
                                     <button id="btn-search-molding"
                                         class="flex-1 py-3 bg-orange-600 text-white rounded-2xl font-bold hover:bg-orange-700 shadow-lg transition active:scale-95">
                                         🔍 Tìm Kiếm
+                                    </button>
+                                    <button id="btn-molding-inout-history"
+                                        class="flex-1 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg transition active:scale-95">
+                                        ⏱️ Lịch sử xuất/nhập
                                     </button>
                                 </div>
                             </div>
@@ -442,6 +450,59 @@
                     <button id="btn-msnv-ok"
                         class="w-2/3 py-3 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 transition focus:outline-none">Xác
                         nhận</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- In/Out History Modal -->
+        <div id="inout-history-modal" class="fixed inset-0 z-[1000] hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all">
+            <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden p-6 flex flex-col max-h-[90vh] transform transition-all scale-95 opacity-0 duration-300" id="inout-history-content">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-xl font-black text-slate-800 uppercase flex items-center gap-2">
+                            <span class="w-2 h-6 bg-indigo-500 rounded-full"></span> LỊCH SỬ XUẤT NHẬP
+                        </h2>
+                        <p id="inout-history-rpro" class="text-sm font-bold text-slate-500 mt-1"></p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="btn-export-inout-history" class="px-4 py-2 bg-emerald-100 text-emerald-700 font-bold rounded-xl border-2 border-emerald-200 hover:bg-emerald-600 hover:text-white transition uppercase text-xs shadow-sm">
+                            📥 Excel
+                        </button>
+                        <button id="btn-close-inout-history" class="w-10 h-10 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 hover:text-slate-800 transition flex justify-center items-center font-bold text-xl">
+                            &times;
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-y-auto flex-1 no-scrollbar border rounded-2xl border-slate-200">
+                    <table class="w-full text-left border-collapse min-w-[600px]">
+                        <thead>
+                            <tr class="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-black border-b border-slate-200">
+                                <th class="p-4 rounded-tl-xl">Thời Gian</th>
+                                <th class="p-4">Thao Tác</th>
+                                <th class="p-4 text-right">SL Tồn Cũ</th>
+                                <th class="p-4 text-right">SL Tồn Mới</th>
+                                <th class="p-4 text-right">Nhập (+) / Xuất (-)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inout-history-tbody" class="text-sm">
+                            <!-- Rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-4 flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="text-sm font-bold text-slate-500 uppercase">TỔNG KẾT</div>
+                    <div class="flex gap-6">
+                        <div class="text-center">
+                            <p class="text-[10px] uppercase font-bold text-slate-400">Tổng Nhập</p>
+                            <p id="inout-history-total-in" class="text-lg font-black text-emerald-600">+0</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-[10px] uppercase font-bold text-slate-400">Tổng Xuất</p>
+                            <p id="inout-history-total-out" class="text-lg font-black text-rose-600">-0</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -199,6 +199,54 @@ function setupEventListeners() {
     if (btnSearchMolding) {
         btnSearchMolding.onclick = () => handleScanMolding();
     }
+    
+    // In/Out History Buttons
+    const btnMoldingHistory = document.getElementById('btn-molding-inout-history');
+    if (btnMoldingHistory) {
+        btnMoldingHistory.onclick = () => {
+            const mold = document.getElementById('molding-mold-input').value.trim().toUpperCase();
+            const pu = document.getElementById('molding-pu-input').value.trim().toUpperCase();
+            const fb = document.getElementById('molding-fb-input').value.trim().toUpperCase();
+            if (!mold || !pu || !fb) {
+                showToast("⚠️ Vui lòng nhập đầy đủ Mã Khuôn, Mã PU, và Mã Vải!", "error");
+                return;
+            }
+            openInOutHistory(`${mold}_${pu}_${fb}`);
+        };
+    }
+    
+    const btnDefaultHistory = document.getElementById('btn-default-inout-history');
+    if (btnDefaultHistory) {
+        btnDefaultHistory.onclick = () => {
+            const rpro = rproInput.value.trim().toUpperCase();
+            if (!rpro) {
+                showToast("⚠️ Vui lòng nhập RPRO!", "error");
+                return;
+            }
+            openInOutHistory(rpro);
+        };
+    }
+
+    const btnCloseInOutHistory = document.getElementById('btn-close-inout-history');
+    if (btnCloseInOutHistory) {
+        btnCloseInOutHistory.onclick = () => {
+            const modal = document.getElementById('inout-history-modal');
+            const content = document.getElementById('inout-history-content');
+            if (modal && content) {
+                content.classList.remove('scale-100', 'opacity-100');
+                content.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                }, 300);
+            }
+        };
+    }
+    
+    const btnExportInOutHistory = document.getElementById('btn-export-inout-history');
+    if (btnExportInOutHistory) {
+        btnExportInOutHistory.onclick = exportInOutHistoryExcel;
+    }
 
     // Camera Scan
     btnScanCamera.onclick = toggleCamera;
@@ -304,6 +352,9 @@ function setupEventListeners() {
     let cachedMoldingFb = [];
 
     if (moldingMoldInput) {
+        moldingMoldInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleScanMolding();
+        });
         moldingMoldInput.addEventListener('input', debounce(async (e) => {
             const moldValue = e.target.value.trim();
             if (moldValue.length >= 4) { // Trigger reasonable length
@@ -335,6 +386,9 @@ function setupEventListeners() {
     }
     
     if (moldingPuInput) {
+        moldingPuInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleScanMolding();
+        });
         moldingPuInput.addEventListener('focus', () => {
              if (cachedMoldingPu.length > 0) {
                  renderCustomDropdown('molding-pu-input', 'molding-pu-suggestions', cachedMoldingPu);
@@ -349,6 +403,9 @@ function setupEventListeners() {
     }
     
     if (moldingFbInput) {
+        moldingFbInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleScanMolding();
+        });
         moldingFbInput.addEventListener('focus', () => {
              if (cachedMoldingFb.length > 0) {
                  renderCustomDropdown('molding-fb-input', 'molding-fb-suggestions', cachedMoldingFb);
@@ -1259,6 +1316,28 @@ function generateStringHash(str) {
     return Math.abs(hash).toString(16).substring(0, 5).toUpperCase().padStart(5, '0');
 }
 
+function calculateTotalFromData(data) {
+    if (!data) return 0;
+    let total = 0;
+    Object.keys(data).forEach(k => {
+        if (k.startsWith('size_') && !isNaN(parseFloat(data[k]))) total += parseFloat(data[k]);
+    });
+    const dyn = data.dynamic_sizes || {};
+    if (data.section === 'LEANLINE_DC' && dyn['DC_Số_tấm_còn_lại'] !== undefined) {
+        return parseFloat(dyn['DC_Số_tấm_còn_lại']);
+    } else {
+        Object.values(dyn).forEach(v => {
+            if (typeof v === 'object' && v !== null) {
+                if (v.L !== undefined) total += parseFloat(v.L) || 0;
+                if (v.R !== undefined) total += parseFloat(v.R) || 0;
+            } else if (!isNaN(parseFloat(v))) {
+                total += parseFloat(v);
+            }
+        });
+    }
+    return total;
+}
+
 async function saveSurplus() {
     if (!activeOrderData) return;
 
@@ -1419,11 +1498,15 @@ async function saveSurplus() {
 
     try {
         let result;
+        let oldTotal = 0;
+        let newTotal = calculateTotalFromData(payload);
+        let actionType = 'CREATE';
+        let savedId = null;
 
         // Final guard: Determine if user is unintentionally overwriting an existing record in the SAME section.
         if (!editingId && !isSplittingOrder) {
             const { data } = await supabase.from('surplusgoods')
-                .select('id, rpro')
+                .select('*')
                 .eq('rpro', payload.rpro)
                 .eq('section', activeSection)
                 .order('created_at', { ascending: false })
@@ -1433,6 +1516,7 @@ async function saveSurplus() {
 
             if (duplicateCheck) {
                 editingId = duplicateCheck.id; // Automatically bind to avoid repeat checks if they click save again
+                activeOrderData = duplicateCheck;
                 alert("⛔ CHẶN LƯU GHI ĐÈ:\nBạn đang cố lưu một đơn hàng TRÙNG LẶP vật tư ở chung một bộ phận!\n\nNút lưu đã bị chặn tạm thời. Nếu bạn chắc chắn muốn ghi đè lượng cũ, hãy bấm Lưu lần nữa.\nNếu muốn lưu thành đơn mới, hãy bấm '✂️ Tách Đơn'.");
                 if (btnSplitSurplus) btnSplitSurplus.classList.remove('hidden');
                 btnSaveSurplus.disabled = false;
@@ -1442,12 +1526,20 @@ async function saveSurplus() {
         }
 
         if (editingId) {
+            actionType = 'UPDATE';
+            if (activeOrderData && activeOrderData.id === editingId) {
+                oldTotal = calculateTotalFromData(activeOrderData);
+            } else {
+                const { data: oldData } = await supabase.from('surplusgoods').select('*').eq('id', editingId).single();
+                if (oldData) oldTotal = calculateTotalFromData(oldData);
+            }
             // UPDATE existing
-            result = await supabase.from('surplusgoods').update(payload).eq('id', editingId);
+            result = await supabase.from('surplusgoods').update(payload).eq('id', editingId).select('id');
+            if (result.data && result.data.length > 0) savedId = result.data[0].id;
         } else {
             // Check if this exact rpro already exists in surplusgoods IN THE SAME SECTION to prevent duplicates
             const { data } = await supabase.from('surplusgoods')
-                .select('id')
+                .select('*')
                 .eq('rpro', payload.rpro)
                 .eq('section', activeSection)
                 .order('created_at', { ascending: false })
@@ -1456,15 +1548,37 @@ async function saveSurplus() {
             const existData = data && data.length > 0 ? data[0] : null;
 
             if (existData) {
+                actionType = 'UPDATE';
+                oldTotal = calculateTotalFromData(existData);
                 // UPDATE existing fallback
-                result = await supabase.from('surplusgoods').update(payload).eq('id', existData.id);
+                result = await supabase.from('surplusgoods').update(payload).eq('id', existData.id).select('id');
+                if (result.data && result.data.length > 0) savedId = result.data[0].id;
             } else {
                 // INSERT new
-                result = await supabase.from('surplusgoods').insert([payload]);
+                result = await supabase.from('surplusgoods').insert([payload]).select('id');
+                if (result.data && result.data.length > 0) savedId = result.data[0].id;
             }
         }
 
         if (result.error) throw result.error;
+
+        // Log history if changed
+        if (savedId) {
+            const changeAmount = newTotal - oldTotal;
+            // Only log if there's an actual change in quantity, or if it's a new record
+            if (actionType === 'CREATE' || changeAmount !== 0) {
+                const historyPayload = {
+                    surplus_id: savedId,
+                    rpro: payload.rpro,
+                    section: payload.section,
+                    old_total: oldTotal,
+                    new_total: newTotal,
+                    change_amount: changeAmount,
+                    action_type: actionType
+                };
+                await supabase.from('surplusgoods_history').insert([historyPayload]);
+            }
+        }
 
         showToast("🎉 Lưu thông tin thành công!", "success");
         
@@ -1979,9 +2093,14 @@ async function loadHistory() {
                         <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}">FB: ${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}</p>` : ''}
                         <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
                     </div>
-                    <div class="text-right flex-shrink-0">
-                        <span class="text-lg font-black text-slate-800">${total}</span>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">${item.section === 'LEANLINE_DC' ? 'tấm' : 'đôi dôi'}</span>
+                    <div class="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                        <div>
+                            <span class="text-lg font-black text-slate-800">${total}</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">${item.section === 'LEANLINE_DC' ? 'tấm' : 'đôi dôi'}</span>
+                        </div>
+                        <button onclick="event.stopPropagation(); openInOutHistory('${item.rpro ? item.rpro.replace(/'/g, "\\'") : ''}')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-bold border border-indigo-200 transition">
+                            Lịch sử biến động
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2006,6 +2125,116 @@ window.previewEntry = async (id) => {
 
     // Use the consolidated loader for sizes, note, and section
     loadSurplusDataToUI(data);
+};
+
+let currentHistoryDataForExport = [];
+
+window.openInOutHistory = async (rpro) => {
+    const modal = document.getElementById('inout-history-modal');
+    const content = document.getElementById('inout-history-content');
+    const tbody = document.getElementById('inout-history-tbody');
+    const title = document.getElementById('inout-history-rpro');
+    const totalIn = document.getElementById('inout-history-total-in');
+    const totalOut = document.getElementById('inout-history-total-out');
+
+    if (!modal || !tbody) return;
+
+    // reset
+    tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Đang tải dữ liệu...</td></tr>';
+    title.textContent = "Mã: " + rpro;
+    totalIn.textContent = "+0";
+    totalOut.textContent = "-0";
+    currentHistoryDataForExport = [];
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    setTimeout(() => {
+        content.classList.remove('scale-95', 'opacity-0');
+        content.classList.add('scale-100', 'opacity-100');
+    }, 10);
+
+    // fetch history
+    const { data, error } = await supabase.from('surplusgoods_history')
+        .select('*')
+        .ilike('rpro', `%${rpro}%`)
+        .order('created_at', { ascending: true }); // ascending for logical reading
+
+    if (error) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-rose-500">Lỗi: ${error.message}</td></tr>`;
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Chưa có lịch sử xuất/nhập cho đơn này.</td></tr>';
+        return;
+    }
+
+    currentHistoryDataForExport = data;
+
+    let inSum = 0;
+    let outSum = 0;
+
+    tbody.innerHTML = data.map(item => {
+        const change = item.change_amount || 0;
+        let changeClass = "text-slate-500";
+        let changeText = "0";
+
+        if (change > 0) {
+            changeClass = "text-emerald-600 bg-emerald-50";
+            changeText = "+" + change;
+            inSum += change;
+        } else if (change < 0) {
+            changeClass = "text-rose-600 bg-rose-50";
+            changeText = change;
+            outSum += Math.abs(change);
+        }
+
+        return `
+            <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
+                <td class="p-4 whitespace-nowrap">${new Date(item.created_at).toLocaleString('vi-VN')}</td>
+                <td class="p-4 font-bold text-slate-600">${item.action_type === 'CREATE' ? 'Tạo mới' : 'Cập nhật'}</td>
+                <td class="p-4 text-right font-medium text-slate-500">${item.old_total || 0}</td>
+                <td class="p-4 text-right font-bold text-slate-800">${item.new_total || 0}</td>
+                <td class="p-4 text-right font-black"><span class="px-2 py-1 rounded-lg ${changeClass}">${changeText}</span></td>
+            </tr>
+        `;
+    }).join('');
+
+    totalIn.textContent = "+" + inSum;
+    totalOut.textContent = "-" + outSum;
+};
+
+window.exportInOutHistoryExcel = () => {
+    if (!currentHistoryDataForExport || currentHistoryDataForExport.length === 0) {
+        showToast("⚠️ Không có dữ liệu để xuất!", "error");
+        return;
+    }
+
+    try {
+        const exportData = currentHistoryDataForExport.map(item => ({
+            'Thời gian': new Date(item.created_at).toLocaleString('vi-VN'),
+            'Mã Đơn': item.rpro,
+            'Section': item.section || '',
+            'Thao tác': item.action_type === 'CREATE' ? 'Tạo mới' : 'Cập nhật',
+            'SL Tồn Cũ': item.old_total || 0,
+            'SL Tồn Mới': item.new_total || 0,
+            'Biến động': item.change_amount || 0,
+            'Loại': (item.change_amount > 0) ? 'Nhập' : (item.change_amount < 0 ? 'Xuất' : 'Không đổi')
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Lich_Su_Xuat_Nhap");
+
+        const rproName = (currentHistoryDataForExport[0].rpro || 'Unknown').replace(/[^a-zA-Z0-9-]/g, '_');
+        const fileName = `Lich_Su_${rproName}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+
+        showToast("✅ Đã xuất file Excel!", "success");
+    } catch (err) {
+        console.error(err);
+        showToast("❌ Lỗi xuất Excel: " + err.message, "error");
+    }
 };
 
 // ==================== UI MISC ====================
