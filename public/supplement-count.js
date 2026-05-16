@@ -421,7 +421,7 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
 
         if (insertError) throw insertError;
 
-        lastRecordId = insertData[0].id;
+        lastRecordId = insertData ? insertData.id : null;
         showFeedback(`✅ THÀNH CÔNG: ${rpro}`, "text-green-600 font-black");
         playAudioFeedback(true);
         addScanHistoryEntry(rpro, quantity, "SUCCESS", true, '', finalNote);
