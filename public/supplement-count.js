@@ -71,6 +71,8 @@ function getPreviousSection(section) {
 
 let scanQueue = [];
 let isQueueProcessing = false;
+let fetchDetailsTimeout = null;
+const detailsCache = {};
 
 // ==================== CAMERA SCANNER ====================
 async function startCamera() {
@@ -108,7 +110,7 @@ async function startCamera() {
         cameraActive = true;
     } catch (err) {
         console.error("Camera error:", err);
-        showFeedback("❌ Lỗi Camera: " + err.message, "text-red-600 text-sm");
+        showFeedback("ÔØî Lß╗ùi Camera: " + err.message, "text-red-600 text-sm");
     }
 }
 
@@ -150,7 +152,7 @@ async function onCameraScanSuccess(decodedText) {
             if (isHbkdMode && manualNoteInput && !manualNoteInput.value.includes('HBKD')) {
                 manualNoteInput.value = manualNoteInput.value ? 'HBKD ' + manualNoteInput.value : 'HBKD';
             }
-            setTimeout(() => handleManualSave(true), 800);
+            setTimeout(() => handleManualSave(), 800);
         }
     }
 }
@@ -181,10 +183,25 @@ async function fetchDetails(rawRpro) {
 
     if (rpro.length < 5) return false;
 
-    let foundAnyData = false;
-    try {
-        let defaultQty = 1;
+    // 1. Check Cache first to save egress
+    const cacheKey = `${rpro}_${activeSection}`;
+    if (detailsCache[cacheKey]) {
+        const cached = detailsCache[cacheKey];
+        if (inputQty) inputQty.value = cached.qty;
+        if (activeSection === 'Dán' && puInfoContainer && puCodeDisplay) {
+            puInfoContainer.classList.remove('hidden');
+            puCodeDisplay.textContent = cached.puCode;
+            if (inputPuSheets) inputPuSheets.value = cached.puSheets;
+        }
+        return 'found';
+    }
 
+    let foundAnyData = false;
+    let puCode = null;
+    let defaultQty = 1;
+    let puSheets = 1;
+
+    try {
         if (activeSection === 'Dán') {
             const { data: confirmData, error: confirmError } = await supabase
                 .from('supplement_confirm')
@@ -210,7 +227,7 @@ async function fetchDetails(rawRpro) {
                     defaultQty = suppData[0].total;
                 } else {
                     const { data: masterData, error: masterError } = await supabase
-                        .from('Masterdata')
+                        .from('powerapp')
                         .select('"Total Qty"')
                         .eq('PRO ODER', rpro)
                         .limit(1);
@@ -222,7 +239,6 @@ async function fetchDetails(rawRpro) {
             }
             if (defaultQty > 1 || (confirmData && confirmData.length > 0)) foundAnyData = true;
 
-            let puCode = null;
             const { data: puData, error: puError } = await supabase
                 .from('powerapp')
                 .select('PU')
@@ -253,7 +269,7 @@ async function fetchDetails(rawRpro) {
             if (puSheetsDisplay) puSheetsDisplay.classList.add('hidden');
 
             if (confirmSoTam !== null && confirmSoTam !== undefined) {
-                if (inputPuSheets) inputPuSheets.value = confirmSoTam;
+                puSheets = confirmSoTam;
             } else {
                 const { data: sheetsData, error: sheetsErr } = await supabase
                     .from('supplement_tracking')
@@ -265,11 +281,11 @@ async function fetchDetails(rawRpro) {
                     .limit(1);
 
                 if (!sheetsErr && sheetsData && sheetsData.length > 0 && sheetsData[0].pu_sheets != null) {
-                    if (inputPuSheets) inputPuSheets.value = sheetsData[0].pu_sheets;
-                } else {
-                    if (inputPuSheets) inputPuSheets.value = 1;
+                    puSheets = sheetsData[0].pu_sheets;
                 }
             }
+            if (inputPuSheets) inputPuSheets.value = puSheets;
+
         } else if (['Cắt', 'Molding', 'DC', 'Molded'].includes(activeSection)) {
             if (puInfoContainer) puInfoContainer.classList.add('hidden');
             const stagesToSearch = [];
@@ -280,22 +296,21 @@ async function fetchDetails(rawRpro) {
 
             let qtyFromPrev = null;
             for (const stage of stagesToSearch) {
-                const { data: prevData } = await supabase
+                const { data: prevOut } = await supabase
                     .from('supplement_tracking')
                     .select('quantity')
                     .eq('rpro', rpro)
                     .eq('section', stage)
-                    .order('created_at', { ascending: false });
+                    .eq('action', 'OUT')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
 
-                if (prevData && prevData.length > 0) {
-                    // Tìm xem trong công đoạn này (cả IN và OUT), có bản ghi nào số lượng > 1 không
-                    const largerQtyRecord = prevData.find(r => r.quantity > 1);
-                    if (largerQtyRecord) {
-                        qtyFromPrev = largerQtyRecord.quantity;
+                if (prevOut && prevOut.length > 0 && prevOut[0].quantity > 0) {
+                    if (prevOut[0].quantity > 1) {
+                        qtyFromPrev = prevOut[0].quantity;
                         break;
                     } else if (qtyFromPrev === null) {
-                        // Nếu tất cả đều là 1 (hoặc <= 1), lấy tạm 1 làm mốc, nhưng chưa break để tìm tiếp ở công đoạn trước
-                        qtyFromPrev = prevData[0].quantity;
+                        qtyFromPrev = prevOut[0].quantity;
                     }
                 }
             }
@@ -316,12 +331,19 @@ async function fetchDetails(rawRpro) {
                     foundAnyData = true;
                 }
             }
-        } else {
-            if (puInfoContainer) puInfoContainer.classList.add('hidden');
         }
 
         if (inputQty && defaultQty > 0) {
             inputQty.value = defaultQty;
+        }
+
+        // 2. Save to cache
+        if (foundAnyData) {
+            detailsCache[cacheKey] = {
+                qty: defaultQty,
+                puCode: puCode,
+                puSheets: puSheets
+            };
         }
 
     } catch (err) {
@@ -384,7 +406,7 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
             scan_date: new Date().toISOString().split('T')[0]
         };
 
-        if (activeSection === 'Dán' && inputPuSheets) {
+        if (activeSection === 'D├ín' && inputPuSheets) {
             const sheets = parseInt(inputPuSheets.value) || 0;
             if (sheets > 0) insertRecord.pu_sheets = sheets;
         }
@@ -392,7 +414,8 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
         const { data: insertData, error: insertError } = await supabase
             .from('supplement_tracking')
             .insert([insertRecord])
-            .select('id');
+            .select('id')
+            .maybeSingle(); // Optimized
 
         if (insertError) throw insertError;
 
@@ -417,7 +440,7 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
 function finishProcessingBatch() {
     setTimeout(() => {
         isProcessing = false;
-        scanFeedback.innerText = "Sẵn sàng cho mã tiếp theo...";
+        scanFeedback.innerText = "Sß║Án s├áng cho m├ú tiß║┐p theo...";
         scanFeedback.className = "mt-3 text-center min-h-[50px] font-bold text-lg text-gray-400";
     }, 2000);
 }
@@ -450,46 +473,33 @@ function addScanHistoryEntry(rpro, qty, status, isSuccess, errorReason = '', not
 
 async function undoLastRecord() {
     if (!lastRecordId) return;
-    if (!confirm("Bạn có chắc chắn muốn xóa bản ghi vừa lưu?")) return;
+    if (!confirm("Bß║ín c├│ chß║»c chß║»n muß╗æn x├│a bß║ún ghi vß╗½a lã░u?")) return;
     try {
         await supabase.from('supplement_tracking').delete().eq('id', lastRecordId);
         showFeedback("↩️ Đã xóa bản ghi vừa lưu!", "text-blue-600");
         lastRecordId = null;
         undoContainer.classList.add('hidden');
-    } catch (err) { alert("Lỗi khi xóa: " + err.message); }
+    } catch (err) { alert("Lß╗ùi khi x├│a: " + err.message); }
 }
 
-async function handleManualSave(forceSave = false) {
+async function handleManualSave() {
     if (isProcessing) return;
-    if (!activeSection) {
-        showToast("⚠️ Vui lòng chọn bộ phận trước!", "error");
-        return;
-    }
-    if (!activeAction) {
-        showToast("⚠️ Vui lòng chọn hành động (IN/OUT) trước!", "error");
-        return;
-    }
-
     const val = manualRproInput.value.trim().toUpperCase();
     if (!val) return;
-
-    const isAutoSave = autoSaveCheckbox ? autoSaveCheckbox.checked : false;
-
-    showFeedback("🔍 Đang tìm thông tin đơn hàng...", "text-blue-500");
-    await fetchDetails(val);
-
-    if (!forceSave && !isAutoSave) {
-        // Just fetched, do not save yet
-        showFeedback(`✅ Đã tìm thấy: ${val}. Vui lòng kiểm tra và NHẤN LƯU!`, "text-blue-600");
-        return;
-    }
-
-    const note = manualNoteInput ? manualNoteInput.value.trim() : '';
-    await processRPRO(val, "MANUAL", note);
+    await processRPRO(val, "MANUAL", manualNoteInput ? manualNoteInput.value.trim() : '');
     manualRproInput.value = "";
 }
 
+function updateStatsUI() {
+    if (scanCountTotalElem) scanCountTotalElem.textContent = scanCountTotalVal;
+    if (scanCountErrorElem) scanCountErrorElem.textContent = scanCountErrorVal;
+}
 
+function updateScannerStatusUI() {
+    if (!scannerReadyDot) return;
+    const isFocused = (document.activeElement === manualRproInput);
+    scannerReadyDot.className = `absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full ${isFocused ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`;
+}
 
 function playAudioFeedback(success) {
     try {
@@ -505,6 +515,15 @@ function playAudioFeedback(success) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    if (manualRproInput) {
+        manualRproInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleManualSave();
+            }
+        });
+    }
+
     sectionBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             sectionBtns.forEach(b => b.classList.remove('active'));
@@ -542,7 +561,7 @@ window.addEventListener('DOMContentLoaded', () => {
             activeActionLabel.innerText = btn.innerText;
             scannerContainer.classList.remove('hidden');
 
-            if (activeSection === 'Dán' && puSheetsEdit && puSheetsDisplay) {
+            if (activeSection === 'D├ín' && puSheetsEdit && puSheetsDisplay) {
                 puSheetsEdit.classList.remove('hidden');
                 puSheetsDisplay.classList.add('hidden');
             }
@@ -599,7 +618,7 @@ if (btnViewSummary) {
 }
 
 if (btnSaveManual) {
-    btnSaveManual.addEventListener('click', () => handleManualSave(true));
+    btnSaveManual.addEventListener('click', handleManualSave);
 }
 
 if (btnQuickHbkd) {
@@ -613,17 +632,21 @@ if (btnQuickHbkd) {
 }
 
 if (manualRproInput) {
+    // Ensure Enter key triggers save
     manualRproInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            handleManualSave(false);
+            handleManualSave();
         }
     });
 
-    // Add event listener to fetch details when user types or paste code
+    // Add event listener to fetch details when user types or paste code with DEBOUNCE
     manualRproInput.addEventListener('input', (e) => {
         const val = e.target.value.trim().toUpperCase();
-        if (val.length >= 8) fetchDetails(val);
+        if (val.length >= 8) {
+            clearTimeout(fetchDetailsTimeout);
+            fetchDetailsTimeout = setTimeout(() => fetchDetails(val), 500);
+        }
     });
 }
 
@@ -688,7 +711,7 @@ function updateScannerStatusUI() {
     } else {
         const isEditing = (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
         handheldDot.className = "w-3 h-3 rounded-full bg-amber-500 flex-shrink-0";
-        handheldStatusText.innerText = isEditing ? "Đang nhập liệu khác, bấm ra ngoài để quay lại quét." : "Đang chờ focus...";
+        handheldStatusText.innerText = isEditing ? "─Éang nhß║¡p liß╗çu kh├íc, bß║Ñm ra ngo├ái ─æß╗â quay lß║íi qu├®t." : "─Éang chß╗Ø focus...";
     }
 }
 
@@ -751,152 +774,5 @@ if (btnSaveAllBatch) {
     btnSaveAllBatch.addEventListener('click', saveBatchScans);
 }
 
-function showFeedback(msg, className) {
-    if (!scanFeedback) return;
-    scanFeedback.innerText = msg;
-    scanFeedback.className = `mt-3 text-center min-h-[50px] font-bold text-lg ${className}`;
-}
 
-// ==================== BATCH IMPORT LOGIC ====================
-async function handleBatchImport() {
-    if (!activeSection || !activeAction) {
-        showToast("⚠️ Vui lòng chọn bộ phận và hành động trước!", "error");
-        return;
-    }
-
-    const text = batchRproTextarea.value.trim();
-    if (!text) {
-        showToast("⚠️ Vui lòng dán danh sách mã RPRO!", "error");
-        return;
-    }
-
-    // Extract all RPRO codes using regex
-    const rproMatches = text.match(/RPRO-?[\d-]+/gi) || [];
-    if (rproMatches.length === 0) {
-        showToast("❌ Không tìm thấy mã RPRO hợp lệ nào!", "error");
-        return;
-    }
-
-    // Reset UI and internal state for batch
-    if (scanHistoryList) scanHistoryList.innerHTML = '';
-    scanCountTotalVal = 0;
-    scanCountErrorVal = 0;
-    updateStatsUI();
-    pendingBatchScans = [];
-    btnSaveAllBatch.classList.add('hidden');
-    scanHistoryContainer.classList.remove('hidden');
-
-    showFeedback(`⏳ Đang xử lý ${rproMatches.length} mã...`, "text-blue-600");
-    showToast(`🔄 Đang phân tích ${rproMatches.length} đơn hàng...`, "success");
-
-    for (const rawCode of rproMatches) {
-        const code = normalizeRPRO(rawCode);
-
-        const status = await fetchDetails(code);
-
-        const item = {
-            rpro: code,
-            quantity: parseInt(inputQty.value) || 1,
-            note: manualNoteInput.value.trim(),
-            pu_sheets: (activeSection === 'Dán' && inputPuSheets) ? parseInt(inputPuSheets.value) : null,
-            status: status
-        };
-
-        pendingBatchScans.push(item);
-        addBatchScanHistoryEntry(item);
-
-        await new Promise(r => setTimeout(r, 50));
-    }
-
-    if (pendingBatchScans.length > 0) {
-        showFeedback(`✅ Đã phân tích xong ${pendingBatchScans.length} mã. Vui lòng kiểm tra và lưu.`, "text-green-600");
-        btnSaveAllBatch.classList.remove('hidden');
-        btnSaveAllBatch.innerText = `LƯU TẤT CẢ (${pendingBatchScans.length})`;
-    } else {
-        showFeedback("❌ Không có mã hợp lệ để xử lý.", "text-red-500");
-    }
-}
-
-function addBatchScanHistoryEntry(item) {
-    if (!scanHistoryList) return;
-
-    const entry = document.createElement('div');
-    const isSuccess = item.status === 'found';
-    entry.className = `flex justify-between items-center gap-2 p-1.5 rounded border bg-blue-900/20 border-blue-800/50 text-blue-300`;
-
-    const actionSymbol = activeAction === 'IN' ? '⬇️' : '⬆️';
-
-    entry.innerHTML = `
-        <div class="flex flex-col flex-1 min-w-0">
-            <div class="flex items-center gap-1.5">
-                <span class="text-[9px] opacity-60 shrink-0">CHỜ LƯU</span>
-                <span class="font-bold truncate text-sm leading-none">${item.rpro}</span>
-            </div>
-            <div class="flex items-center gap-2 text-[10px] mt-0.5 opacity-80">
-                <span>${actionSymbol} ${activeSection}</span>
-                <span class="bg-gray-800 px-1 rounded">SL: ${item.quantity}</span>
-                ${item.note ? `<span class="italic text-yellow-300 truncate">📝 ${item.note}</span>` : ''}
-                ${!isSuccess ? `<span class="italic text-orange-300 font-bold truncate">⚠️ Ko có data</span>` : `<span class="text-green-400 font-bold">OK</span>`}
-            </div>
-        </div>
-    `;
-
-    scanHistoryList.prepend(entry);
-    scanCountTotalVal++;
-    updateStatsUI();
-}
-
-async function saveBatchScans() {
-    if (pendingBatchScans.length === 0) return;
-    if (!confirm(`Bạn có chắc chắn muốn lưu ${pendingBatchScans.length} đơn hàng này vào hệ thống?`)) return;
-
-    btnSaveAllBatch.disabled = true;
-    btnSaveAllBatch.innerText = "ĐANG LƯU...";
-    showFeedback("⏳ Đang lưu dữ liệu vào hệ thống...", "text-blue-600");
-
-    let successCount = 0;
-    let failCount = 0;
-
-    for (const item of pendingBatchScans) {
-        try {
-            const insertRecord = {
-                rpro: item.rpro,
-                section: activeSection,
-                action: activeAction,
-                operator: 'User',
-                quantity: item.quantity,
-                note: item.note,
-                scan_date: new Date().toISOString().split('T')[0]
-            };
-
-            if (item.pu_sheets) insertRecord.pu_sheets = item.pu_sheets;
-
-            const { error } = await supabase.from('supplement_tracking').insert([insertRecord]);
-            if (error) throw error;
-            successCount++;
-        } catch (err) {
-            console.error(`Error saving ${item.rpro}:`, err);
-            failCount++;
-        }
-    }
-
-    showToast(`✅ Đã lưu ${successCount} đơn thành công! ${failCount > 0 ? `❌ Lỗi: ${failCount}` : ''}`, successCount > 0 ? "success" : "error");
-    showFeedback(`✅ Hoàn tất: Lưu ${successCount} đơn thành công.`, "text-green-600");
-
-    pendingBatchScans = [];
-    btnSaveAllBatch.classList.add('hidden');
-    batchRproTextarea.value = '';
-}
-
-// Khôi phục trạng thái checkbox tự động lưu
-function initAutoSave() {
-    if (autoSaveCheckbox) {
-        const savedState = localStorage.getItem("supplement-count-auto-save");
-        autoSaveCheckbox.checked = (savedState === "true");
-        autoSaveCheckbox.addEventListener("change", (e) => {
-            localStorage.setItem("supplement-count-auto-save", e.target.checked);
-        });
-    }
-}
-
-console.log("✅ Supplement Count Tracking Loaded");
+console.log("Ô£à Supplement Count Tracking Loaded");

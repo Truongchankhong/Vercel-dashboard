@@ -500,7 +500,7 @@ window.openPendingModal = (stage) => {
     activePendingStage = stage;
     const modal = document.getElementById('pending-modal');
     const title = document.getElementById('pending-modal-title');
-    
+
     // Reset search
     if (pendingSearchInput) pendingSearchInput.value = '';
 
@@ -519,9 +519,9 @@ function renderPendingList() {
 
     // Sort by previous stage out time (oldest first)
     const sorted = [...list].sort((a, b) => new Date(a.prevTime) - new Date(b.prevTime));
-    
+
     // Filter
-    const filtered = sorted.filter(item => 
+    const filtered = sorted.filter(item =>
         item.rpro.toUpperCase().includes(filterText) || (item.mold && item.mold.toUpperCase().includes(filterText))
     );
 
@@ -906,7 +906,7 @@ window.exportToExcel = async () => {
     btnExport.disabled = true;
     const originalText = btnExport.textContent;
     btnExport.textContent = '⌛ ...';
-    
+
     try {
         showToast("⏳ Đang chuẩn bị dữ liệu xuất... (Vui lòng đợi)", "info");
 
@@ -1007,7 +1007,7 @@ window.exportToExcel = async () => {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Tiến Độ Hàng Bù");
 
-        const wscols = [ { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 15 } ];
+        const wscols = [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 15 }];
         for (let i = 0; i < 5 * 2; i++) wscols.push({ wch: 18 });
         wscols.push({ wch: 40 }); // For Note
         wscols.push({ wch: 15 }); // For Finish date
@@ -1128,15 +1128,24 @@ function setupRealtimeSubscription() {
         .channel('supplement_tracking_monitor')
         .on(
             'postgres_changes',
-            { event: '*', schema: 'public', table: 'supplement_tracking' }, // Listen to ALL events (INSERT, DELETE, UPDATE)
+            { event: '*', schema: 'public', table: 'supplement_tracking' },
             (payload) => {
                 console.log('⚡ Event:', payload);
-                if (payload.eventType === 'INSERT') {
+                if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                    // Update memory map with new data point
                     updateLocalState(payload.new);
-                    refreshTableData();
-                } else {
-                    // Start date might affect which records are shown, simpler to refetch on Delete/Update
-                    // to ensure consistency (removing deleted items from memory map is complex without full re-fetch)
+                    
+                    // Re-enrich only this RPRO if it's new or missing metadata
+                    const rpro = payload.new.rpro;
+                    if (rpro && (!progressMap[rpro] || !progressMap[rpro].so)) {
+                        enrichProgressMapMetadata(progressMap, [rpro]).then(() => {
+                            refreshTableData();
+                        });
+                    } else {
+                        refreshTableData();
+                    }
+                } else if (payload.eventType === 'DELETE') {
+                    // For deletes, a full refresh is safer to ensure consistency
                     fetchProgressData();
                 }
             }
@@ -1516,7 +1525,7 @@ async function showStats() {
             if (prevStage && prevStage.out && currStage) {
                 // FALLBACK: If current stage misses Scan IN, use Scan OUT instead (common in Dán/Cắt)
                 const currTimeVal = currStage.in ? currStage.in.time : (currStage.out ? currStage.out.time : null);
-                
+
                 if (currTimeVal) {
                     const outTime = new Date(prevStage.out.time);
                     const inTime = new Date(currTimeVal);
