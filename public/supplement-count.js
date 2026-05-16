@@ -490,10 +490,7 @@ async function handleManualSave() {
     manualRproInput.value = "";
 }
 
-function updateStatsUI() {
-    if (scanCountTotalElem) scanCountTotalElem.textContent = scanCountTotalVal;
-    if (scanCountErrorElem) scanCountErrorElem.textContent = scanCountErrorVal;
-}
+
 
 
 
