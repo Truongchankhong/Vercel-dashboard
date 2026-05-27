@@ -200,9 +200,26 @@
             }
 
             /* ===== QUAN TRỌNG: Ẩn CẢ th VÀ td của cột đơn vị (cột thứ 4) ===== */
-            .metric-table th:nth-child(4),
-            .metric-table td:nth-child(4) {
+            #results-table th:nth-child(4),
+            #results-table td:nth-child(4) {
                 display: none !important;
+            }
+
+            .split-container {
+                display: flex;
+                flex-direction: row;
+                gap: 24px;
+                flex: 1;
+                overflow: hidden;
+                min-height: 0;
+            }
+
+            @media screen and (max-width: 1024px) {
+                .split-container {
+                    display: block !important;
+                    height: auto !important;
+                    overflow: visible !important;
+                }
             }
 
             /* Table layout tự động để tránh cắt chữ */
@@ -333,189 +350,288 @@
             </div>
         </div>
 
-        <div class="premium-card animate-fade-in">
-            <div class="flex flex-row justify-between items-center mb-2 gap-4" id="page-header">
-                <div class="flex items-baseline gap-4">
-                    <h1 class="heading-font text-5xl font-black header-gradient leading-none" id="display-month">Tháng 04-2026</h1>
-                    <p class="text-gray-500 font-black uppercase tracking-[0.2em] text-sm">KẾ HOẠCH & BẬC THƯỞNG</p>
+        <!-- Overall Summary Banner -->
+        <div class="mb-4 bg-white/80 backdrop-blur-md border border-white/30 rounded-2xl p-4 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-blue-100 text-blue-600 rounded-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                 </div>
-                <div class="flex gap-2 items-center flex-wrap">
-                    <div class="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200">
-                        <span class="text-gray-600 text-xs font-black uppercase">Tháng</span>
-                        <input type="month" id="month-picker" 
-                            class="bg-transparent text-blue-600 font-black outline-none border-none cursor-pointer text-sm">
+                <div>
+                    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Kết quả tiền thưởng sản lượng tổng thể</h2>
+                    <p id="overall-status" class="text-xl font-bold text-gray-800">Chưa có số liệu</p>
+                </div>
+            </div>
+            <div class="flex gap-4 items-center">
+                <div class="text-right">
+                    <span class="text-xs font-medium text-gray-400 block uppercase">Mức tiền thưởng dự kiến</span>
+                    <span id="overall-bonus-amount" class="text-2xl font-black text-emerald-600">0 VND</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="split-container flex flex-col lg:flex-row gap-6 flex-1 overflow-hidden min-h-0">
+            <!-- Left Card: Bảng Kết Quả -->
+            <div class="premium-card flex-[5] flex flex-col overflow-hidden min-h-0">
+                <div class="flex flex-row justify-between items-center mb-2 gap-4" id="page-header">
+                    <div class="flex items-baseline gap-4">
+                        <h1 class="heading-font text-5xl font-black header-gradient leading-none" id="display-month">Tháng 04-2026</h1>
+                        <p class="text-gray-500 font-black uppercase tracking-[0.2em] text-sm">KẾ HOẠCH & BẬC THƯỞNG</p>
                     </div>
-                    <button id="btn-edit" class="px-4 py-2 bg-amber-500 text-white font-black rounded-xl shadow-sm hover:bg-amber-600 transition-all active:scale-95 flex items-center text-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        CHỈNH SỬA
-                    </button>
-                    <button id="btn-save" class="px-4 py-2 bg-blue-600 text-white font-black rounded-xl shadow-md shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95 hidden text-sm">
-                        LƯU DATA
-                    </button>
-                    <button class="px-4 py-2 bg-emerald-600 text-white font-black rounded-xl shadow-md shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 text-sm">
-                        XUẤT EXCEL
-                    </button>
+                    <div class="flex gap-2 items-center flex-wrap">
+                        <div class="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-xl border border-gray-200">
+                            <span class="text-gray-600 text-xs font-black uppercase">Tháng</span>
+                            <input type="month" id="month-picker" 
+                                class="bg-transparent text-blue-600 font-black outline-none border-none cursor-pointer text-sm">
+                        </div>
+                        <button id="btn-edit" class="px-4 py-2 bg-amber-500 text-white font-black rounded-xl shadow-sm hover:bg-amber-600 transition-all active:scale-95 flex items-center text-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            CHỈNH SỬA
+                        </button>
+                        <button id="btn-save" class="px-4 py-2 bg-blue-600 text-white font-black rounded-xl shadow-md shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95 hidden text-sm">
+                            LƯU DATA
+                        </button>
+                        <button class="px-4 py-2 bg-emerald-600 text-white font-black rounded-xl shadow-md shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95 text-sm">
+                            XUẤT EXCEL
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="results-table" class="metric-table">
+                        <thead>
+                            <tr>
+                                <th class="col-no">No.</th>
+                                <th class="col-index">Nội Dung Chỉ Số (Index)</th>
+                                <th class="col-value">Giá Trị (Value)</th>
+                                <th class="col-unit">Đơn Vị</th>
+                                <th class="col-level">Cấp Độ</th>
+                                <th class="col-note">Ghi Chú</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bonus-tbody">
+                            <tr class="category-header">
+                                <td colspan="6" class="py-1 px-6 text-center">Bậc thưởng sản lượng</td>
+                            </tr>
+                            <tr data-row="1">
+                                <td>1</td>
+                                <td class="font-semibold text-gray-700">Mục tiêu sản lượng</td>
+                                <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
+                                <td class="text-center font-medium text-gray-500">Pair</td>
+                                <td class="text-center"></td>
+                                <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
+                            </tr>
+                            <tr data-row="2">
+                                <td>2</td>
+                                <td class="font-semibold text-gray-700">Tổng sản lượng thực tế</td>
+                                <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
+                                <td class="text-center font-medium text-gray-500">Pair</td>
+                                <td class="text-center">
+                                    <select class="input-premium bonus-input-select lvl-no" disabled onchange="updateLevelColor(this)">
+                                        <option value="Level 1">Level 1</option>
+                                        <option value="Level 2">Level 2</option>
+                                        <option value="Level 3">Level 3</option>
+                                        <option value="Chưa có số liệu" selected>Chưa có số liệu</option>
+                                        <option value="Đang Rớt">Đang Rớt</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
+                            </tr>
+                            <tr data-row="3">
+                                <td>3</td>
+                                <td class="font-semibold text-gray-700">Hiệu suất thực tế PPH_SMV</td>
+                                <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
+                                <td class="text-center font-medium text-gray-500">Pair/hours</td>
+                                <td class="text-center">
+                                    <select class="input-premium bonus-input-select lvl-no" disabled onchange="updateLevelColor(this)">
+                                        <option value="Level 1">Level 1</option>
+                                        <option value="Level 2">Level 2</option>
+                                        <option value="Level 3">Level 3</option>
+                                        <option value="Chưa có số liệu" selected>Chưa có số liệu</option>
+                                        <option value="Đang Rớt">Đang Rớt</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
+                            </tr>
+                            <tr data-row="4">
+                                <td>4</td>
+                                <td class="font-semibold text-gray-700">Hàng làm lại</td>
+                                <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
+                                <td class="text-center font-medium text-gray-500">%</td>
+                                <td class="text-center">
+                                    <select class="input-premium bonus-input-select lvl-no" disabled onchange="updateLevelColor(this)">
+                                        <option value="Level 1">Level 1</option>
+                                        <option value="Level 2">Level 2</option>
+                                        <option value="Level 3">Level 3</option>
+                                        <option value="Chưa có số liệu" selected>Chưa có số liệu</option>
+                                        <option value="Đang Rớt">Đang Rớt</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
+                            </tr>
+                            <tr data-row="5">
+                                <td>5</td>
+                                <td class="font-semibold text-gray-700">Giao hàng đúng tiến độ</td>
+                                <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
+                                <td class="text-center font-medium text-gray-500">%</td>
+                                <td class="text-center">
+                                    <select class="input-premium bonus-input-select lvl-no" disabled onchange="updateLevelColor(this)">
+                                        <option value="Level 1">Level 1</option>
+                                        <option value="Level 2">Level 2</option>
+                                        <option value="Level 3">Level 3</option>
+                                        <option value="Chưa có số liệu" selected>Chưa có số liệu</option>
+                                        <option value="Đang Rớt">Đang Rớt</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
+                            </tr>
+                            <tr data-row="6">
+                                <td>6</td>
+                                <td class="font-semibold text-gray-700">Hàng phế</td>
+                                <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
+                                <td class="text-center font-medium text-gray-500">%</td>
+                                <td class="text-center">
+                                    <select class="input-premium bonus-input-select lvl-no" disabled onchange="updateLevelColor(this)">
+                                        <option value="Level 1">Level 1</option>
+                                        <option value="Level 2">Level 2</option>
+                                        <option value="Level 3">Level 3</option>
+                                        <option value="Chưa có số liệu" selected>Chưa có số liệu</option>
+                                        <option value="Đang Rớt">Đang Rớt</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
+                            </tr>
+                            <tr data-row="7">
+                                <td>7</td>
+                                <td class="font-semibold text-gray-700">Khiếu nại từ khách hàng</td>
+                                <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
+                                <td class="text-center font-medium text-gray-500">%</td>
+                                <td class="text-center">
+                                    <select class="input-premium bonus-input-select lvl-no" disabled onchange="updateLevelColor(this)">
+                                        <option value="Level 1">Level 1</option>
+                                        <option value="Level 2">Level 2</option>
+                                        <option value="Level 3">Level 3</option>
+                                        <option value="Chưa có số liệu" selected>Chưa có số liệu</option>
+                                        <option value="Đang Rớt">Đang Rớt</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
+                            </tr>
+                            <tr data-row="8">
+                                <td>8</td>
+                                <td class="font-semibold text-gray-700">Thời gian tăng ca</td>
+                                <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
+                                <td class="text-center font-medium text-gray-500">Hours</td>
+                                <td class="text-center"></td>
+                                <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
+                            </tr>
+                            <tr data-row="9">
+                                <td>9</td>
+                                <td class="font-semibold text-gray-700">Sản lượng tối thiểu SMV</td>
+                                <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
+                                <td class="text-center font-medium text-gray-500">Pairs</td>
+                                <td class="text-center">
+                                    <select class="input-premium bonus-input-select lvl-no" disabled onchange="updateLevelColor(this)">
+                                        <option value="Level 1">Level 1</option>
+                                        <option value="Level 2">Level 2</option>
+                                        <option value="Level 3">Level 3</option>
+                                        <option value="Chưa có số liệu" selected>Chưa có số liệu</option>
+                                        <option value="Đang Rớt">Đang Rớt</option>
+                                    </select>
+                                </td>
+                                <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
+                            </tr>
+                            <tr data-row="10">
+                                <td>10</td>
+                                <td class="font-semibold text-gray-700">Tổng số ngày làm việc</td>
+                                <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
+                                <td class="text-center font-medium text-gray-500">Days</td>
+                                <td class="text-center"></td>
+                                <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <div class="table-container">
-                <table class="metric-table">
-                    <thead>
-                        <tr>
-                            <th class="col-no">No.</th>
-                            <th class="col-index">Nội Dung Chỉ Số (Index)</th>
-                            <th class="col-value">Giá Trị (Value)</th>
-                            <th class="col-unit">Đơn Vị</th>
-                            <th class="col-level">Cấp Độ</th>
-                            <th class="col-note">Ghi Chú</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bonus-tbody">
-                        <tr class="category-header">
-                            <td colspan="6" class="py-1 px-6 text-center">Bậc thưởng sản lượng</td>
-                        </tr>
-                        <tr data-row="1">
-                            <td>1</td>
-                            <td class="font-semibold text-gray-700">Mục tiêu sản lượng</td>
-                            <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
-                            <td class="text-center font-medium text-gray-500">Pair</td>
-                            <td class="text-center"></td>
-                            <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
-                        </tr>
-                        <tr data-row="2">
-                            <td>2</td>
-                            <td class="font-semibold text-gray-700">Tổng sản lượng thực tế</td>
-                            <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
-                            <td class="text-center font-medium text-gray-500">Pair</td>
-                            <td class="text-center">
-                                <select class="input-premium bonus-input-select lvl-1" disabled onchange="updateLevelColor(this)">
-                                    <option value="Level 1" selected>Level 1</option>
-                                    <option value="Level 2">Level 2</option>
-                                    <option value="Level 3">Level 3</option>
-                                    <option value="Chưa có số liệu">Chưa có số liệu</option>
-                                    <option value="Đang Rớt">Đang Rớt</option>
-                                </select>
-                            </td>
-                            <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
-                        </tr>
-                        <tr data-row="3">
-                            <td>3</td>
-                            <td class="font-semibold text-gray-700">Hiệu suất thực tế PPH_SMV</td>
-                            <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
-                            <td class="text-center font-medium text-gray-500">Pair/hours</td>
-                            <td class="text-center">
-                                <select class="input-premium bonus-input-select lvl-1" disabled onchange="updateLevelColor(this)">
-                                    <option value="Level 1" selected>Level 1</option>
-                                    <option value="Level 2">Level 2</option>
-                                    <option value="Level 3">Level 3</option>
-                                    <option value="Chưa có số liệu">Chưa có số liệu</option>
-                                    <option value="Đang Rớt">Đang Rớt</option>
-                                </select>
-                            </td>
-                            <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
-                        </tr>
-                        <tr data-row="4">
-                            <td>4</td>
-                            <td class="font-semibold text-gray-700">Hàng làm lại</td>
-                            <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
-                            <td class="text-center font-medium text-gray-500">%</td>
-                            <td class="text-center">
-                                <select class="input-premium bonus-input-select lvl-1" disabled onchange="updateLevelColor(this)">
-                                    <option value="Level 1" selected>Level 1</option>
-                                    <option value="Level 2">Level 2</option>
-                                    <option value="Level 3">Level 3</option>
-                                    <option value="Chưa có số liệu">Chưa có số liệu</option>
-                                    <option value="Đang Rớt">Đang Rớt</option>
-                                </select>
-                            </td>
-                            <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
-                        </tr>
-                        <tr data-row="5">
-                            <td>5</td>
-                            <td class="font-semibold text-gray-700">Giao hàng đúng tiến độ</td>
-                            <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
-                            <td class="text-center font-medium text-gray-500">%</td>
-                            <td class="text-center">
-                                <select class="input-premium bonus-input-select lvl-1" disabled onchange="updateLevelColor(this)">
-                                    <option value="Level 1" selected>Level 1</option>
-                                    <option value="Level 2">Level 2</option>
-                                    <option value="Level 3">Level 3</option>
-                                    <option value="Chưa có số liệu">Chưa có số liệu</option>
-                                    <option value="Đang Rớt">Đang Rớt</option>
-                                </select>
-                            </td>
-                            <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
-                        </tr>
-                        <tr data-row="6">
-                            <td>6</td>
-                            <td class="font-semibold text-gray-700">Hàng phế</td>
-                            <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
-                            <td class="text-center font-medium text-gray-500">%</td>
-                            <td class="text-center">
-                                <select class="input-premium bonus-input-select lvl-1" disabled onchange="updateLevelColor(this)">
-                                    <option value="Level 1" selected>Level 1</option>
-                                    <option value="Level 2">Level 2</option>
-                                    <option value="Level 3">Level 3</option>
-                                    <option value="Chưa có số liệu">Chưa có số liệu</option>
-                                    <option value="Đang Rớt">Đang Rớt</option>
-                                </select>
-                            </td>
-                            <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
-                        </tr>
-                        <tr data-row="7">
-                            <td>7</td>
-                            <td class="font-semibold text-gray-700">Khiếu nại từ khách hàng</td>
-                            <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
-                            <td class="text-center font-medium text-gray-500">%</td>
-                            <td class="text-center">
-                                <select class="input-premium bonus-input-select lvl-1" disabled onchange="updateLevelColor(this)">
-                                    <option value="Level 1" selected>Level 1</option>
-                                    <option value="Level 2">Level 2</option>
-                                    <option value="Level 3">Level 3</option>
-                                    <option value="Chưa có số liệu">Chưa có số liệu</option>
-                                    <option value="Đang Rớt">Đang Rớt</option>
-                                </select>
-                            </td>
-                            <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
-                        </tr>
-                        <tr data-row="8">
-                            <td>8</td>
-                            <td class="font-semibold text-gray-700">Thời gian tăng ca</td>
-                            <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
-                            <td class="text-center font-medium text-gray-500">Hours</td>
-                            <td class="text-center"></td>
-                            <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
-                        </tr>
-                        <tr data-row="9">
-                            <td>9</td>
-                            <td class="font-semibold text-gray-700">Sản lượng tối thiểu SMV</td>
-                            <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
-                            <td class="text-center font-medium text-gray-500">Pairs</td>
-                            <td class="text-center">
-                                <select class="input-premium bonus-input-select lvl-3" disabled onchange="updateLevelColor(this)">
-                                    <option value="Level 1">Level 1</option>
-                                    <option value="Level 2">Level 2</option>
-                                    <option value="Level 3" selected>Level 3</option>
-                                    <option value="Chưa có số liệu">Chưa có số liệu</option>
-                                    <option value="Đang Rớt">Đang Rớt</option>
-                                </select>
-                            </td>
-                            <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
-                        </tr>
-                        <tr data-row="10">
-                            <td>10</td>
-                            <td class="font-semibold text-gray-700">Tổng số ngày làm việc</td>
-                            <td><input type="text" class="input-premium bonus-input" value="0" disabled></td>
-                            <td class="text-center font-medium text-gray-500">Days</td>
-                            <td class="text-center"></td>
-                            <td><input type="text" class="input-premium bonus-input bonus-note" value="" disabled></td>
-                        </tr>
-                    </tbody>
-                </table>
+            <!-- Right Card: Tiêu chuẩn Bậc thưởng (STANDARD) -->
+            <div class="premium-card flex-[4] flex flex-col overflow-hidden min-h-0">
+                <div class="flex flex-row justify-between items-center mb-2 gap-4">
+                    <div class="flex items-baseline gap-2">
+                        <h2 class="heading-font text-2xl font-black text-slate-800 leading-none">Bảng Tiêu Chuẩn (STANDARD)</h2>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="metric-table">
+                        <thead>
+                            <tr>
+                                <th class="text-left" style="width: 34%;">Nội dung chỉ số</th>
+                                <th class="text-center" style="width: 22%;">Level 1</th>
+                                <th class="text-center" style="width: 22%;">Level 2</th>
+                                <th class="text-center" style="width: 22%;">Level 3</th>
+                            </tr>
+                        </thead>
+                        <tbody id="standards-tbody">
+                            <tr class="category-header">
+                                <td colspan="4" class="py-1 px-4 text-center">Cấu hình định mức & tiền thưởng</td>
+                            </tr>
+                            <tr data-std-row="0">
+                                <td class="font-semibold text-gray-700 text-sm">Tiền Thưởng (VND)</td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="bonus_lvl1" value="4,500,000" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="bonus_lvl2" value="3,500,000" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="bonus_lvl3" value="2,500,000" disabled></td>
+                            </tr>
+                            <tr data-std-row="2">
+                                <td class="font-semibold text-gray-700 text-sm">Tổng sản lượng thực tế (Pairs)</td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl1" value="8,607,788" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl2" value="8,564,749" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl3" value="8,521,710" disabled></td>
+                            </tr>
+                            <tr data-std-row="3">
+                                <td class="font-semibold text-gray-700 text-sm">Hiệu suất PPH_SMV (PPH)</td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl1" value="113.1" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl2" value="110.8" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl3" value="108.6" disabled></td>
+                            </tr>
+                            <tr data-std-row="4">
+                                <td class="font-semibold text-gray-700 text-sm">Hàng làm lại (%)</td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl1" value="0.10%" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl2" value="0.30%" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl3" value="0.40%" disabled></td>
+                            </tr>
+                            <tr data-std-row="5">
+                                <td class="font-semibold text-gray-700 text-sm">Giao hàng đúng tiến độ (%)</td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl1" value="100.0%" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl2" value="99.5%" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl3" value="99.0%" disabled></td>
+                            </tr>
+                            <tr data-std-row="6">
+                                <td class="font-semibold text-gray-700 text-sm">Hàng phế (%)</td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl1" value="0.10%" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl2" value="0.30%" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl3" value="0.65%" disabled></td>
+                            </tr>
+                            <tr data-std-row="7">
+                                <td class="font-semibold text-gray-700 text-sm">Khiếu nại khách hàng (%)</td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl1" value="0.02%" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl2" value="0.03%" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl3" value="0.04%" disabled></td>
+                            </tr>
+                            <tr data-std-row="9">
+                                <td class="font-semibold text-gray-700 text-sm">Sản lượng tối thiểu SMV</td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl1" value="13,200,000" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl2" value="12,600,000" disabled></td>
+                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl3" value="12,000,000" disabled></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
+
     </div>
 
     <!-- Password Modal -->
@@ -551,6 +667,148 @@
 
         const SECRET_PASS = "Deplao.1305";
 
+        const defaultStandards = {
+            0: { lvl1: '4,500,000', lvl2: '3,500,000', lvl3: '2,500,000', direction: 'higher', index_name: 'Kết quả tiền thưởng sản lượng' },
+            2: { lvl1: '8,607,788', lvl2: '8,564,749', lvl3: '8,521,710', direction: 'higher', index_name: 'Tổng sản lượng thực tế' },
+            3: { lvl1: '113.1', lvl2: '110.8', lvl3: '108.6', direction: 'higher', index_name: 'Hiệu suất thực tế PPH_SMV' },
+            4: { lvl1: '0.10%', lvl2: '0.30%', lvl3: '0.40%', direction: 'lower', index_name: 'Hàng làm lại' },
+            5: { lvl1: '100.0%', lvl2: '99.5%', lvl3: '99.0%', direction: 'higher', index_name: 'Giao hàng đúng tiến độ' },
+            6: { lvl1: '0.10%', lvl2: '0.30%', lvl3: '0.65%', direction: 'lower', index_name: 'Hàng phế' },
+            7: { lvl1: '0.02%', lvl2: '0.03%', lvl3: '0.04%', direction: 'lower', index_name: 'Khiếu nại từ khách hàng' },
+            9: { lvl1: '13,200,000', lvl2: '12,600,000', lvl3: '12,000,000', direction: 'higher', index_name: 'Sản lượng tối thiểu SMV' }
+        };
+
+        function parseNumericValue(valStr) {
+            if (valStr === undefined || valStr === null) return null;
+            const s = valStr.toString().trim();
+            if (s === '') return null;
+            const cleanStr = s.replace(/,/g, '').replace(/%/g, '');
+            const num = parseFloat(cleanStr);
+            return isNaN(num) ? null : num;
+        }
+
+        function recalculateLevels() {
+            // Read standards from UI (allowing custom edited values)
+            const standards = {};
+            const stdRows = document.querySelectorAll('tr[data-std-row]');
+            stdRows.forEach(row => {
+                const stdRowNo = parseInt(row.getAttribute('data-std-row'));
+                const lvl1Input = row.querySelector('[data-key="lvl1"]') || row.querySelector('[data-key="bonus_lvl1"]');
+                const lvl2Input = row.querySelector('[data-key="lvl2"]') || row.querySelector('[data-key="bonus_lvl2"]');
+                const lvl3Input = row.querySelector('[data-key="lvl3"]') || row.querySelector('[data-key="bonus_lvl3"]');
+                
+                standards[stdRowNo] = {
+                    lvl1: lvl1Input ? lvl1Input.value.trim() : '',
+                    lvl2: lvl2Input ? lvl2Input.value.trim() : '',
+                    lvl3: lvl3Input ? lvl3Input.value.trim() : '',
+                    direction: defaultStandards[stdRowNo]?.direction || 'higher'
+                };
+            });
+
+            const levelDropdowns = [];
+            
+            // Loop through results rows
+            const rows = bonusTbody.querySelectorAll('tr[data-row]');
+            rows.forEach(row => {
+                const rowNo = parseInt(row.getAttribute('data-row'));
+                const valInput = row.querySelector('.bonus-input:not(.bonus-note)');
+                const select = row.querySelector('.bonus-input-select');
+
+                if (!select || !valInput) return; // skip rows without level dropdown
+
+                const valStr = valInput.value.trim();
+                const num = parseNumericValue(valStr);
+                const std = standards[rowNo];
+
+                if (num === null || valStr === '' || valStr === '0') {
+                    select.value = 'Chưa có số liệu';
+                    updateLevelColor(select);
+                    levelDropdowns.push({ rowNo, level: 'Chưa có số liệu' });
+                    return;
+                }
+
+                if (!std) return;
+
+                const lvl1Val = parseNumericValue(std.lvl1);
+                const lvl2Val = parseNumericValue(std.lvl2);
+                const lvl3Val = parseNumericValue(std.lvl3);
+
+                let level = 'Đang Rớt';
+                if (std.direction === 'higher') {
+                    if (lvl1Val !== null && num >= lvl1Val) level = 'Level 1';
+                    else if (lvl2Val !== null && num >= lvl2Val) level = 'Level 2';
+                    else if (lvl3Val !== null && num >= lvl3Val) level = 'Level 3';
+                    else level = 'Đang Rớt';
+                } else {
+                    // lower is better
+                    if (lvl1Val !== null && num <= lvl1Val) level = 'Level 1';
+                    else if (lvl2Val !== null && num <= lvl2Val) level = 'Level 2';
+                    else if (lvl3Val !== null && num <= lvl3Val) level = 'Level 3';
+                    else level = 'Đang Rớt';
+                }
+
+                select.value = level;
+                updateLevelColor(select);
+                levelDropdowns.push({ rowNo, level });
+            });
+
+            // Calculate overall level and bonus
+            const activeLevels = levelDropdowns.map(d => d.level);
+            
+            let overallLevel = 'Level 1';
+            
+            if (activeLevels.includes('Chưa có số liệu')) {
+                if (activeLevels.includes('Đang Rớt')) {
+                    overallLevel = 'Đang Rớt';
+                } else {
+                    overallLevel = 'Chưa có số liệu';
+                }
+            } else if (activeLevels.includes('Đang Rớt')) {
+                overallLevel = 'Đang Rớt';
+            } else if (activeLevels.includes('Level 3')) {
+                overallLevel = 'Level 3';
+            } else if (activeLevels.includes('Level 2')) {
+                overallLevel = 'Level 2';
+            } else {
+                overallLevel = 'Level 1';
+            }
+
+            // Update UI status banner
+            const statusEl = document.getElementById('overall-status');
+            const amountEl = document.getElementById('overall-bonus-amount');
+
+            statusEl.textContent = overallLevel;
+            statusEl.className = 'text-xl font-bold ';
+
+            // Color overall status text/bg
+            if (overallLevel === 'Level 1') {
+                statusEl.className += 'text-green-600 bg-green-50 px-3 py-1 rounded-lg border border-green-200 inline-block';
+            } else if (overallLevel === 'Level 2') {
+                statusEl.className += 'text-yellow-600 bg-yellow-50 px-3 py-1 rounded-lg border border-yellow-200 inline-block';
+            } else if (overallLevel === 'Level 3') {
+                statusEl.className += 'text-orange-600 bg-orange-50 px-3 py-1 rounded-lg border border-orange-200 inline-block';
+            } else if (overallLevel === 'Đang Rớt') {
+                statusEl.className += 'text-red-600 bg-red-50 px-3 py-1 rounded-lg border border-red-200 inline-block';
+            } else {
+                statusEl.className += 'text-gray-500 bg-gray-50 px-3 py-1 rounded-lg border border-gray-200 inline-block';
+            }
+
+            // Map overall level to bonus amount
+            const b1 = standards[0]?.lvl1 || '4,500,000';
+            const b2 = standards[0]?.lvl2 || '3,500,000';
+            const b3 = standards[0]?.lvl3 || '2,500,000';
+
+            if (overallLevel === 'Level 1') {
+                amountEl.textContent = b1 + ' VND';
+            } else if (overallLevel === 'Level 2') {
+                amountEl.textContent = b2 + ' VND';
+            } else if (overallLevel === 'Level 3') {
+                amountEl.textContent = b3 + ' VND';
+            } else {
+                amountEl.textContent = '0 VND';
+            }
+        }
+
         // Set default month to current
         const now = new Date();
         const currentMonthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
@@ -570,24 +828,57 @@
             // Clear current inputs first
             bonusInputs.forEach(input => input.value = input.classList.contains('bonus-note') ? '' : '0');
             bonusSelects.forEach(select => {
-                select.value = '';
+                select.value = 'Chưa có số liệu';
                 select.classList.remove('lvl-1', 'lvl-2', 'lvl-3', 'lvl-no', 'lvl-dropping');
+                select.classList.add('lvl-no');
             });
 
             try {
-                const { data, error } = await supabase
-                    .from('ovn_bonus_data')
-                    .select('*')
-                    .eq('month_key', monthKey)
-                    .order('row_no', { ascending: true });
+                // Fetch monthly and standard data in parallel
+                const [monthRes, stdRes] = await Promise.all([
+                    supabase.from('ovn_bonus_data').select('*').eq('month_key', monthKey).order('row_no', { ascending: true }),
+                    supabase.from('ovn_bonus_data').select('*').eq('month_key', 'STANDARD').order('row_no', { ascending: true })
+                ]);
 
-                if (error) {
-                    console.error('Error loading data:', error);
-                    return;
-                }
+                if (monthRes.error) throw monthRes.error;
+                if (stdRes.error) throw stdRes.error;
 
-                if (data && data.length > 0) {
-                    data.forEach(item => {
+                // 1. Render Standards
+                const standardsData = stdRes.data || [];
+                const stdRows = document.querySelectorAll('tr[data-std-row]');
+                
+                stdRows.forEach(row => {
+                    const stdRowNo = parseInt(row.getAttribute('data-std-row'));
+                    const dbItem = standardsData.find(item => item.row_no === (stdRowNo === 0 ? 0 : stdRowNo));
+                    
+                    const lvl1Input = row.querySelector('[data-key="lvl1"]') || row.querySelector('[data-key="bonus_lvl1"]');
+                    const lvl2Input = row.querySelector('[data-key="lvl2"]') || row.querySelector('[data-key="bonus_lvl2"]');
+                    const lvl3Input = row.querySelector('[data-key="lvl3"]') || row.querySelector('[data-key="bonus_lvl3"]');
+
+                    if (dbItem && dbItem.value_text) {
+                        try {
+                            const parsed = JSON.parse(dbItem.value_text);
+                            if (lvl1Input && parsed.lvl1 !== undefined) lvl1Input.value = parsed.lvl1;
+                            if (lvl2Input && parsed.lvl2 !== undefined) lvl2Input.value = parsed.lvl2;
+                            if (lvl3Input && parsed.lvl3 !== undefined) lvl3Input.value = parsed.lvl3;
+                        } catch (e) {
+                            console.error('Error parsing standards JSON:', e);
+                        }
+                    } else {
+                        // fallback to hardcoded defaults in code
+                        const def = defaultStandards[stdRowNo];
+                        if (def) {
+                            if (lvl1Input) lvl1Input.value = def.lvl1;
+                            if (lvl2Input) lvl2Input.value = def.lvl2;
+                            if (lvl3Input) lvl3Input.value = def.lvl3;
+                        }
+                    }
+                });
+
+                // 2. Render Monthly values
+                const monthlyData = monthRes.data || [];
+                if (monthlyData && monthlyData.length > 0) {
+                    monthlyData.forEach(item => {
                         const row = bonusTbody.querySelector(`tr[data-row="${item.row_no}"]`);
                         if (row) {
                             const valInput = row.querySelector('.bonus-input:not(.bonus-note)');
@@ -597,14 +888,18 @@
                             if (valInput) valInput.value = item.value_text || '0';
                             if (noteInput) noteInput.value = item.note_text || '';
                             if (select) {
-                                select.value = item.level_selected || '';
+                                select.value = item.level_selected || 'Chưa có số liệu';
                                 updateLevelColor(select);
                             }
                         }
                     });
                 }
+
+                // 3. Recalculate levels immediately based on current values and standards
+                recalculateLevels();
+
             } catch (err) {
-                console.error('System error:', err);
+                console.error('System error loading data:', err);
             }
         }
 
@@ -636,12 +931,40 @@
                 });
             });
 
-            try {
-                const { error } = await supabase
-                    .from('ovn_bonus_data')
-                    .upsert(rowsData, { onConflict: 'row_no, month_key' });
+            // Gather standard values to save
+            const stdRowsData = [];
+            const stdRows = document.querySelectorAll('tr[data-std-row]');
+            stdRows.forEach(row => {
+                const stdRowNo = parseInt(row.getAttribute('data-std-row'));
+                const lvl1Input = row.querySelector('[data-key="lvl1"]') || row.querySelector('[data-key="bonus_lvl1"]');
+                const lvl2Input = row.querySelector('[data-key="lvl2"]') || row.querySelector('[data-key="bonus_lvl2"]');
+                const lvl3Input = row.querySelector('[data-key="lvl3"]') || row.querySelector('[data-key="bonus_lvl3"]');
+                const indexName = defaultStandards[stdRowNo]?.index_name || row.querySelector('.font-semibold')?.textContent.trim() || '';
 
-                if (error) throw error;
+                stdRowsData.push({
+                    row_no: stdRowNo === 0 ? 0 : stdRowNo,
+                    month_key: 'STANDARD',
+                    index_name: indexName,
+                    value_text: JSON.stringify({
+                        lvl1: lvl1Input ? lvl1Input.value.trim() : '',
+                        lvl2: lvl2Input ? lvl2Input.value.trim() : '',
+                        lvl3: lvl3Input ? lvl3Input.value.trim() : ''
+                    }),
+                    note_text: '',
+                    level_selected: null
+                });
+            });
+
+            try {
+                // Upsert both monthly values and standards
+                const [monthSaveRes, stdSaveRes] = await Promise.all([
+                    supabase.from('ovn_bonus_data').upsert(rowsData, { onConflict: 'row_no, month_key' }),
+                    supabase.from('ovn_bonus_data').upsert(stdRowsData, { onConflict: 'row_no, month_key' })
+                ]);
+
+                if (monthSaveRes.error) throw monthSaveRes.error;
+                if (stdSaveRes.error) throw stdSaveRes.error;
+
                 alert('Đã lưu dữ liệu thành công!');
             } catch (err) {
                 console.error('Error saving data:', err);
@@ -671,6 +994,15 @@
                 bonusSelects.forEach(select => {
                     select.disabled = false;
                 });
+                
+                // Enable standard inputs
+                const stdInputs = document.querySelectorAll('.std-input');
+                stdInputs.forEach(input => {
+                    input.disabled = false;
+                    input.classList.add('bg-white');
+                    input.classList.remove('bg-gray-50');
+                });
+
                 btnEdit.classList.add('hidden');
                 btnSave.classList.remove('hidden');
                 passwordModal.classList.add('hidden');
@@ -692,8 +1024,30 @@
             bonusSelects.forEach(select => {
                 select.disabled = true;
             });
+            
+            // Disable standard inputs
+            const stdInputs = document.querySelectorAll('.std-input');
+            stdInputs.forEach(input => {
+                input.disabled = true;
+                input.classList.remove('bg-white');
+                input.classList.add('bg-gray-50');
+            });
+
             btnSave.classList.add('hidden');
             btnEdit.classList.remove('hidden');
+        });
+
+        // Attach listeners for live updates of levels
+        bonusTbody.addEventListener('input', (e) => {
+            if (e.target.classList.contains('bonus-input') && !e.target.classList.contains('bonus-note')) {
+                recalculateLevels();
+            }
+        });
+
+        document.getElementById('standards-tbody').addEventListener('input', (e) => {
+            if (e.target.classList.contains('std-input')) {
+                recalculateLevels();
+            }
         });
 
         function updateLevelColor(select) {
