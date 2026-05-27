@@ -585,10 +585,10 @@
                                 <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="bonus_lvl3" value="2,500,000" disabled></td>
                             </tr>
                             <tr data-std-row="2">
-                                <td class="font-semibold text-gray-700 text-sm">Tổng sản lượng thực tế (Pairs)</td>
-                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl1" value="8,607,788" disabled></td>
-                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl2" value="8,564,749" disabled></td>
-                                <td><input type="text" class="input-premium std-input text-center text-sm font-bold" data-key="lvl3" value="8,521,710" disabled></td>
+                                <td class="font-semibold text-gray-700 text-sm">Tổng sản lượng thực tế (Pairs) <span class="block text-xs font-normal text-blue-500 mt-0.5">Tự động (Mục tiêu × Hệ số %)</span></td>
+                                <td><input type="text" class="input-premium std-input js-calculated text-center text-sm font-bold bg-slate-100/70 text-slate-500 border-slate-200" data-key="lvl1" value="8,607,788" disabled></td>
+                                <td><input type="text" class="input-premium std-input js-calculated text-center text-sm font-bold bg-slate-100/70 text-slate-500 border-slate-200" data-key="lvl2" value="8,564,749" disabled></td>
+                                <td><input type="text" class="input-premium std-input js-calculated text-center text-sm font-bold bg-slate-100/70 text-slate-500 border-slate-200" data-key="lvl3" value="8,521,710" disabled></td>
                             </tr>
                             <tr data-std-row="3">
                                 <td class="font-semibold text-gray-700 text-sm">Hiệu suất PPH_SMV (PPH)</td>
@@ -688,6 +688,28 @@
         }
 
         function recalculateLevels() {
+            // 1. Calculate dynamic standards for Row 2 (Tổng sản lượng thực tế) based on Row 1 (Mục tiêu sản lượng)
+            const targetRow = bonusTbody.querySelector('tr[data-row="1"]');
+            const targetInput = targetRow ? targetRow.querySelector('.bonus-input:not(.bonus-note)') : null;
+            const targetVal = targetInput ? parseNumericValue(targetInput.value) : null;
+
+            const stdRow2 = document.querySelector('tr[data-std-row="2"]');
+            if (stdRow2) {
+                const stdRow2Lvl1 = stdRow2.querySelector('[data-key="lvl1"]');
+                const stdRow2Lvl2 = stdRow2.querySelector('[data-key="lvl2"]');
+                const stdRow2Lvl3 = stdRow2.querySelector('[data-key="lvl3"]');
+
+                if (targetVal !== null && targetVal > 0) {
+                    stdRow2Lvl1.value = Math.round(targetVal * 1.0).toLocaleString('en-US');
+                    stdRow2Lvl2.value = Math.round(targetVal * 0.995).toLocaleString('en-US');
+                    stdRow2Lvl3.value = Math.round(targetVal * 0.99).toLocaleString('en-US');
+                } else {
+                    stdRow2Lvl1.value = '0';
+                    stdRow2Lvl2.value = '0';
+                    stdRow2Lvl3.value = '0';
+                }
+            }
+
             // Read standards from UI (allowing custom edited values)
             const standards = {};
             const stdRows = document.querySelectorAll('tr[data-std-row]');
@@ -995,12 +1017,14 @@
                     select.disabled = false;
                 });
                 
-                // Enable standard inputs
+                // Enable standard inputs (except auto-calculated ones)
                 const stdInputs = document.querySelectorAll('.std-input');
                 stdInputs.forEach(input => {
-                    input.disabled = false;
-                    input.classList.add('bg-white');
-                    input.classList.remove('bg-gray-50');
+                    if (!input.classList.contains('js-calculated')) {
+                        input.disabled = false;
+                        input.classList.add('bg-white');
+                        input.classList.remove('bg-gray-50');
+                    }
                 });
 
                 btnEdit.classList.add('hidden');
@@ -1029,8 +1053,10 @@
             const stdInputs = document.querySelectorAll('.std-input');
             stdInputs.forEach(input => {
                 input.disabled = true;
-                input.classList.remove('bg-white');
-                input.classList.add('bg-gray-50');
+                if (!input.classList.contains('js-calculated')) {
+                    input.classList.remove('bg-white');
+                    input.classList.add('bg-gray-50');
+                }
             });
 
             btnSave.classList.add('hidden');
