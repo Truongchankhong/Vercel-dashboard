@@ -279,6 +279,20 @@ try {
     
     Write-Host "--- Processed $($jsonData.Count) rows."
 
+    # --- DEDUPLICATE BY STT TO PREVENT CARDINALITY VIOLATIONS ---
+    $uniqueData = @()
+    $seenSTT = @{}
+    foreach ($row in $jsonData) {
+        $stt = $row['STT'].ToString()
+        if (-not $seenSTT.ContainsKey($stt)) {
+            $seenSTT[$stt] = $true
+            $uniqueData += $row
+        }
+    }
+    $jsonData = $uniqueData
+    Write-Host "--- Deduplicated to $($jsonData.Count) unique rows by STT."
+
+
     # --- SYNC SIZE RUN FIX ---
     $wsFix = $null
     try { $wsFix = $wb.Sheets.Item("Size run fix") } catch { }
