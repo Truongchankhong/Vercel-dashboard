@@ -256,9 +256,9 @@
                 width: 38% !important;
             }
 
-            /* Cột giá trị */
+            /* Cột giá trị - tăng thêm để không bị cắt số */
             .col-value {
-                width: 16% !important;
+                width: 22% !important;
             }
 
             /* Ẩn cột đơn vị để tiết kiệm không gian */
@@ -266,20 +266,20 @@
                 display: none !important;
             }
 
-            /* Cột cấp độ - đủ rộng để hiển thị chữ "Level 1" */
+            /* Cột cấp độ */
             .col-level {
-                width: 26% !important;
+                width: 24% !important;
             }
 
             /* Cột ghi chú nhỏ lại */
             .col-note {
-                width: 14% !important;
+                width: 10% !important;
             }
 
             /* Input và Select: chiều cao cố định đủ lớn để không cắt chữ */
             .input-premium {
-                font-size: 0.72rem !important;
-                padding: 2px 1px !important;
+                font-size: 0.7rem !important;
+                padding: 2px 2px !important;
                 height: 34px !important;
                 min-height: 34px !important;
                 line-height: 30px !important;
@@ -288,8 +288,16 @@
                 border-radius: 5px !important;
                 border-width: 1px !important;
                 display: block !important;
-                overflow: hidden !important;
+                overflow: visible !important;
                 white-space: nowrap !important;
+                text-overflow: clip !important;
+            }
+
+            /* Riêng cột value: cho phép số hiển thị đầy đủ */
+            .col-value .input-premium {
+                font-size: 0.68rem !important;
+                letter-spacing: -0.02em !important;
+                padding: 2px 1px !important;
             }
 
             /* Select box cần style đặc biệt để hiển thị text đầy đủ */
