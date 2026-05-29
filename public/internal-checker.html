@@ -168,6 +168,26 @@
                         <button id="btn-toggle-camera" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-md transition duration-300 active:scale-95 flex items-center justify-center gap-2 btn-hover">
                             <span>📷 Bật Camera quét QR</span>
                         </button>
+                        
+                        <!-- Photo Capture Area -->
+                        <div class="flex flex-col gap-2 mt-1">
+                            <input type="file" id="photo-input" accept="image/*" capture="environment" class="hidden">
+                            <button id="btn-capture-photo" type="button" class="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold shadow-sm transition duration-300 active:scale-95 flex items-center justify-center gap-2 btn-hover">
+                                <span>📸 Chụp Ảnh Lưu Mẫu (Tùy chọn)</span>
+                            </button>
+                            
+                            <!-- Image Preview & Delete -->
+                            <div id="photo-preview-container" class="hidden flex items-center gap-3 bg-white/70 border border-slate-200/50 p-3 rounded-2xl shadow-sm mt-1">
+                                <img id="photo-preview" class="w-12 h-12 rounded-xl object-cover border border-slate-150" src="" alt="Sample Preview">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-bold text-indigo-950 truncate" id="photo-filename">sample.jpg</p>
+                                    <p class="text-[10px] text-slate-400 font-semibold" id="photo-size">0 KB</p>
+                                </div>
+                                <button id="btn-delete-photo" type="button" class="text-xs text-red-500 hover:text-red-700 font-bold bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-xl transition duration-200">
+                                    Xóa 🗑️
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="border-t border-slate-200/50 my-2"></div>
@@ -277,13 +297,14 @@
                             <th class="p-4">Thương hiệu</th>
                             <th class="p-4">Mã khuôn</th>
                             <th class="p-4 text-right">PO Qty</th>
+                            <th class="p-4 text-center w-16">Ảnh</th>
                             <th class="p-4 text-center w-16">Xóa</th>
                         </tr>
                     </thead>
                     <tbody id="history-body" class="divide-y divide-slate-100 text-sm font-medium text-slate-700">
                         <!-- History Rows injected here -->
                         <tr id="empty-history-row">
-                            <td colspan="9" class="p-8 text-center text-slate-400 font-medium italic">
+                            <td colspan="10" class="p-8 text-center text-slate-400 font-medium italic">
                                 Chưa có bản ghi nào được quét trong phiên này.
                             </td>
                         </tr>
@@ -312,6 +333,48 @@
         let lookupTimeout = null;
         let isSaving = false;
         let currentLoadedRpro = ''; // Track the currently loaded RPRO
+        let capturedPhotoBlob = null; // Track the compressed photo blob
+
+        // Image Compressor Utility
+        function compressImage(file, maxWidth, maxHeight, quality) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > maxWidth) {
+                                height = Math.round((height * maxWidth) / width);
+                                width = maxWidth;
+                            }
+                        } else {
+                            if (height > maxHeight) {
+                                width = Math.round((width * maxHeight) / height);
+                                height = maxHeight;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        canvas.toBlob((blob) => {
+                            resolve(blob);
+                        }, 'image/jpeg', quality);
+                    };
+                    img.onerror = (err) => reject(err);
+                };
+                reader.onerror = (err) => reject(err);
+            });
+        }
 
         function checkUnsavedChanges(newRawRpro) {
             const newRpro = normalizeRPRO(newRawRpro);
@@ -510,6 +573,12 @@
             document.getElementById('field-po-qty').value = '';
             document.getElementById('lookup-status').classList.add('hidden');
             currentLoadedRpro = ''; // Clear RPRO state
+            
+            // Clear photo preview and state
+            capturedPhotoBlob = null;
+            document.getElementById('photo-input').value = '';
+            const previewContainer = document.getElementById('photo-preview-container');
+            if (previewContainer) previewContainer.classList.add('hidden');
         }
 
         // Camera QR Control
@@ -632,6 +701,36 @@
                     po_qty: poQty
                 };
 
+                // Upload photo to Supabase Storage if captured
+                if (capturedPhotoBlob) {
+                    document.getElementById('btn-save-confirm').innerText = "Đang tải ảnh mẫu...";
+                    const fileExtension = 'jpg';
+                    const fileName = `${targetTable}/${rpro}_${Date.now()}.${fileExtension}`;
+                    
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from('photos')
+                        .upload(fileName, capturedPhotoBlob, {
+                            contentType: 'image/jpeg',
+                            upsert: true
+                        });
+                    
+                    if (uploadError) {
+                        console.error("Photo upload failed:", uploadError);
+                        if (!confirm("⚠️ Tải ảnh lên thất bại. Bạn có muốn tiếp tục lưu bản ghi không có ảnh?")) {
+                            throw new Error("Lỗi tải ảnh lên: " + uploadError.message);
+                        }
+                    } else {
+                        // Get public URL
+                        const { data: urlData } = supabase.storage
+                            .from('photos')
+                            .getPublicUrl(fileName);
+                        
+                        record.image_url = urlData.publicUrl;
+                    }
+                }
+
+                document.getElementById('btn-save-confirm').innerText = "Đang lưu bản ghi...";
+
                 const { data, error } = await supabase
                     .from(targetTable)
                     .insert([record]);
@@ -694,7 +793,7 @@
                 }
             } catch (err) {
                 console.error("Error loading history:", err);
-                body.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-red-500">Lỗi khi tải lịch sử: ${err.message}</td></tr>`;
+                body.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-red-500">Lỗi khi tải lịch sử: ${err.message}</td></tr>`;
             }
         }
 
@@ -722,7 +821,7 @@
             if (!records || records.length === 0) {
                 body.innerHTML = `
                     <tr id="empty-history-row">
-                        <td colspan="9" class="p-8 text-center text-slate-400 font-medium italic">
+                        <td colspan="10" class="p-8 text-center text-slate-400 font-medium italic">
                             Không tìm thấy bản ghi nào.
                         </td>
                     </tr>`;
@@ -742,6 +841,11 @@
 
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition duration-150 border-b border-slate-100";
+                
+                const photoCell = row.image_url ? 
+                    `<a href="${row.image_url}" target="_blank" class="text-indigo-600 hover:text-indigo-800 font-bold underline text-xs">Xem ảnh</a>` : 
+                    `<span class="text-slate-350 text-xs">-</span>`;
+
                 tr.innerHTML = `
                     <td class="p-4 text-center font-bold text-slate-400 text-xs">${index + 1}</td>
                     <td class="p-4 text-slate-500 font-medium text-xs whitespace-nowrap">${dateStr}</td>
@@ -751,6 +855,7 @@
                     <td class="p-4 text-xs font-semibold text-slate-600">${row.brand || '-'}</td>
                     <td class="p-4 text-xs font-semibold text-slate-600">${row.mold || '-'}</td>
                     <td class="p-4 text-right font-black text-xs text-slate-900">${row.po_qty !== null ? Number(row.po_qty).toLocaleString('vi-VN') : '-'}</td>
+                    <td class="p-4 text-center">${photoCell}</td>
                     <td class="p-4 text-center">
                         <button class="btn-delete-row text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-xl transition duration-200" data-id="${row.id}">
                             🗑️
@@ -860,7 +965,8 @@
                         "Khách hàng (Customer)": row.customer || '',
                         "Thương hiệu (Brand)": row.brand || '',
                         "Mã khuôn (Mold)": row.mold || '',
-                        "PO Quantity": row.po_qty !== null ? Number(row.po_qty) : ''
+                        "PO Quantity": row.po_qty !== null ? Number(row.po_qty) : '',
+                        "Ảnh mẫu (Photo URL)": row.image_url || ''
                     };
                 });
 
@@ -965,6 +1071,56 @@
                     }
                 }
             });
+
+            // --- PHOTO CAPTURE EVENT BINDINGS ---
+            const captureBtn = document.getElementById('btn-capture-photo');
+            const photoInput = document.getElementById('photo-input');
+            const previewContainer = document.getElementById('photo-preview-container');
+            const previewImg = document.getElementById('photo-preview');
+            const filenameLabel = document.getElementById('photo-filename');
+            const sizeLabel = document.getElementById('photo-size');
+            const deletePhotoBtn = document.getElementById('btn-delete-photo');
+
+            if (captureBtn && photoInput) {
+                captureBtn.addEventListener('click', () => {
+                    photoInput.click();
+                });
+
+                photoInput.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    showToast("⏳ Đang nén ảnh...", "success");
+
+                    try {
+                        // Compress to max width/height 800px, 60% quality JPEG
+                        const compressedBlob = await compressImage(file, 800, 800, 0.6);
+                        capturedPhotoBlob = compressedBlob;
+
+                        // Display preview
+                        previewImg.src = URL.createObjectURL(compressedBlob);
+                        filenameLabel.textContent = file.name;
+                        
+                        const kbSize = Math.round(compressedBlob.size / 1024);
+                        sizeLabel.textContent = `${kbSize} KB (Đã nén từ ${Math.round(file.size / 1024)} KB)`;
+                        previewContainer.classList.remove('hidden');
+
+                        showToast("✅ Đã nén ảnh thành công!", "success");
+                    } catch (err) {
+                        console.error("Image compression error:", err);
+                        showToast("❌ Lỗi nén ảnh: " + err.message, "error");
+                    }
+                });
+            }
+
+            if (deletePhotoBtn) {
+                deletePhotoBtn.addEventListener('click', () => {
+                    capturedPhotoBlob = null;
+                    photoInput.value = '';
+                    previewContainer.classList.add('hidden');
+                    showToast("🗑️ Đã xóa ảnh mẫu.", "success");
+                });
+            }
 
             // Tab button highlights
             switchTab('crosscheck');
