@@ -136,10 +136,10 @@
 
         <!-- Tabbed Navigation Bar -->
         <nav class="flex p-1.5 bg-slate-200/60 rounded-2xl gap-1">
-            <button id="tab-crosscheck" class="flex-1 py-3 text-center rounded-xl font-bold text-sm transition-all duration-300 shadow-none text-slate-600 hover:text-slate-800" onclick="switchTab('crosscheck')">
+            <button id="tab-crosscheck" class="flex-1 py-3 text-center rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md shadow-indigo-200/80 transition-all duration-300" onclick="switchTab('crosscheck')">
                 📋 Crosscheck mẫu đầu chuyền
             </button>
-            <button id="tab-test-lab" class="flex-1 py-3 text-center rounded-xl font-bold text-sm transition-all duration-300 shadow-none text-slate-600 hover:text-slate-800" onclick="switchTab('test_lab')">
+            <button id="tab-test-lab" class="flex-1 py-3 text-center rounded-xl font-bold text-sm transition-all duration-300 shadow-none text-slate-600 hover:text-indigo-600 hover:bg-white/40" onclick="switchTab('test_lab')">
                 🔬 Test lab
             </button>
         </nav>
@@ -383,11 +383,11 @@
             const btnTestLab = document.getElementById('tab-test-lab');
             
             if (tabName === 'crosscheck') {
-                btnCrosscheck.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm bg-white text-indigo-700 shadow-sm transition-all duration-300";
-                btnTestLab.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm transition-all duration-300 shadow-none text-slate-600 hover:text-slate-800";
+                btnCrosscheck.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md shadow-indigo-200/80 transition-all duration-300";
+                btnTestLab.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm transition-all duration-300 shadow-none text-slate-600 hover:text-indigo-600 hover:bg-white/40";
             } else {
-                btnTestLab.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm bg-white text-indigo-700 shadow-sm transition-all duration-300";
-                btnCrosscheck.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm transition-all duration-300 shadow-none text-slate-600 hover:text-slate-800";
+                btnTestLab.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md shadow-indigo-200/80 transition-all duration-300";
+                btnCrosscheck.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm transition-all duration-300 shadow-none text-slate-600 hover:text-indigo-600 hover:bg-white/40";
             }
 
             // Stop Camera if scanning
