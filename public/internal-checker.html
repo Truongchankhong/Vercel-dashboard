@@ -155,11 +155,14 @@
 
                     <!-- Camera Scanner Area -->
                     <div class="flex flex-col gap-3">
-                        <div id="qr-reader" class="w-full aspect-square bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative">
-                            <!-- Camera Placeholder -->
-                            <div id="qr-placeholder" class="text-center p-6 flex flex-col items-center gap-2">
+                        <div class="w-full aspect-square bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative">
+                            <!-- Scanner container (kept clean for html5-qrcode) -->
+                            <div id="qr-reader" class="w-full h-full"></div>
+                            
+                            <!-- Camera Placeholder (overlay) -->
+                            <div id="qr-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-slate-100 rounded-2xl">
                                 <span class="text-4xl text-slate-400 animate-pulse">📷</span>
-                                <p class="text-xs text-slate-400 font-medium max-w-[200px]">Bấm nút bên dưới để sử dụng Camera quét mã RPRO QR</p>
+                                <p class="text-xs text-slate-400 font-medium max-w-[200px] mt-2">Bấm nút bên dưới để sử dụng Camera quét mã RPRO QR</p>
                             </div>
                         </div>
                         <button id="btn-toggle-camera" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-md transition duration-300 active:scale-95 flex items-center justify-center gap-2 btn-hover">
@@ -514,7 +517,9 @@
             };
 
             try {
-                document.getElementById('qr-placeholder').classList.add('hidden');
+                const placeholder = document.getElementById('qr-placeholder');
+                if (placeholder) placeholder.classList.add('hidden');
+                
                 await html5QrScanner.start(
                     { facingMode: "environment" },
                     config,
@@ -528,7 +533,8 @@
             } catch (err) {
                 console.error("Camera error:", err);
                 alert("Lỗi Camera: " + err.message);
-                document.getElementById('qr-placeholder').classList.remove('hidden');
+                const placeholder = document.getElementById('qr-placeholder');
+                if (placeholder) placeholder.classList.remove('hidden');
             }
         }
 
@@ -542,7 +548,8 @@
                 btn.innerHTML = "<span>📷 Bật Camera quét QR</span>";
                 btn.className = "w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-md transition duration-300 active:scale-95 flex items-center justify-center gap-2 btn-hover";
                 
-                document.getElementById('qr-placeholder').classList.remove('hidden');
+                const placeholder = document.getElementById('qr-placeholder');
+                if (placeholder) placeholder.classList.remove('hidden');
             } catch (err) {
                 console.error("Stop camera error:", err);
             }
