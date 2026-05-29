@@ -311,6 +311,20 @@
         let cameraActive = false;
         let lookupTimeout = null;
         let isSaving = false;
+        let currentLoadedRpro = ''; // Track the currently loaded RPRO
+
+        function checkUnsavedChanges(newRawRpro) {
+            const newRpro = normalizeRPRO(newRawRpro);
+            if (currentLoadedRpro && currentLoadedRpro !== newRpro) {
+                const confirmSwitch = confirm(`Bạn chưa lưu đơn hàng hiện tại (${currentLoadedRpro}). Bạn có chắc chắn muốn chuyển sang đơn hàng mới?`);
+                if (!confirmSwitch) {
+                    // Restore old value in the input box
+                    document.getElementById('input-rpro').value = currentLoadedRpro;
+                    return false; // Cancel switch
+                }
+            }
+            return true; // Allow switch
+        }
 
         // Sound Beeps
         function playBeep(success) {
@@ -438,6 +452,7 @@
             const rpro = normalizeRPRO(rawRpro);
             if (!rpro || rpro === 'RPRO-' || rpro.length < 5) return;
 
+            currentLoadedRpro = rpro; // Track that we have an active RPRO session
             const statusLabel = document.getElementById('lookup-status');
             statusLabel.classList.remove('hidden');
 
@@ -484,6 +499,7 @@
             document.getElementById('field-brand').value = row['Brand Code'] || '';
             document.getElementById('field-mold').value = row['#MOLD'] || '';
             document.getElementById('field-po-qty').value = row['Total Qty'] || '';
+            currentLoadedRpro = normalizeRPRO(row['PRO ODER']); // Save RPRO state
         }
 
         function clearInputs() {
@@ -493,6 +509,7 @@
             document.getElementById('field-mold').value = '';
             document.getElementById('field-po-qty').value = '';
             document.getElementById('lookup-status').classList.add('hidden');
+            currentLoadedRpro = ''; // Clear RPRO state
         }
 
         // Camera QR Control
@@ -559,10 +576,16 @@
             const raw = decodedText.trim();
             if (!raw) return;
 
+            const rpro = normalizeRPRO(raw);
+            
+            // Verify if user wants to discard unsaved RPRO
+            if (!checkUnsavedChanges(rpro)) {
+                return;
+            }
+
             // Stop camera on success to prevent multiple rapid reads
             stopCamera();
 
-            const rpro = normalizeRPRO(raw);
             document.getElementById('input-rpro').value = rpro;
             
             // Auto trigger details lookup
@@ -914,16 +937,32 @@
                 const val = e.target.value.trim().toUpperCase();
                 clearTimeout(lookupTimeout);
                 if (val.length >= 8) {
-                    lookupTimeout = setTimeout(() => fetchDetails(val), 500);
+                    lookupTimeout = setTimeout(async () => {
+                        const normalizedVal = normalizeRPRO(val);
+                        if (currentLoadedRpro && currentLoadedRpro !== normalizedVal) {
+                            if (!checkUnsavedChanges(normalizedVal)) {
+                                return;
+                            }
+                        }
+                        await fetchDetails(val);
+                    }, 500);
                 }
             });
 
-            rproInput.addEventListener('keydown', (e) => {
+            rproInput.addEventListener('keydown', async (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     const val = e.target.value.trim().toUpperCase();
                     clearTimeout(lookupTimeout);
-                    if (val) fetchDetails(val);
+                    if (val) {
+                        const normalizedVal = normalizeRPRO(val);
+                        if (currentLoadedRpro && currentLoadedRpro !== normalizedVal) {
+                            if (!checkUnsavedChanges(normalizedVal)) {
+                                return;
+                            }
+                        }
+                        await fetchDetails(val);
+                    }
                 }
             });
 
