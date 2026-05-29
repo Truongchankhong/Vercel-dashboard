@@ -241,7 +241,14 @@
                     <p class="text-xs text-slate-500 font-medium">Bản ghi gần nhất trong ca làm việc</p>
                 </div>
 
-                <div class="flex flex-wrap gap-2 w-full sm:w-auto items-center">
+                <div class="flex flex-wrap gap-3 w-full sm:w-auto items-center">
+                    <!-- Date Range Input -->
+                    <div class="flex items-center gap-2 bg-white px-3 py-2 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-50 rounded-xl text-sm font-semibold transition-all w-full sm:w-auto shadow-sm">
+                        <input type="date" id="date-from" class="bg-transparent outline-none text-slate-700 font-bold focus:text-indigo-600 w-full sm:w-auto" title="Từ ngày">
+                        <span class="text-slate-400 font-bold">→</span>
+                        <input type="date" id="date-to" class="bg-transparent outline-none text-slate-700 font-bold focus:text-indigo-600 w-full sm:w-auto" title="Đến ngày">
+                    </div>
+
                     <!-- Search Input -->
                     <input type="text" id="search-history" placeholder="Tìm kiếm RPRO, MSNV..."
                         class="px-4 py-2 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-50 rounded-xl text-sm font-semibold outline-none transition-all w-full sm:w-64">
@@ -625,22 +632,58 @@
             const targetTable = currentTab === 'crosscheck' ? 'crosscheck_sample' : 'test_lab';
             const body = document.getElementById('history-body');
             
+            const dateFrom = document.getElementById('date-from').value;
+            const dateTo = document.getElementById('date-to').value;
+
             try {
-                const { data, error } = await supabase
+                let queryBuilder = supabase
                     .from(targetTable)
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(50);
+                    .select('*');
+
+                if (dateFrom) {
+                    queryBuilder = queryBuilder.gte('created_at', `${dateFrom}T00:00:00+07:00`);
+                }
+                if (dateTo) {
+                    queryBuilder = queryBuilder.lte('created_at', `${dateTo}T23:59:59+07:00`);
+                }
+
+                const { data, error } = await queryBuilder
+                    .order('created_at', { ascending: false });
 
                 if (error) throw error;
 
                 // Store database items in memory for search/filter and excel
                 window.historyRecords = data || [];
-                renderHistory(window.historyRecords);
+                
+                // Render table, applying local search if active
+                const searchQuery = document.getElementById('search-history').value.toLowerCase().trim();
+                if (searchQuery) {
+                    triggerLocalSearchFiltered(searchQuery);
+                } else {
+                    renderHistory(window.historyRecords);
+                }
             } catch (err) {
                 console.error("Error loading history:", err);
                 body.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-red-500">Lỗi khi tải lịch sử: ${err.message}</td></tr>`;
             }
+        }
+
+        // Helper to trigger local search when history is reloaded
+        function triggerLocalSearchFiltered(query) {
+            if (!window.historyRecords) return;
+            const filtered = window.historyRecords.filter(row => {
+                const rpro = (row.rpro || '').toLowerCase();
+                const msnv = (row.msnv || '').toLowerCase();
+                const cust = (row.customer || '').toLowerCase();
+                const brand = (row.brand || '').toLowerCase();
+                const mold = (row.mold || '').toLowerCase();
+                return rpro.includes(query) || 
+                       msnv.includes(query) || 
+                       cust.includes(query) || 
+                       brand.includes(query) || 
+                       mold.includes(query);
+            });
+            renderHistory(filtered);
         }
 
         function renderHistory(records) {
@@ -752,16 +795,27 @@
             showToast("⏳ Đang xuất Excel...", "success");
 
             try {
-                // Fetch ALL history records to make sure we don't just export the limited 50 items
-                const { data: allRecords, error } = await supabase
+                const dateFrom = document.getElementById('date-from').value;
+                const dateTo = document.getElementById('date-to').value;
+
+                let queryBuilder = supabase
                     .from(targetTable)
-                    .select('*')
+                    .select('*');
+
+                if (dateFrom) {
+                    queryBuilder = queryBuilder.gte('created_at', `${dateFrom}T00:00:00+07:00`);
+                }
+                if (dateTo) {
+                    queryBuilder = queryBuilder.lte('created_at', `${dateTo}T23:59:59+07:00`);
+                }
+
+                const { data: allRecords, error } = await queryBuilder
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
 
                 if (!allRecords || allRecords.length === 0) {
-                    showToast("⚠️ Không có dữ liệu để xuất!", "error");
+                    showToast("⚠️ Không có dữ liệu trong khoảng ngày đã chọn!", "error");
                     return;
                 }
 
@@ -796,6 +850,25 @@
 
         // --- ATTACH EVENT LISTENERS ---
         document.addEventListener('DOMContentLoaded', () => {
+            // Set default date range: From 1 month ago to today
+            const today = new Date();
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(today.getMonth() - 1);
+
+            const formatDateStr = (d) => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            document.getElementById('date-from').value = formatDateStr(oneMonthAgo);
+            document.getElementById('date-to').value = formatDateStr(today);
+
+            // Bind change events to date inputs to reload history
+            document.getElementById('date-from').addEventListener('change', loadHistory);
+            document.getElementById('date-to').addEventListener('change', loadHistory);
+
             initMsnv();
 
             // Login Trigger
