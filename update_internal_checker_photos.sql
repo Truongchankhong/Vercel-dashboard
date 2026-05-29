@@ -12,7 +12,7 @@ VALUES ('photos', 'photos', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- 4. Enable public row-level security policies for the 'photos' bucket
--- These ensure that anyone (anon) can view, upload, or delete images in the 'photos' bucket.
-CREATE POLICY "Public Read Access" ON storage.objects FOR SELECT TO anon USING (bucket_id = 'photos');
-CREATE POLICY "Public Insert Access" ON storage.objects FOR INSERT TO anon WITH CHECK (bucket_id = 'photos');
-CREATE POLICY "Public Delete Access" ON storage.objects FOR DELETE TO anon USING (bucket_id = 'photos');
+-- We use unique policy names specific to the 'photos' bucket to avoid collisions with other buckets' policies.
+CREATE POLICY "Public Read Access for Photos" ON storage.objects FOR SELECT TO anon USING (bucket_id = 'photos');
+CREATE POLICY "Public Insert Access for Photos" ON storage.objects FOR INSERT TO anon WITH CHECK (bucket_id = 'photos');
+CREATE POLICY "Public Delete Access for Photos" ON storage.objects FOR DELETE TO anon USING (bucket_id = 'photos');
