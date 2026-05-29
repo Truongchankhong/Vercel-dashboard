@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Checker Nội Bộ - OVN Production</title>
+    <meta name="description" content="Hệ thống Checker nội bộ dành cho bộ phận kiểm tra chéo đầu chuyền và Lab của Ortholite Việt Nam.">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --accent-success: #10b981;
+            --accent-error: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #eef2f6 0%, #d8e2ed 100%);
+            min-height: 100vh;
+            color: #1e293b;
+        }
+
+        .heading-font {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+        }
+
+        /* Micro-animations */
+        .btn-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-hover:hover {
+            transform: translateY(-2px);
+        }
+        .btn-hover:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.02);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.12);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.25);
+        }
+
+        /* Floating Toast animation */
+        @keyframes slideUp {
+            from {
+                transform: translate(-50%, 100%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+        .animate-toast {
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+
+<body class="p-3 sm:p-6 lg:p-8">
+    <!-- MSNV Login Overlay -->
+    <div id="msnv-overlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xl flex items-center justify-center z-[9999] transition-all duration-500">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full border border-slate-100 text-center mx-4 transform transition-all scale-100">
+            <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 text-4xl shadow-inner animate-pulse">
+                🔑
+            </div>
+            <h2 class="text-2xl font-black text-slate-800 mb-2 heading-font" id="login-title">XÁC NHẬN BẢN THÂN</h2>
+            <p class="text-slate-500 text-sm mb-6">Vui lòng nhập Mã Số Nhân Viên (MSNV) của bạn để truy cập hệ thống Checker nội bộ.</p>
+            
+            <div class="relative mb-6">
+                <input type="text" id="msnv-input" placeholder="Nhập MSNV (ví dụ: NV1234)" 
+                    class="w-full bg-slate-50 border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 rounded-2xl p-4 text-center font-bold text-lg outline-none transition-all uppercase placeholder-slate-400"
+                    id="msnv-input-element">
+            </div>
+            
+            <button id="btn-login-confirm" 
+                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl p-4 font-bold text-lg shadow-lg shadow-indigo-200 transition-all duration-300 hover:shadow-indigo-300 active:scale-95 btn-hover">
+                Xác nhận truy cập
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="max-w-6xl mx-auto flex flex-col gap-6">
+        <!-- Top Navigation & Header -->
+        <header class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white/70 border border-white/20 p-4 rounded-3xl shadow-sm backdrop-blur-md">
+            <div class="flex items-center gap-3">
+                <button id="btn-back" onclick="window.location.href='index.html'"
+                    class="p-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold text-sm shadow-sm transition btn-hover flex items-center justify-center"
+                    id="btn-back-element">
+                    ←
+                </button>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-black tracking-tight text-indigo-950 heading-font flex items-center gap-2">
+                        🔍 Checker Nội Bộ
+                    </h1>
+                    <p class="text-xs text-slate-500 font-medium">Bảng điều khiển kiểm định chéo & Lab</p>
+                </div>
+            </div>
+
+            <!-- User Status Panel -->
+            <div class="flex items-center gap-3 bg-white/90 border border-slate-100 px-4 py-2.5 rounded-2xl shadow-sm">
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Nhân viên:</span>
+                <span id="current-msnv" class="font-extrabold text-indigo-700 text-sm uppercase">CHƯA ĐĂNG NHẬP</span>
+                <button id="btn-logout" class="text-xs text-red-500 hover:text-red-700 font-bold border border-red-200 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-xl transition duration-200">
+                    Đổi MSNV ⇄
+                </button>
+            </div>
+        </header>
+
+        <!-- Tabbed Navigation Bar -->
+        <nav class="flex p-1.5 bg-slate-200/60 rounded-2xl gap-1">
+            <button id="tab-crosscheck" class="flex-1 py-3 text-center rounded-xl font-bold text-sm transition-all duration-300 shadow-none text-slate-600 hover:text-slate-800" onclick="switchTab('crosscheck')">
+                📋 Crosscheck mẫu đầu chuyền
+            </button>
+            <button id="tab-test-lab" class="flex-1 py-3 text-center rounded-xl font-bold text-sm transition-all duration-300 shadow-none text-slate-600 hover:text-slate-800" onclick="switchTab('test_lab')">
+                🔬 Test lab
+            </button>
+        </nav>
+
+        <!-- Main Form & Scanner Grid -->
+        <main class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <!-- Left Column: Scan QR / Input RPRO -->
+            <section class="lg:col-span-5 flex flex-col gap-6">
+                <div class="glass-card p-6 rounded-3xl shadow-xl flex flex-col gap-4">
+                    <h3 class="text-md font-extrabold text-slate-800 heading-font flex items-center gap-2">
+                        📷 QUÉT MÃ QR HOẶC NHẬP TAY
+                    </h3>
+
+                    <!-- Camera Scanner Area -->
+                    <div class="flex flex-col gap-3">
+                        <div id="qr-reader" class="w-full aspect-square bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative">
+                            <!-- Camera Placeholder -->
+                            <div id="qr-placeholder" class="text-center p-6 flex flex-col items-center gap-2">
+                                <span class="text-4xl text-slate-400 animate-pulse">📷</span>
+                                <p class="text-xs text-slate-400 font-medium max-w-[200px]">Bấm nút bên dưới để sử dụng Camera quét mã RPRO QR</p>
+                            </div>
+                        </div>
+                        <button id="btn-toggle-camera" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-md transition duration-300 active:scale-95 flex items-center justify-center gap-2 btn-hover">
+                            <span>📷 Bật Camera quét QR</span>
+                        </button>
+                    </div>
+
+                    <div class="border-t border-slate-200/50 my-2"></div>
+
+                    <!-- Manual Input Box -->
+                    <div class="flex flex-col gap-2">
+                        <label for="input-rpro" class="text-xs font-black text-slate-500 uppercase tracking-wider">Mã RPRO:</label>
+                        <div class="relative">
+                            <input type="text" id="input-rpro" placeholder="Nhập hoặc dán mã RPRO..." 
+                                class="w-full bg-white border-2 border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 rounded-2xl p-4 font-mono font-bold text-md outline-none transition-all uppercase placeholder-slate-400">
+                        </div>
+                        <div id="lookup-status" class="text-xs font-bold text-indigo-500 mt-1 italic hidden flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
+                            Đang tìm kiếm thông tin trên database...
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Editable Details & Confirmation -->
+            <section class="lg:col-span-7 flex flex-col gap-6">
+                <div class="glass-card p-6 rounded-3xl shadow-xl flex flex-col gap-5">
+                    <h3 class="text-md font-extrabold text-slate-800 heading-font flex items-center gap-2">
+                        📝 THÔNG TIN ĐƠN HÀNG
+                    </h3>
+
+                    <!-- Inputs Form -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Customer -->
+                        <div class="flex flex-col gap-1.5">
+                            <label for="field-customer" class="text-xs font-black text-slate-500 uppercase tracking-wider">Khách hàng (Customer):</label>
+                            <input type="text" id="field-customer" placeholder="Tên khách hàng"
+                                class="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-50 rounded-xl p-3.5 font-semibold outline-none transition-all">
+                        </div>
+
+                        <!-- Brand -->
+                        <div class="flex flex-col gap-1.5">
+                            <label for="field-brand" class="text-xs font-black text-slate-500 uppercase tracking-wider">Thương hiệu (Brand):</label>
+                            <input type="text" id="field-brand" placeholder="Mã thương hiệu"
+                                class="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-50 rounded-xl p-3.5 font-semibold outline-none transition-all">
+                        </div>
+
+                        <!-- Mold Code -->
+                        <div class="flex flex-col gap-1.5">
+                            <label for="field-mold" class="text-xs font-black text-slate-500 uppercase tracking-wider">Mã khuôn (Mold):</label>
+                            <input type="text" id="field-mold" placeholder="Mã khuôn"
+                                class="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-50 rounded-xl p-3.5 font-semibold outline-none transition-all">
+                        </div>
+
+                        <!-- PO Qty -->
+                        <div class="flex flex-col gap-1.5">
+                            <label for="field-po-qty" class="text-xs font-black text-slate-500 uppercase tracking-wider">Số lượng PO (PO Quantity):</label>
+                            <input type="number" id="field-po-qty" placeholder="Số lượng"
+                                class="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-50 rounded-xl p-3.5 font-semibold outline-none transition-all">
+                        </div>
+                    </div>
+
+                    <!-- Confirm Button -->
+                    <button id="btn-save-confirm"
+                        class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-lg shadow-lg shadow-emerald-100 transition-all duration-300 hover:shadow-emerald-200 active:scale-95 btn-hover flex items-center justify-center gap-2 mt-2">
+                        <span>✓ Xác Nhận & Lưu Bản Ghi</span>
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Log History Section -->
+        <section class="glass-card p-6 rounded-3xl shadow-xl flex flex-col gap-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/50 pb-4">
+                <div>
+                    <h3 class="text-md font-extrabold text-slate-800 heading-font flex items-center gap-2">
+                        📜 LỊCH SỬ XÁC NHẬN
+                    </h3>
+                    <p class="text-xs text-slate-500 font-medium">Bản ghi gần nhất trong ca làm việc</p>
+                </div>
+
+                <div class="flex flex-wrap gap-2 w-full sm:w-auto items-center">
+                    <!-- Search Input -->
+                    <input type="text" id="search-history" placeholder="Tìm kiếm RPRO, MSNV..."
+                        class="px-4 py-2 border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-50 rounded-xl text-sm font-semibold outline-none transition-all w-full sm:w-64">
+
+                    <!-- Excel Button -->
+                    <button id="btn-export-excel"
+                        class="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-sm shadow-md transition duration-200 active:scale-95 btn-hover">
+                        <span>📗 Xuất Excel</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- History Table -->
+            <div class="overflow-x-auto rounded-2xl border border-slate-200/60 bg-white">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                            <th class="p-4 text-center w-12">STT</th>
+                            <th class="p-4">Ngày giờ</th>
+                            <th class="p-4">MSNV</th>
+                            <th class="p-4">Mã RPRO</th>
+                            <th class="p-4">Khách hàng</th>
+                            <th class="p-4">Thương hiệu</th>
+                            <th class="p-4">Mã khuôn</th>
+                            <th class="p-4 text-right">PO Qty</th>
+                            <th class="p-4 text-center w-16">Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body" class="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                        <!-- History Rows injected here -->
+                        <tr id="empty-history-row">
+                            <td colspan="9" class="p-8 text-center text-slate-400 font-medium italic">
+                                Chưa có bản ghi nào được quét trong phiên này.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- SheetJS (Excel) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- html5-qrcode -->
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- App Logic -->
+    <script type="module">
+        import { supabase } from './supabaseClient.js';
+
+        // --- STATE & UTILS ---
+        let currentTab = 'crosscheck'; // 'crosscheck' or 'test_lab'
+        let currentMsnv = '';
+        let html5QrScanner = null;
+        let cameraActive = false;
+        let lookupTimeout = null;
+        let isSaving = false;
+
+        // Sound Beeps
+        function playBeep(success) {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.frequency.setValueAtTime(success ? 880 : 220, audioContext.currentTime);
+                osc.start();
+                osc.stop(audioContext.currentTime + 0.25);
+            } catch (e) {
+                console.warn("Could not play sound beep:", e);
+            }
+        }
+
+        // Custom Floating Toast
+        function showToast(message, type = "success") {
+            const existing = document.getElementById('floating-toast');
+            if (existing) existing.remove();
+            
+            const toast = document.createElement('div');
+            toast.id = 'floating-toast';
+            
+            let bgClass = type === "success" ? "bg-emerald-500 border-emerald-400" : "bg-rose-500 border-rose-400";
+            
+            toast.className = `fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] px-6 py-4 rounded-2xl shadow-2xl text-white font-bold text-md text-center min-w-[300px] border-2 ${bgClass} animate-toast`;
+            toast.innerText = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+                toast.style.opacity = "0";
+                toast.style.transform = "translate(-50%, 20px)";
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // MSNV Login Control
+        function initMsnv() {
+            const saved = localStorage.getItem('internal_checker_msnv');
+            if (saved && saved.trim() !== '') {
+                currentMsnv = saved.trim().toUpperCase();
+                document.getElementById('current-msnv').textContent = currentMsnv;
+                document.getElementById('msnv-overlay').classList.add('hidden');
+                loadHistory();
+            } else {
+                document.getElementById('msnv-overlay').classList.remove('hidden');
+                setTimeout(() => document.getElementById('msnv-input').focus(), 300);
+            }
+        }
+
+        function handleLogin() {
+            const msnvInput = document.getElementById('msnv-input').value.trim();
+            if (!msnvInput) {
+                alert("Vui lòng nhập MSNV hợp lệ!");
+                return;
+            }
+            localStorage.setItem('internal_checker_msnv', msnvInput);
+            initMsnv();
+        }
+
+        function handleLogout() {
+            if (confirm("Bạn có chắc muốn đăng xuất / đổi mã nhân viên?")) {
+                localStorage.removeItem('internal_checker_msnv');
+                document.getElementById('msnv-input').value = '';
+                initMsnv();
+            }
+        }
+
+        // Tab Swapping
+        window.switchTab = function(tabName) {
+            if (currentTab === tabName) return;
+            currentTab = tabName;
+            
+            // UI Visual Switching
+            const btnCrosscheck = document.getElementById('tab-crosscheck');
+            const btnTestLab = document.getElementById('tab-test-lab');
+            
+            if (tabName === 'crosscheck') {
+                btnCrosscheck.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm bg-white text-indigo-700 shadow-sm transition-all duration-300";
+                btnTestLab.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm transition-all duration-300 shadow-none text-slate-600 hover:text-slate-800";
+            } else {
+                btnTestLab.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm bg-white text-indigo-700 shadow-sm transition-all duration-300";
+                btnCrosscheck.className = "flex-1 py-3 text-center rounded-xl font-bold text-sm transition-all duration-300 shadow-none text-slate-600 hover:text-slate-800";
+            }
+
+            // Stop Camera if scanning
+            if (cameraActive) {
+                stopCamera();
+            }
+
+            // Clear inputs on tab switch
+            clearInputs();
+
+            // Refresh History Table
+            loadHistory();
+        }
+
+        // Normalize RPRO
+        function normalizeRPRO(text) {
+            if (!text) return "";
+            let clean = text.trim().toUpperCase();
+
+            if (clean.includes('|')) {
+                const parts = clean.split('|');
+                const found = parts.find(p => p.trim().startsWith('RPRO'));
+                if (found) clean = found.trim();
+            }
+
+            clean = clean.replace(/^RPRO-+/i, '').replace(/^RPRO/i, '');
+            clean = clean.replace(/[^A-Z0-9-]/g, '');
+
+            const pureNumbers = clean.replace(/-/g, '');
+            if (pureNumbers.length >= 7) {
+                return `RPRO-${pureNumbers.substring(0, 6)}-${pureNumbers.substring(6)}`;
+            }
+            return "RPRO-" + clean.replace(/-+/g, '-');
+        }
+
+        // Database Lookup
+        async function fetchDetails(rawRpro) {
+            const rpro = normalizeRPRO(rawRpro);
+            if (!rpro || rpro === 'RPRO-' || rpro.length < 5) return;
+
+            const statusLabel = document.getElementById('lookup-status');
+            statusLabel.classList.remove('hidden');
+
+            try {
+                // 1. Search powerapp
+                let { data, error } = await supabase
+                    .from('powerapp')
+                    .select('*')
+                    .eq('PRO ODER', rpro)
+                    .limit(1);
+
+                if (!error && data && data.length > 0) {
+                    fillDetails(data[0]);
+                    statusLabel.classList.add('hidden');
+                    showToast("🔍 Đã tìm thấy RPRO từ PowerApp!", "success");
+                    return;
+                }
+
+                // 2. Search Masterdata (Fallback)
+                let { data: mdData, error: mdError } = await supabase
+                    .from('Masterdata')
+                    .select('*')
+                    .eq('PRO ODER', rpro)
+                    .limit(1);
+
+                if (!mdError && mdData && mdData.length > 0) {
+                    fillDetails(mdData[0]);
+                    statusLabel.classList.add('hidden');
+                    showToast("🔍 Đã tìm thấy RPRO từ Masterdata!", "success");
+                    return;
+                }
+
+                // If not found anywhere
+                statusLabel.classList.add('hidden');
+                showToast("⚠️ Không tìm thấy đơn hàng trên server. Bạn có thể nhập thủ công.", "warning");
+            } catch (err) {
+                console.error("Lookup error:", err);
+                statusLabel.classList.add('hidden');
+            }
+        }
+
+        function fillDetails(row) {
+            document.getElementById('field-customer').value = row['CUSTOMERS'] || '';
+            document.getElementById('field-brand').value = row['Brand Code'] || '';
+            document.getElementById('field-mold').value = row['#MOLD'] || '';
+            document.getElementById('field-po-qty').value = row['Total Qty'] || '';
+        }
+
+        function clearInputs() {
+            document.getElementById('input-rpro').value = '';
+            document.getElementById('field-customer').value = '';
+            document.getElementById('field-brand').value = '';
+            document.getElementById('field-mold').value = '';
+            document.getElementById('field-po-qty').value = '';
+            document.getElementById('lookup-status').classList.add('hidden');
+        }
+
+        // Camera QR Control
+        async function startCamera() {
+            if (cameraActive) return;
+
+            html5QrScanner = new Html5Qrcode("qr-reader");
+
+            const config = {
+                fps: 15,
+                qrbox: (viewWidth, viewHeight) => {
+                    const minEdge = Math.min(viewWidth, viewHeight);
+                    const boxSize = Math.max(Math.floor(minEdge * 0.75), 180);
+                    return { width: boxSize, height: boxSize };
+                },
+                aspectRatio: 1.0,
+                videoConstraints: {
+                    facingMode: "environment",
+                    width: { min: 640, ideal: 1280 },
+                    height: { min: 480, ideal: 720 }
+                }
+            };
+
+            try {
+                document.getElementById('qr-placeholder').classList.add('hidden');
+                await html5QrScanner.start(
+                    { facingMode: "environment" },
+                    config,
+                    onCameraScanSuccess
+                );
+
+                cameraActive = true;
+                const btn = document.getElementById('btn-toggle-camera');
+                btn.innerHTML = "<span>⏹ Dừng Camera</span>";
+                btn.className = "w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-bold shadow-md transition duration-300 active:scale-95 flex items-center justify-center gap-2 btn-hover";
+            } catch (err) {
+                console.error("Camera error:", err);
+                alert("Lỗi Camera: " + err.message);
+                document.getElementById('qr-placeholder').classList.remove('hidden');
+            }
+        }
+
+        async function stopCamera() {
+            if (!cameraActive || !html5QrScanner) return;
+            try {
+                await html5QrScanner.stop();
+                cameraActive = false;
+                
+                const btn = document.getElementById('btn-toggle-camera');
+                btn.innerHTML = "<span>📷 Bật Camera quét QR</span>";
+                btn.className = "w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold shadow-md transition duration-300 active:scale-95 flex items-center justify-center gap-2 btn-hover";
+                
+                document.getElementById('qr-placeholder').classList.remove('hidden');
+            } catch (err) {
+                console.error("Stop camera error:", err);
+            }
+        }
+
+        async function onCameraScanSuccess(decodedText) {
+            const raw = decodedText.trim();
+            if (!raw) return;
+
+            // Stop camera on success to prevent multiple rapid reads
+            stopCamera();
+
+            const rpro = normalizeRPRO(raw);
+            document.getElementById('input-rpro').value = rpro;
+            
+            // Auto trigger details lookup
+            await fetchDetails(rpro);
+            playBeep(true);
+        }
+
+        // Save Record
+        async function handleSaveConfirm() {
+            if (isSaving) return;
+
+            const rproRaw = document.getElementById('input-rpro').value.trim();
+            const customer = document.getElementById('field-customer').value.trim();
+            const brand = document.getElementById('field-brand').value.trim();
+            const mold = document.getElementById('field-mold').value.trim();
+            const poQtyRaw = document.getElementById('field-po-qty').value.trim();
+
+            if (!rproRaw) {
+                showToast("⚠️ Vui lòng nhập hoặc quét mã RPRO!", "warning");
+                return;
+            }
+
+            if (!currentMsnv) {
+                showToast("⚠️ Chưa nhận dạng được MSNV. Đang mở khóa...", "warning");
+                initMsnv();
+                return;
+            }
+
+            const rpro = normalizeRPRO(rproRaw);
+            const poQty = poQtyRaw ? parseFloat(poQtyRaw) : null;
+            const targetTable = currentTab === 'crosscheck' ? 'crosscheck_sample' : 'test_lab';
+
+            isSaving = true;
+            document.getElementById('btn-save-confirm').disabled = true;
+            document.getElementById('btn-save-confirm').innerText = "Đang lưu bản ghi...";
+
+            try {
+                const record = {
+                    msnv: currentMsnv,
+                    rpro: rpro,
+                    customer: customer || null,
+                    brand: brand || null,
+                    mold: mold || null,
+                    po_qty: poQty
+                };
+
+                const { data, error } = await supabase
+                    .from(targetTable)
+                    .insert([record]);
+
+                if (error) throw error;
+
+                // Success
+                playBeep(true);
+                showToast("✅ Lưu bản ghi thành công!", "success");
+                
+                // Clear & reload
+                clearInputs();
+                loadHistory();
+            } catch (err) {
+                console.error("Save error:", err);
+                playBeep(false);
+                showToast("❌ Lỗi khi lưu: " + err.message, "error");
+            } finally {
+                isSaving = false;
+                const btn = document.getElementById('btn-save-confirm');
+                btn.disabled = false;
+                btn.innerHTML = "<span>✓ Xác Nhận & Lưu Bản Ghi</span>";
+            }
+        }
+
+        // Load History Log Table
+        async function loadHistory() {
+            const targetTable = currentTab === 'crosscheck' ? 'crosscheck_sample' : 'test_lab';
+            const body = document.getElementById('history-body');
+            
+            try {
+                const { data, error } = await supabase
+                    .from(targetTable)
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(50);
+
+                if (error) throw error;
+
+                // Store database items in memory for search/filter and excel
+                window.historyRecords = data || [];
+                renderHistory(window.historyRecords);
+            } catch (err) {
+                console.error("Error loading history:", err);
+                body.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-red-500">Lỗi khi tải lịch sử: ${err.message}</td></tr>`;
+            }
+        }
+
+        function renderHistory(records) {
+            const body = document.getElementById('history-body');
+            
+            if (!records || records.length === 0) {
+                body.innerHTML = `
+                    <tr id="empty-history-row">
+                        <td colspan="9" class="p-8 text-center text-slate-400 font-medium italic">
+                            Không tìm thấy bản ghi nào.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            body.innerHTML = '';
+            records.forEach((row, index) => {
+                const dateStr = new Date(row.created_at).toLocaleString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition duration-150 border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-4 text-center font-bold text-slate-400 text-xs">${index + 1}</td>
+                    <td class="p-4 text-slate-500 font-medium text-xs whitespace-nowrap">${dateStr}</td>
+                    <td class="p-4 font-bold text-indigo-950 uppercase text-xs">${row.msnv || ''}</td>
+                    <td class="p-4 font-mono font-black text-indigo-600 text-xs">${row.rpro || ''}</td>
+                    <td class="p-4 text-xs font-semibold text-slate-600">${row.customer || '-'}</td>
+                    <td class="p-4 text-xs font-semibold text-slate-600">${row.brand || '-'}</td>
+                    <td class="p-4 text-xs font-semibold text-slate-600">${row.mold || '-'}</td>
+                    <td class="p-4 text-right font-black text-xs text-slate-900">${row.po_qty !== null ? Number(row.po_qty).toLocaleString('vi-VN') : '-'}</td>
+                    <td class="p-4 text-center">
+                        <button class="btn-delete-row text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-xl transition duration-200" data-id="${row.id}">
+                            🗑️
+                        </button>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+
+            // Re-attach delete listeners
+            document.querySelectorAll('.btn-delete-row').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    handleDeleteRecord(id);
+                });
+            });
+        }
+
+        // Delete Record
+        async function handleDeleteRecord(id) {
+            if (!confirm("Bạn có chắc chắn muốn xóa bản ghi này khỏi cơ sở dữ liệu?")) return;
+
+            const targetTable = currentTab === 'crosscheck' ? 'crosscheck_sample' : 'test_lab';
+            try {
+                const { error } = await supabase
+                    .from(targetTable)
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                showToast("🗑️ Xóa bản ghi thành công!", "success");
+                loadHistory();
+            } catch (err) {
+                console.error("Delete error:", err);
+                showToast("❌ Lỗi khi xóa: " + err.message, "error");
+            }
+        }
+
+        // Local Search Filter
+        function handleLocalSearch(e) {
+            const query = e.target.value.toLowerCase().trim();
+            if (!window.historyRecords) return;
+
+            if (!query) {
+                renderHistory(window.historyRecords);
+                return;
+            }
+
+            const filtered = window.historyRecords.filter(row => {
+                const rpro = (row.rpro || '').toLowerCase();
+                const msnv = (row.msnv || '').toLowerCase();
+                const cust = (row.customer || '').toLowerCase();
+                const brand = (row.brand || '').toLowerCase();
+                const mold = (row.mold || '').toLowerCase();
+
+                return rpro.includes(query) || 
+                       msnv.includes(query) || 
+                       cust.includes(query) || 
+                       brand.includes(query) || 
+                       mold.includes(query);
+            });
+
+            renderHistory(filtered);
+        }
+
+        // Excel Export
+        async function handleExportExcel() {
+            const targetTable = currentTab === 'crosscheck' ? 'crosscheck_sample' : 'test_lab';
+            const sheetName = currentTab === 'crosscheck' ? 'Crosscheck mẫu đầu chuyền' : 'Test lab';
+            
+            showToast("⏳ Đang xuất Excel...", "success");
+
+            try {
+                // Fetch ALL history records to make sure we don't just export the limited 50 items
+                const { data: allRecords, error } = await supabase
+                    .from(targetTable)
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                if (!allRecords || allRecords.length === 0) {
+                    showToast("⚠️ Không có dữ liệu để xuất!", "error");
+                    return;
+                }
+
+                // Format data for sheet
+                const formatted = allRecords.map((row, idx) => {
+                    const localTime = new Date(row.created_at).toLocaleString('vi-VN');
+                    return {
+                        "STT": idx + 1,
+                        "Ngày giờ xác nhận": localTime,
+                        "Mã Số Nhân Viên (MSNV)": row.msnv || '',
+                        "Mã RPRO": row.rpro || '',
+                        "Khách hàng (Customer)": row.customer || '',
+                        "Thương hiệu (Brand)": row.brand || '',
+                        "Mã khuôn (Mold)": row.mold || '',
+                        "PO Quantity": row.po_qty !== null ? Number(row.po_qty) : ''
+                    };
+                });
+
+                const worksheet = XLSX.utils.json_to_sheet(formatted);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.substring(0, 31)); // sheetname limit 31 chars
+                
+                // Save File
+                const filename = `Internal_Checker_${currentTab}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                XLSX.writeFile(workbook, filename);
+                showToast("📗 Tải file Excel thành công!", "success");
+            } catch (err) {
+                console.error("Export error:", err);
+                showToast("❌ Lỗi khi xuất Excel: " + err.message, "error");
+            }
+        }
+
+        // --- ATTACH EVENT LISTENERS ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initMsnv();
+
+            // Login Trigger
+            document.getElementById('btn-login-confirm').addEventListener('click', handleLogin);
+            document.getElementById('msnv-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleLogin();
+                }
+            });
+
+            // Logout Trigger
+            document.getElementById('btn-logout').addEventListener('click', handleLogout);
+
+            // Save Confirm Trigger
+            document.getElementById('btn-save-confirm').addEventListener('click', handleSaveConfirm);
+
+            // Toggle Camera
+            document.getElementById('btn-toggle-camera').addEventListener('click', () => {
+                if (cameraActive) {
+                    stopCamera();
+                } else {
+                    startCamera();
+                }
+            });
+
+            // Search History
+            document.getElementById('search-history').addEventListener('input', handleLocalSearch);
+
+            // Excel Export
+            document.getElementById('btn-export-excel').addEventListener('click', handleExportExcel);
+
+            // RPRO manual change listener (Debounced lookup)
+            const rproInput = document.getElementById('input-rpro');
+            rproInput.addEventListener('input', (e) => {
+                const val = e.target.value.trim().toUpperCase();
+                clearTimeout(lookupTimeout);
+                if (val.length >= 8) {
+                    lookupTimeout = setTimeout(() => fetchDetails(val), 500);
+                }
+            });
+
+            rproInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = e.target.value.trim().toUpperCase();
+                    clearTimeout(lookupTimeout);
+                    if (val) fetchDetails(val);
+                }
+            });
+
+            // Tab button highlights
+            switchTab('crosscheck');
+        });
+    </script>
+    <script src="./chatbot.js"></script>
+    <script type="module" src="./gatekeeper.js"></script>
+</body>
+
+</html>

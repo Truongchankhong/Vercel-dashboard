@@ -13,6 +13,7 @@ const indexButtonMap = {
     'status_supplement-confirm.html': 'btn-confirm-page',
     'status_supplement-count.html': 'btn-supplement-count',
     'status_surplus-landing.html': 'btn-surplus-goods',
+    'status_internal-checker.html': 'btn-internal-checker',
     
     // Virtual Views (Internal Views in index.html)
     'status_view_summary': 'btn-summary',
