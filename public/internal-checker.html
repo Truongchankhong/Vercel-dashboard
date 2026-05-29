@@ -159,6 +159,9 @@
                             <!-- Scanner container (kept clean for html5-qrcode) -->
                             <div id="qr-reader" class="w-full h-full"></div>
                             
+                            <!-- Custom Photo Video Element (hidden by default) -->
+                            <video id="photo-video" class="hidden w-full h-full object-cover" autoplay playsinline muted></video>
+                            
                             <!-- Camera Placeholder (overlay) -->
                             <div id="qr-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-slate-100 rounded-2xl">
                                 <span class="text-4xl text-slate-400 animate-pulse">📷</span>
@@ -334,6 +337,8 @@
         let isSaving = false;
         let currentLoadedRpro = ''; // Track the currently loaded RPRO
         let capturedPhotoBlob = null; // Track the compressed photo blob
+        let photoStream = null; // Store the WebRTC stream for photo capture
+        let photoCameraActive = false; // State of the photo capture camera
 
         // Image Compressor Utility
         function compressImage(file, maxWidth, maxHeight, quality) {
@@ -382,10 +387,20 @@
             const saveBtn = document.getElementById('btn-save-confirm');
             const rproVal = document.getElementById('input-rpro').value.trim();
 
-            if (!rproVal || rproVal === 'RPRO-') {
+            if (photoCameraActive) {
+                // Camera is active, button becomes click-to-snap
+                if (captureBtn) {
+                    captureBtn.className = "w-full py-4 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl font-bold shadow-lg transition duration-300 active:scale-95 flex items-center justify-center gap-2 btn-hover animate-pulse";
+                    captureBtn.innerHTML = "<span>📸 BẤM ĐỂ CHỤP ẢNH MẪU NGAY</span>";
+                }
+                if (saveBtn) {
+                    saveBtn.className = "w-full py-4 bg-slate-300 text-slate-400 rounded-2xl font-bold text-lg cursor-not-allowed flex items-center justify-center gap-2 mt-2";
+                    saveBtn.innerHTML = "<span>✓ Đang mở camera chụp mẫu...</span>";
+                }
+            } else if (!rproVal || rproVal === 'RPRO-') {
                 // No RPRO loaded
                 if (captureBtn) {
-                    captureBtn.className = "w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold shadow-sm transition duration-300 active:scale-95 flex items-center justify-center gap-2 btn-hover";
+                    captureBtn.className = "w-full py-3.5 bg-slate-100 text-slate-400 rounded-2xl font-bold shadow-sm cursor-not-allowed flex items-center justify-center gap-2";
                     captureBtn.innerHTML = "<span>📸 Chụp Ảnh Lưu Mẫu (Bắt buộc)</span>";
                 }
                 if (saveBtn) {
@@ -396,7 +411,7 @@
                 // RPRO loaded but NO photo captured
                 if (captureBtn) {
                     captureBtn.className = "w-full py-3.5 bg-rose-50 border-2 border-rose-300 text-rose-700 animate-pulse rounded-2xl font-bold shadow-sm transition duration-300 active:scale-95 flex items-center justify-center gap-2 btn-hover";
-                    captureBtn.innerHTML = "<span>⚠️ CHƯA CHỤP ẢNH MẪU (Bắt buộc)</span>";
+                    captureBtn.innerHTML = "<span>⚠️ MỞ CAM CHỤP ẢNH MẪU (Bắt buộc)</span>";
                 }
                 if (saveBtn) {
                     saveBtn.className = "w-full py-4 bg-slate-300 text-slate-400 rounded-2xl font-bold text-lg cursor-not-allowed flex items-center justify-center gap-2 mt-2";
@@ -406,12 +421,144 @@
                 // RPRO loaded AND photo captured
                 if (captureBtn) {
                     captureBtn.className = "w-full py-3.5 bg-emerald-50 border border-emerald-250 text-emerald-700 rounded-2xl font-bold shadow-sm transition duration-300 active:scale-95 flex items-center justify-center gap-2 btn-hover";
-                    captureBtn.innerHTML = "<span>✅ Đã Có Ảnh Mẫu</span>";
+                    captureBtn.innerHTML = "<span>✅ Đã Có Ảnh Mẫu (Chụp lại 📸)</span>";
                 }
                 if (saveBtn) {
                     saveBtn.className = "w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-lg shadow-lg shadow-emerald-100 transition-all duration-300 hover:shadow-emerald-200 active:scale-95 btn-hover flex items-center justify-center gap-2 mt-2";
                     saveBtn.innerHTML = "<span>✓ Xác Nhận & Lưu Bản Ghi</span>";
                 }
+            }
+        }
+
+        async function startPhotoCamera() {
+            if (photoCameraActive) return;
+            
+            // If QR camera is active, stop it first
+            if (cameraActive) {
+                await stopCamera();
+            }
+            
+            const videoEl = document.getElementById('photo-video');
+            const placeholder = document.getElementById('qr-placeholder');
+            const qrReader = document.getElementById('qr-reader');
+            
+            if (qrReader) qrReader.classList.add('hidden');
+            if (placeholder) placeholder.classList.add('hidden');
+            if (videoEl) videoEl.classList.remove('hidden');
+
+            try {
+                photoStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+                
+                videoEl.srcObject = photoStream;
+                photoCameraActive = true;
+                showToast("📷 Đang mở camera chụp ảnh mẫu...", "success");
+                updatePhotoUI();
+            } catch (err) {
+                console.error("Error opening photo camera:", err);
+                showToast("⚠️ Không thể mở camera trực tiếp. Đang dùng camera hệ thống...", "warning");
+                stopPhotoCamera();
+                // Fallback to native file input
+                const photoInput = document.getElementById('photo-input');
+                if (photoInput) {
+                    photoInput.click();
+                }
+            }
+        }
+
+        function stopPhotoCamera() {
+            if (photoStream) {
+                photoStream.getTracks().forEach(track => track.stop());
+                photoStream = null;
+            }
+            photoCameraActive = false;
+            
+            const videoEl = document.getElementById('photo-video');
+            const placeholder = document.getElementById('qr-placeholder');
+            const qrReader = document.getElementById('qr-reader');
+            
+            if (videoEl) {
+                videoEl.srcObject = null;
+                videoEl.classList.add('hidden');
+            }
+            if (qrReader) qrReader.classList.remove('hidden');
+            if (placeholder) placeholder.classList.remove('hidden');
+            
+            updatePhotoUI();
+        }
+
+        async function capturePhotoFromStream() {
+            if (!photoCameraActive || !photoStream) return;
+            
+            const videoEl = document.getElementById('photo-video');
+            const canvas = document.createElement('canvas');
+            
+            canvas.width = videoEl.videoWidth || 800;
+            canvas.height = videoEl.videoHeight || 600;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+            
+            showToast("⏳ Đang xử lý & nén ảnh...", "success");
+            
+            try {
+                const compressedBlob = await new Promise((resolve) => {
+                    const maxWidth = 800;
+                    const maxHeight = 800;
+                    let width = canvas.width;
+                    let height = canvas.height;
+                    
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height = Math.round((height * maxWidth) / width);
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width = Math.round((width * maxHeight) / height);
+                            height = maxHeight;
+                        }
+                    }
+                    
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = width;
+                    tempCanvas.height = height;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(canvas, 0, 0, width, height);
+                    
+                    tempCanvas.toBlob((blob) => {
+                        resolve(blob);
+                    }, 'image/jpeg', 0.6); // 60% quality JPEG
+                });
+                
+                capturedPhotoBlob = compressedBlob;
+                
+                const previewImg = document.getElementById('photo-preview');
+                const filenameLabel = document.getElementById('photo-filename');
+                const sizeLabel = document.getElementById('photo-size');
+                const previewContainer = document.getElementById('photo-preview-container');
+                
+                if (previewImg) previewImg.src = URL.createObjectURL(compressedBlob);
+                if (filenameLabel) filenameLabel.textContent = `captured_sample_${Date.now()}.jpg`;
+                if (sizeLabel) {
+                    const kbSize = Math.round(compressedBlob.size / 1024);
+                    sizeLabel.textContent = `${kbSize} KB (Đã nén)`;
+                }
+                if (previewContainer) previewContainer.classList.remove('hidden');
+                
+                showToast("✅ Đã chụp & nén ảnh mẫu thành công!", "success");
+                playBeep(true);
+            } catch (err) {
+                console.error("Capture error:", err);
+                showToast("❌ Lỗi chụp ảnh: " + err.message, "error");
+            } finally {
+                stopPhotoCamera();
             }
         }
 
@@ -623,6 +770,9 @@
             document.getElementById('photo-input').value = '';
             const previewContainer = document.getElementById('photo-preview-container');
             if (previewContainer) previewContainer.classList.add('hidden');
+            
+            // Stop photo camera if it was active
+            stopPhotoCamera();
             updatePhotoUI();
         }
 
@@ -706,12 +856,9 @@
             await fetchDetails(rpro);
             playBeep(true);
 
-            // Auto-open native camera to capture photo
+            // Auto-open camera to capture photo (using in-page WebRTC)
             setTimeout(() => {
-                const photoInput = document.getElementById('photo-input');
-                if (photoInput) {
-                    photoInput.click();
-                }
+                startPhotoCamera();
             }, 800);
         }
 
@@ -739,10 +886,7 @@
             // Photo is now mandatory
             if (!capturedPhotoBlob) {
                 showToast("⚠️ Bạn bắt buộc phải chụp ảnh mẫu trước khi lưu!", "warning");
-                const photoInput = document.getElementById('photo-input');
-                if (photoInput) {
-                    photoInput.click();
-                }
+                startPhotoCamera();
                 return;
             }
 
@@ -1136,12 +1280,9 @@
                         }
                         await fetchDetails(val);
                         
-                        // Auto-open native camera to capture photo
+                        // Auto-open camera to capture photo (using in-page WebRTC)
                         setTimeout(() => {
-                            const photoInput = document.getElementById('photo-input');
-                            if (photoInput) {
-                                photoInput.click();
-                            }
+                            startPhotoCamera();
                         }, 800);
                     }
                 }
@@ -1156,11 +1297,22 @@
             const sizeLabel = document.getElementById('photo-size');
             const deletePhotoBtn = document.getElementById('btn-delete-photo');
 
-            if (captureBtn && photoInput) {
+            if (captureBtn) {
                 captureBtn.addEventListener('click', () => {
-                    photoInput.click();
+                    const rproVal = document.getElementById('input-rpro').value.trim();
+                    if (!rproVal || rproVal === 'RPRO-') {
+                        showToast("⚠️ Vui lòng quét hoặc nhập mã RPRO trước khi chụp ảnh mẫu!", "warning");
+                        return;
+                    }
+                    if (photoCameraActive) {
+                        capturePhotoFromStream();
+                    } else {
+                        startPhotoCamera();
+                    }
                 });
+            }
 
+            if (photoInput) {
                 photoInput.addEventListener('change', async (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
@@ -1194,6 +1346,7 @@
                     capturedPhotoBlob = null;
                     photoInput.value = '';
                     previewContainer.classList.add('hidden');
+                    stopPhotoCamera();
                     showToast("🗑️ Đã xóa ảnh mẫu.", "success");
                     updatePhotoUI();
                 });
