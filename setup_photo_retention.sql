@@ -28,8 +28,11 @@ END;
 $$;
 
 -- 3. Schedule the cron job (runs every day at midnight 00:00 UTC)
--- We unschedule first to prevent duplicate entries if the script is run multiple times.
-SELECT cron.unschedule('daily-cleanup-old-photos');
+-- We unschedule safely only if the job already exists to avoid throwing an error.
+SELECT cron.unschedule(jobid) 
+FROM cron.job 
+WHERE jobname = 'daily-cleanup-old-photos';
+
 SELECT cron.schedule(
     'daily-cleanup-old-photos',
     '0 0 * * *',
