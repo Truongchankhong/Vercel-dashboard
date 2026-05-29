@@ -1173,11 +1173,23 @@
                         "Thương hiệu (Brand)": row.brand || '',
                         "Mã khuôn (Mold)": row.mold || '',
                         "PO Quantity": row.po_qty !== null ? Number(row.po_qty) : '',
-                        "Ảnh mẫu (Photo URL)": row.image_url || ''
+                        "Ảnh mẫu": row.image_url || ''
                     };
                 });
 
                 const worksheet = XLSX.utils.json_to_sheet(formatted);
+
+                // Convert Column I cells into clickable hyperlinks with display text "Xem ảnh"
+                allRecords.forEach((row, idx) => {
+                    if (row.image_url) {
+                        const cellAddress = `I${idx + 2}`; // Header is row 1, first data row is 2
+                        worksheet[cellAddress] = {
+                            t: 's', // type string
+                            v: 'Xem ảnh', // friendly label
+                            l: { Target: row.image_url, Tooltip: 'Nhấp để mở ảnh mẫu' } // target link
+                        };
+                    }
+                });
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.substring(0, 31)); // sheetname limit 31 chars
                 
