@@ -148,6 +148,180 @@ function initDates() {
 }
 
 // ==================== FETCH DATA ====================
+// Shared helper to compile and match tracking scans with confirmation rows
+function compileProgressData(trackingList, confirmList, startRange, endRange) {
+    const targetMap = {};
+
+    // Group confirmations by RPRO, sorted by created_at ascending
+    const confirmsByRpro = {};
+    confirmList.forEach(c => {
+        if (!confirmsByRpro[c.rpro]) {
+            confirmsByRpro[c.rpro] = [];
+        }
+        confirmsByRpro[c.rpro].push(c);
+    });
+    Object.keys(confirmsByRpro).forEach(rpro => {
+        confirmsByRpro[rpro].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    });
+
+    // Extract all unique RPROs from tracking
+    const trackingRpros = new Set(trackingList.map(r => r.rpro));
+
+    // Pre-populate targetMap with ALL confirmation records
+    confirmList.forEach(c => {
+        const key = `${c.rpro}_${c.id}`;
+        targetMap[key] = {
+            key: key,
+            rpro: c.rpro,
+            confirm_id: c.id,
+            created_at: c.created_at,
+            remark2: c.remark2,
+            total: c.total,
+            qty_sup: (c.available_supplement !== null) ? c.available_supplement : c.total,
+            confirm_date: c.updated_at,
+            confirm_status: c.confirm,
+            so: null,
+            brand: null,
+            customer: null,
+            total_qty: null,
+            mold: null,
+            finish_date: null,
+            
+            last_updated: c.created_at,
+            stages: {
+                'Dán': { in: null, out: null, note: null, note_time: null },
+                'Cắt': { in: null, out: null, note: null, note_time: null },
+                'Molding': { in: null, out: null, note: null, note_time: null },
+                'DC': { in: null, out: null, note: null, note_time: null },
+                'Molded': { in: null, out: null, note: null, note_time: null }
+            },
+            has_scans_in_range: false,
+            is_confirm_in_range: (new Date(c.created_at) >= new Date(startRange) && new Date(c.created_at) <= new Date(endRange))
+        };
+    });
+
+    // Pre-populate targetMap with virtual rows for RPROs with scans but no confirmations
+    trackingRpros.forEach(rpro => {
+        if (!confirmsByRpro[rpro] || confirmsByRpro[rpro].length === 0) {
+            const key = `${rpro}_none`;
+            targetMap[key] = {
+                key: key,
+                rpro: rpro,
+                confirm_id: null,
+                created_at: null,
+                remark2: null,
+                total: 0,
+                qty_sup: null,
+                confirm_date: null,
+                confirm_status: null,
+                so: null,
+                brand: null,
+                customer: null,
+                total_qty: null,
+                mold: null,
+                finish_date: null,
+                
+                last_updated: null,
+                stages: {
+                    'Dán': { in: null, out: null, note: null, note_time: null },
+                    'Cắt': { in: null, out: null, note: null, note_time: null },
+                    'Molding': { in: null, out: null, note: null, note_time: null },
+                    'DC': { in: null, out: null, note: null, note_time: null },
+                    'Molded': { in: null, out: null, note: null, note_time: null }
+                },
+                has_scans_in_range: false,
+                is_confirm_in_range: false
+            };
+        }
+    });
+
+    // Sort tracking list ascending (chronological) to process oldest to newest
+    const sortedTracking = [...trackingList].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    // Distribute scans to correct confirmation rows
+    sortedTracking.forEach(record => {
+        const rpro = record.rpro;
+        const scanTime = new Date(record.created_at);
+
+        let matchedConfirmId = null;
+        const confirms = confirmsByRpro[rpro] || [];
+        if (confirms.length > 0) {
+            let bestConfirm = null;
+            for (let i = 0; i < confirms.length; i++) {
+                const confTime = new Date(confirms[i].created_at);
+                if (confTime <= scanTime) {
+                    bestConfirm = confirms[i];
+                }
+            }
+            if (!bestConfirm) {
+                bestConfirm = confirms[0];
+            }
+            matchedConfirmId = bestConfirm.id;
+        }
+
+        const key = matchedConfirmId ? `${rpro}_${matchedConfirmId}` : `${rpro}_none`;
+        const item = targetMap[key];
+
+        if (item) {
+            item.has_scans_in_range = true;
+            if (!item.last_updated || new Date(record.created_at) > new Date(item.last_updated)) {
+                item.last_updated = record.created_at;
+            }
+
+            const stage = item.stages[record.section];
+            if (stage) {
+                if (record.action !== 'NOTE' && (!item.last_scan || new Date(record.created_at) > new Date(item.last_scan.time))) {
+                    item.last_scan = {
+                        section: record.section,
+                        action: record.action,
+                        time: record.created_at
+                    };
+                }
+
+                if (record.action === 'NOTE') {
+                    if (!stage.note_time || new Date(record.created_at) > new Date(stage.note_time)) {
+                        stage.note = record.note;
+                        stage.note_time = record.created_at;
+                    }
+                } else {
+                    if (record.note && record.note.trim() !== '') {
+                        if (!stage.note_time || new Date(record.created_at) > new Date(stage.note_time)) {
+                            stage.note = record.note;
+                            stage.note_time = record.created_at;
+                        }
+                    }
+
+                    const dataPoint = {
+                        time: record.created_at,
+                        qty: record.quantity || 0
+                    };
+
+                    if (record.action === 'IN') {
+                        if (!stage.in || new Date(record.created_at) > new Date(stage.in.time)) {
+                            stage.in = dataPoint;
+                        }
+                    } else if (record.action === 'OUT') {
+                        if (!stage.out || new Date(record.created_at) > new Date(stage.out.time)) {
+                            stage.out = dataPoint;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Filter to keep only active rows (either had scans in range or confirmation in range)
+    const filteredMap = {};
+    Object.entries(targetMap).forEach(([key, item]) => {
+        if (item.has_scans_in_range || item.is_confirm_in_range) {
+            filteredMap[key] = item;
+        }
+    });
+
+    return filteredMap;
+}
+
+// ==================== FETCH DATA ====================
 async function fetchProgressData() {
     const fromDateTime = dateStartInput.value;
     const toDateTime = dateEndInput.value;
@@ -157,23 +331,59 @@ async function fetchProgressData() {
     showLoading();
 
     try {
-        updateLoading(10, 'Đang truy vấn lịch sử quét (Tracking)...');
-        // OPTIMIZED: Select only needed columns for monitoring
-        const { data, error } = await supabase
+        updateLoading(10, 'Đang truy vấn lịch sử quét (Tracking) và danh sách xác nhận...');
+        
+        const fromIso = new Date(fromDateTime).toISOString();
+        const toIso = new Date(toDateTime).toISOString();
+
+        // 1. Fetch tracking scans in range
+        const { data: trackingData, error: trackingError } = await supabase
             .from('supplement_tracking')
             .select('id, rpro, section, action, quantity, note, created_at')
-            .gte('created_at', new Date(fromDateTime).toISOString())
-            .lte('created_at', new Date(toDateTime).toISOString())
+            .gte('created_at', fromIso)
+            .lte('created_at', toIso)
             .order('created_at', { ascending: false })
             .limit(5000);
 
-        if (error) throw error;
+        if (trackingError) throw trackingError;
+
+        // 2. Fetch confirmations in range
+        const { data: confirmationsInRange, error: confirmError } = await supabase
+            .from('supplement_confirm')
+            .select('id, rpro, total, available_supplement, confirm, updated_at, remark2, created_at')
+            .gte('created_at', fromIso)
+            .lte('created_at', toIso)
+            .limit(5000);
+
+        if (confirmError) throw confirmError;
+
+        // Extract all unique RPROs from both sources
+        const rproSet = new Set();
+        trackingData.forEach(r => rproSet.add(r.rpro));
+        confirmationsInRange.forEach(c => rproSet.add(c.rpro));
+        const rproList = Array.from(rproSet);
+
+        // Fetch ALL confirmations for all these RPROs (to have complete history for matching scans)
+        let allConfirmations = [];
+        if (rproList.length > 0) {
+            for (let i = 0; i < rproList.length; i += 100) {
+                const chunk = rproList.slice(i, i + 100);
+                const { data: confirmBatch, error: err } = await supabase
+                    .from('supplement_confirm')
+                    .select('id, rpro, total, available_supplement, confirm, updated_at, remark2, created_at')
+                    .in('rpro', chunk);
+                if (confirmBatch) {
+                    allConfirmations = allConfirmations.concat(confirmBatch);
+                }
+            }
+        }
 
         updateLoading(35, 'Đang tổng hợp danh sách đơn hàng...');
-        // Reset and rebuild
-        progressMap = {};
-        data.forEach(record => updateLocalState(record));
-        const rproList = Object.keys(progressMap);
+        
+        // Compile the progressMap
+        progressMap = compileProgressData(trackingData, allConfirmations, fromDateTime, toDateTime);
+
+        // Enrich missing details (powerapp / Masterdata)
         if (rproList.length > 0) {
             updateLoading(50, `Đang tải chi tiết cho ${rproList.length} đơn hàng...`);
             await enrichProgressMapMetadata(progressMap, rproList);
@@ -203,7 +413,6 @@ async function enrichProgressMapMetadata(targetMap, rproList) {
 
     // Find which RPROs actually need fetching (not in cache or incomplete)
     const missingInfoRpros = rproList.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].so);
-    const missingQtyRpros = rproList.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].qty_sup);
 
     // 1. Fetch missing PowerApp Details
     if (missingInfoRpros.length > 0) {
@@ -259,127 +468,14 @@ async function enrichProgressMapMetadata(targetMap, rproList) {
         }
     }
 
-    // 2. Fetch missing Confirmation Details
-    if (missingQtyRpros.length > 0) {
-        for (let i = 0; i < missingQtyRpros.length; i += 100) {
-            const chunk = missingQtyRpros.slice(i, i + 100);
-            const { data: confirmDetails } = await supabase
-                .from('supplement_confirm')
-                .select('rpro, total, available_supplement, confirm, updated_at, remark2, created_at')
-                .in('rpro', chunk);
-
-            if (confirmDetails) {
-                // Sắp xếp theo created_at tăng dần để bản ghi làm lại mới nhất đè lên bản ghi cũ trong cache
-                const sortedDetails = [...confirmDetails].sort((a, b) => new Date(a.created_at || a.updated_at) - new Date(b.created_at || b.updated_at));
-                sortedDetails.forEach(item => {
-                    const code = item.rpro;
-                    if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
-                    Object.assign(orderDetailsCache[code], {
-                        qty_sup: (item.available_supplement !== null) ? item.available_supplement : item.total,
-                        confirm_date: item.updated_at,
-                        confirm_status: item.confirm,
-                        remark2: item.remark2
-                    });
-                });
-            }
-        }
-
-        // Fallback for Supplement table
-        const stillMissingQty = missingQtyRpros.filter(rpro => !orderDetailsCache[rpro] || !orderDetailsCache[rpro].qty_sup);
-        if (stillMissingQty.length > 0) {
-            for (let i = 0; i < stillMissingQty.length; i += 100) {
-                const chunk = stillMissingQty.slice(i, i + 100);
-                const { data: supplementDetails } = await supabase
-                    .from('supplement')
-                    .select('rpro, total')
-                    .in('rpro', chunk);
-
-                if (supplementDetails) {
-                    supplementDetails.forEach(item => {
-                        const code = item.rpro;
-                        if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
-                        if (!orderDetailsCache[code].qty_sup) {
-                            orderDetailsCache[code].qty_sup = item.total;
-                        }
-                    });
-                }
-            }
-        }
-    }
-
-    // 3. Apply Cache to map
-    rproList.forEach(code => {
-        if (targetMap[code] && orderDetailsCache[code]) {
-            Object.assign(targetMap[code], orderDetailsCache[code]);
+    // 2. Apply Cache to targetMap
+    Object.keys(targetMap).forEach(key => {
+        const item = targetMap[key];
+        const rpro = item.rpro;
+        if (orderDetailsCache[rpro]) {
+            Object.assign(item, orderDetailsCache[rpro]);
         }
     });
-}
-
-// ==================== UPDATE LOCAL STATE ====================
-function updateLocalState(record, targetMap = progressMap) {
-    const rpro = record.rpro;
-
-    if (!targetMap[rpro]) {
-        targetMap[rpro] = {
-            rpro: rpro,
-            last_updated: record.created_at,
-            finish_date: null, // Init
-            stages: {
-                'Dán': { in: null, out: null, note: null, note_time: null },
-                'Cắt': { in: null, out: null, note: null, note_time: null },
-                'Molding': { in: null, out: null, note: null, note_time: null },
-                'DC': { in: null, out: null, note: null, note_time: null },
-                'Molded': { in: null, out: null, note: null, note_time: null }
-            }
-        };
-    }
-
-    const item = targetMap[rpro];
-    const stage = item.stages[record.section];
-
-    if (stage) {
-        // Track last overall activity for Stage_ID (Exclude NOTE)
-        if (record.action !== 'NOTE' && (!item.last_scan || new Date(record.created_at) > new Date(item.last_scan.time))) {
-            item.last_scan = {
-                section: record.section,
-                action: record.action,
-                time: record.created_at
-            };
-        }
-
-        // Shared logic: Update note if present in record (latest record wins due to fetch order)
-        if (record.action === 'NOTE') {
-            if (!stage.note_time || new Date(record.created_at) > new Date(stage.note_time)) {
-                stage.note = record.note;
-                stage.note_time = record.created_at;
-            }
-            return;
-        }
-
-        if (record.note && record.note.trim() !== '') {
-            if (!stage.note_time || new Date(record.created_at) > new Date(stage.note_time)) {
-                stage.note = record.note;
-                stage.note_time = record.created_at;
-            }
-        }
-
-        const dataPoint = {
-            time: record.created_at,
-            qty: record.quantity || 0
-        };
-
-        if (record.action === 'IN') {
-            if (!stage.in || new Date(record.created_at) > new Date(stage.in.time)) {
-                stage.in = dataPoint;
-            }
-            if (new Date(record.created_at) > new Date(item.last_updated)) item.last_updated = record.created_at;
-        } else if (record.action === 'OUT') {
-            if (!stage.out || new Date(record.created_at) > new Date(stage.out.time)) {
-                stage.out = dataPoint;
-            }
-            if (new Date(record.created_at) > new Date(item.last_updated)) item.last_updated = record.created_at;
-        }
-    }
 }
 
 function refreshTableData() {
@@ -387,8 +483,8 @@ function refreshTableData() {
         let valA, valB;
 
         if (currentSort.column === 'rpro') {
-            valA = a.rpro;
-            valB = b.rpro;
+            valA = a.rpro + '_' + String(a.confirm_id || 0).padStart(10, '0');
+            valB = b.rpro + '_' + String(b.confirm_id || 0).padStart(10, '0');
         } else if (currentSort.column === 'finish_date') {
             valA = a.finish_date ? Number(a.finish_date) : 0;
             valB = b.finish_date ? Number(b.finish_date) : 0;
@@ -449,7 +545,8 @@ function updatePendingCounts() {
                     rpro: item.rpro,
                     mold: item.mold || '-',
                     prevTime: prevData.out.time,
-                    qty: prevData.out.qty
+                    qty: prevData.out.qty,
+                    remark2: item.remark2 || ''
                 });
             }
         }
@@ -533,29 +630,36 @@ function renderPendingList() {
         return;
     }
 
-    listContainer.innerHTML = filtered.map(item => `
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 border border-gray-100 rounded-xl hover:bg-red-50 transition-colors">
-            <div class="space-y-1">
-                <div class="flex items-center gap-2">
-                    <span class="font-mono font-black text-blue-600">${item.rpro}</span>
-                    <span class="text-[10px] px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full font-bold">Khuôn: ${item.mold}</span>
+    listContainer.innerHTML = filtered.map(item => {
+        let redoBadge = '';
+        if (item.remark2) {
+            redoBadge = `<span class="text-[10px] px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-bold">${item.remark2}</span>`;
+        }
+        return `
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 border border-gray-100 rounded-xl hover:bg-red-50 transition-colors">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono font-black text-blue-600">${item.rpro}</span>
+                        <span class="text-[10px] px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full font-bold">Khuôn: ${item.mold}</span>
+                        ${redoBadge}
+                    </div>
+                    <div class="text-[11px] text-gray-500">
+                        Hoàn thành công đoạn trước: <span class="font-bold text-gray-700">${new Date(item.prevTime).toLocaleString('vi-VN')}</span>
+                    </div>
                 </div>
-                <div class="text-[11px] text-gray-500">
-                    Hoàn thành công đoạn trước: <span class="font-bold text-gray-700">${new Date(item.prevTime).toLocaleString('vi-VN')}</span>
+                <div class="mt-2 sm:mt-0 flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                    <div class="text-right">
+                        <p class="text-[10px] text-gray-400 font-bold uppercase">Số lượng</p>
+                        <p class="font-black text-red-600">${item.qty} đôi</p>
+                    </div>
+                    <button onclick="window.location.href='supplement-count.html?rpro=${item.rpro}'" 
+                            class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-blue-700 active:scale-95 transition-all">
+                        Scan In
+                    </button>
                 </div>
             </div>
-            <div class="mt-2 sm:mt-0 flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                <div class="text-right">
-                    <p class="text-[10px] text-gray-400 font-bold uppercase">Số lượng</p>
-                    <p class="font-black text-red-600">${item.qty} đôi</p>
-                </div>
-                <button onclick="window.location.href='supplement-count.html?rpro=${item.rpro}'" 
-                        class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-blue-700 active:scale-95 transition-all">
-                    Scan In
-                </button>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // Add search listener
@@ -712,7 +816,7 @@ function renderTable() {
 
         return `
             <tr class="hover:bg-gray-50 transition border-b border-gray-100 group">
-                <td onclick="window.openDetailModal('${item.rpro}')" 
+                <td onclick="window.openDetailModal('${item.key}')" 
                     class="p-4 border-r font-mono font-bold text-blue-600 cursor-pointer hover:text-blue-800 hover:underline bg-white group-hover:bg-gray-50 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                     <div class="flex flex-col items-start gap-0.5">
                         <div class="flex items-center">
@@ -725,11 +829,11 @@ function renderTable() {
                 <td class="p-3 border-r text-center font-bold text-gray-700 bg-gray-50 text-xs">
                     ${item.mold || '-'}
                 </td>
-                ${renderStageCell(item.stages['Dán'], item.rpro, 'Dán')}
-                ${renderStageCell(item.stages['Cắt'], item.rpro, 'Cắt')}
-                ${renderStageCell(item.stages['Molding'], item.rpro, 'Molding')}
-                ${renderStageCell(item.stages['DC'], item.rpro, 'DC')}
-                ${renderStageCell(item.stages['Molded'], item.rpro, 'Molded')}
+                ${renderStageCell(item.stages['Dán'], item.key, 'Dán')}
+                ${renderStageCell(item.stages['Cắt'], item.key, 'Cắt')}
+                ${renderStageCell(item.stages['Molding'], item.key, 'Molding')}
+                ${renderStageCell(item.stages['DC'], item.key, 'DC')}
+                ${renderStageCell(item.stages['Molded'], item.key, 'Molded')}
                 <td class="p-3 text-center text-gray-700 font-bold bg-gray-50 text-xs">
                     ${formatExcelDate(item.finish_date)}
                 </td>
@@ -738,11 +842,11 @@ function renderTable() {
     }).join('');
 }
 
-function renderStageCell(stageData, rpro, section) {
+function renderStageCell(stageData, key, section) {
     const hasNote = stageData.note;
     const noteIcon = hasNote
-        ? `<div onclick="window.openNoteModal('${rpro}', '${section}')" class="absolute top-1 right-1 cursor-pointer text-base hover:scale-110 transition z-20" title="${hasNote}">📒</div>`
-        : `<div onclick="window.openNoteModal('${rpro}', '${section}')" class="absolute top-1 right-1 cursor-pointer text-gray-400 hover:text-yellow-600 opacity-0 group-hover/cell:opacity-100 transition z-20">📝</div>`;
+        ? `<div onclick="window.openNoteModal('${key}', '${section}')" class="absolute top-1 right-1 cursor-pointer text-base hover:scale-110 transition z-20" title="${hasNote}">📒</div>`
+        : `<div onclick="window.openNoteModal('${key}', '${section}')" class="absolute top-1 right-1 cursor-pointer text-gray-400 hover:text-yellow-600 opacity-0 group-hover/cell:opacity-100 transition z-20">📝</div>`;
 
     if (!stageData.in && !stageData.out) {
         return `<td class="p-3 border-r text-center text-gray-300 bg-gray-50/30 relative group/cell">
@@ -867,12 +971,13 @@ window.goToPage = (page) => {
 };
 
 // ==================== NOTE LOGIC ====================
-window.openNoteModal = (rpro, section) => {
-    currentNoteTarget = { rpro, section };
+window.openNoteModal = (key, section) => {
+    currentNoteTarget = { key, section };
+    const rpro = key.substring(0, key.lastIndexOf('_'));
     noteTitle.textContent = `${rpro} - ${section}`;
 
     // Get existing note if any
-    const existingNote = progressMap[rpro]?.stages[section]?.note || '';
+    const existingNote = progressMap[key]?.stages[section]?.note || '';
     noteInput.value = existingNote;
 
     noteModal.classList.remove('hidden');
@@ -883,7 +988,8 @@ btnSaveNote.addEventListener('click', async () => {
     if (!currentNoteTarget) return;
 
     const noteContent = noteInput.value.trim();
-    const { rpro, section } = currentNoteTarget;
+    const { key, section } = currentNoteTarget;
+    const rpro = key.substring(0, key.lastIndexOf('_'));
 
     btnSaveNote.disabled = true;
     btnSaveNote.textContent = '...';
@@ -963,12 +1069,44 @@ window.exportToExcel = async () => {
             return;
         }
 
-        // Step 3: Aggregate into local map
-        const exportMap = {};
-        allTracking.forEach(record => updateLocalState(record, exportMap));
+        // Step 3: Fetch confirmations in range
+        const fromIso = new Date(fromDateTime).toISOString();
+        const toIso = new Date(toDateTime).toISOString();
+
+        const { data: confirmationsInRange, error: confirmError } = await supabase
+            .from('supplement_confirm')
+            .select('id, rpro, total, available_supplement, confirm, updated_at, remark2, created_at')
+            .gte('created_at', fromIso)
+            .lte('created_at', toIso)
+            .limit(5000);
+
+        if (confirmError) throw confirmError;
+
+        // Extract all unique RPROs
+        const rproSet = new Set();
+        allTracking.forEach(r => rproSet.add(r.rpro));
+        confirmationsInRange.forEach(c => rproSet.add(c.rpro));
+        const rproList = Array.from(rproSet);
+
+        // Fetch ALL confirmations for these RPROs
+        let allConfirmations = [];
+        if (rproList.length > 0) {
+            for (let i = 0; i < rproList.length; i += 100) {
+                const chunk = rproList.slice(i, i + 100);
+                const { data: confirmBatch } = await supabase
+                    .from('supplement_confirm')
+                    .select('id, rpro, total, available_supplement, confirm, updated_at, remark2, created_at')
+                    .in('rpro', chunk);
+                if (confirmBatch) {
+                    allConfirmations = allConfirmations.concat(confirmBatch);
+                }
+            }
+        }
+
+        // Aggregate into local map
+        const exportMap = compileProgressData(allTracking, allConfirmations, fromDateTime, toDateTime);
 
         // Step 4: Metadata Enrichment
-        const rproList = Object.keys(exportMap);
         await enrichProgressMapMetadata(exportMap, rproList);
 
         // Step 5: Filter (Apply UI filters to export too)
@@ -1076,8 +1214,12 @@ window.exportToExcel = async () => {
 
 
 // ==================== MODAL LOGIC (DELETE SUPPORT) ====================
-window.openDetailModal = async (rpro) => {
+window.openDetailModal = async (key) => {
     detailModal.classList.remove('hidden');
+    const rpro = key.substring(0, key.lastIndexOf('_'));
+    const confirmIdStr = key.substring(key.lastIndexOf('_') + 1);
+    const confirmId = confirmIdStr === 'none' ? null : Number(confirmIdStr);
+
     modalContent.innerHTML = `<div class="text-center py-8"><div class="animate-spin text-4xl mb-2">⏳</div><p>Đang tải thông tin ${rpro}...</p></div>`;
 
     try {
@@ -1095,14 +1237,40 @@ window.openDetailModal = async (rpro) => {
             .eq('rpro', rpro)
             .order('created_at', { ascending: false });
 
+        // 3. Get all confirmations for this RPRO to match scans
+        const { data: confirms } = await supabase
+            .from('supplement_confirm')
+            .select('id, created_at, remark2')
+            .eq('rpro', rpro)
+            .order('created_at', { ascending: true });
+
         if (infoError) console.error(infoError); // Log only, proceed with history
 
         const info = infoList && infoList.length > 0 ? infoList[0] : {};
 
-        let historyHtml = '<div class="text-center text-gray-400 py-4">Chưa có lịch sử quét.</div>';
-        if (historyList && historyList.length > 0) {
+        // Filter history to only scans belonging to this confirmId
+        let filteredHistory = historyList || [];
+        if (confirms && confirms.length > 0) {
+            filteredHistory = (historyList || []).filter(scan => {
+                const scanTime = new Date(scan.created_at);
+                let bestConfirm = null;
+                for (let i = 0; i < confirms.length; i++) {
+                    if (new Date(confirms[i].created_at) <= scanTime) {
+                        bestConfirm = confirms[i];
+                    }
+                }
+                if (!bestConfirm) bestConfirm = confirms[0];
+                return bestConfirm.id === confirmId;
+            });
+        }
+
+        const matchedConfirm = confirms ? confirms.find(c => c.id === confirmId) : null;
+        const redoLabel = matchedConfirm && matchedConfirm.remark2 ? ` (${matchedConfirm.remark2})` : '';
+
+        let historyHtml = '<div class="text-center text-gray-400 py-4">Chưa có lịch sử quét cho lần làm này.</div>';
+        if (filteredHistory && filteredHistory.length > 0) {
             historyHtml = `<div class="space-y-2 max-h-60 overflow-y-auto pr-1">
-                ${historyList.map(item => `
+                ${filteredHistory.map(item => `
                     <div class="flex justify-between items-center bg-gray-50 p-2 rounded border border-gray-100 text-sm">
                         <div>
                             <span class="font-bold ${item.action === 'IN' ? 'text-blue-600' : 'text-green-600'}">${item.action}</span> - ${item.section}
@@ -1120,7 +1288,7 @@ window.openDetailModal = async (rpro) => {
         modalContent.innerHTML = `
             <!-- Tabs -->
             <div class="border-b mb-4 pb-2">
-                <h3 class="font-bold text-gray-700">📦 Thông tin đơn hàng</h3>
+                <h3 class="font-bold text-gray-700">📦 Thông tin đơn hàng${redoLabel}</h3>
             </div>
             
             <div class="grid grid-cols-2 gap-4 text-sm mb-6">
@@ -1179,23 +1347,7 @@ function setupRealtimeSubscription() {
             { event: '*', schema: 'public', table: 'supplement_tracking' },
             (payload) => {
                 console.log('⚡ Event:', payload);
-                if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                    // Update memory map with new data point
-                    updateLocalState(payload.new);
-                    
-                    // Re-enrich only this RPRO if it's new or missing metadata
-                    const rpro = payload.new.rpro;
-                    if (rpro && (!progressMap[rpro] || !progressMap[rpro].so)) {
-                        enrichProgressMapMetadata(progressMap, [rpro]).then(() => {
-                            refreshTableData();
-                        });
-                    } else {
-                        refreshTableData();
-                    }
-                } else if (payload.eventType === 'DELETE') {
-                    // For deletes, a full refresh is safer to ensure consistency
-                    fetchProgressData();
-                }
+                fetchProgressData();
             }
         )
         .subscribe();
