@@ -1,11 +1,30 @@
 
 import puppeteer from 'puppeteer';
 import { generateAIResponse } from './api/ai-core.js';
+import fs from 'fs';
+import path from 'path';
 
 // --- CONFIGURATION ---
-const GROUP_NAME_KEYWORD = "AI Assistant"; // Tên nhóm Zalo cần theo dõi
+let GROUP_NAME_KEYWORD = "AI Assistant"; // Tên nhóm Zalo cần theo dõi
 const BOT_TRIGGER = "@AI"; // Từ khóa để gọi Bot
-const CHECK_INTERVAL = 3000; // Kiểm tra tin nhắn mỗi 3 giây
+let CHECK_INTERVAL = 3000; // Kiểm tra tin nhắn mỗi 3 giây
+
+// --- LOAD INITIAL CONFIG ---
+try {
+    const configPath = path.resolve('bot-config.json');
+    if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (config.group_name) {
+            GROUP_NAME_KEYWORD = config.group_name;
+            console.log(`⚙️ Đã cấu hình nhóm Zalo cần theo dõi: "${GROUP_NAME_KEYWORD}"`);
+        }
+        if (config.check_interval_ms) {
+            CHECK_INTERVAL = config.check_interval_ms;
+        }
+    }
+} catch (e) {
+    console.error("⚠️ Không thể tải cấu hình khởi tạo từ bot-config.json:", e.message);
+}
 
 // --- HELPER: Auto-navigate to the correct group ---
 async function navigateToGroup(page, groupName) {

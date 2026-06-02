@@ -265,17 +265,20 @@ async function enrichProgressMapMetadata(targetMap, rproList) {
             const chunk = missingQtyRpros.slice(i, i + 100);
             const { data: confirmDetails } = await supabase
                 .from('supplement_confirm')
-                .select('rpro, total, available_supplement, confirm, updated_at')
+                .select('rpro, total, available_supplement, confirm, updated_at, remark2, created_at')
                 .in('rpro', chunk);
 
             if (confirmDetails) {
-                confirmDetails.forEach(item => {
+                // Sắp xếp theo created_at tăng dần để bản ghi làm lại mới nhất đè lên bản ghi cũ trong cache
+                const sortedDetails = [...confirmDetails].sort((a, b) => new Date(a.created_at || a.updated_at) - new Date(b.created_at || b.updated_at));
+                sortedDetails.forEach(item => {
                     const code = item.rpro;
                     if (!orderDetailsCache[code]) orderDetailsCache[code] = {};
                     Object.assign(orderDetailsCache[code], {
                         qty_sup: (item.available_supplement !== null) ? item.available_supplement : item.total,
                         confirm_date: item.updated_at,
-                        confirm_status: item.confirm
+                        confirm_status: item.confirm,
+                        remark2: item.remark2
                     });
                 });
             }
@@ -694,11 +697,30 @@ function renderTable() {
     renderPaginationControls(totalPages);
 
     tableBody.innerHTML = paginatedItems.map(item => {
+        let redoNoteHtml = '';
+        if (item.remark2) {
+            const match = item.remark2.match(/lần\s+thứ\s+(\d+)/i) || item.remark2.match(/lần\s+(\d+)/i);
+            if (match) {
+                const times = parseInt(match[1], 10);
+                if (times > 1) {
+                    redoNoteHtml = `<div class="text-[10px] text-red-500 font-extrabold mt-1 bg-red-50 border border-red-100 rounded px-1.5 py-0.5 inline-block">Đơn làm lần ${times}</div>`;
+                }
+            } else if (item.remark2.toLowerCase().includes('làm lại') || item.remark2.toLowerCase().includes('làm lần')) {
+                redoNoteHtml = `<div class="text-[10px] text-red-500 font-extrabold mt-1 bg-red-50 border border-red-100 rounded px-1.5 py-0.5 inline-block">${item.remark2}</div>`;
+            }
+        }
+
         return `
             <tr class="hover:bg-gray-50 transition border-b border-gray-100 group">
                 <td onclick="window.openDetailModal('${item.rpro}')" 
                     class="p-4 border-r font-mono font-bold text-blue-600 cursor-pointer hover:text-blue-800 hover:underline bg-white group-hover:bg-gray-50 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                    ${item.rpro} <span class="text-xs text-gray-400 ml-1">ℹ️</span>
+                    <div class="flex flex-col items-start gap-0.5">
+                        <div class="flex items-center">
+                            <span>${item.rpro}</span>
+                            <span class="text-xs text-gray-400 ml-1">ℹ️</span>
+                        </div>
+                        ${redoNoteHtml}
+                    </div>
                 </td>
                 <td class="p-3 border-r text-center font-bold text-gray-700 bg-gray-50 text-xs">
                     ${item.mold || '-'}
