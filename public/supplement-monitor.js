@@ -997,9 +997,24 @@ window.exportToExcel = async () => {
             const lastScan = item.last_scan;
             const stageId = lastScan ? `${stageNames[lastScan.section]} - ${lastScan.action}` : '-';
 
+            // Trích xuất số lần làm từ ghi chú remark2
+            let redoText = '';
+            if (item.remark2) {
+                const match = item.remark2.match(/lần\s+thứ\s+(\d+)/i) || item.remark2.match(/lần\s+(\d+)/i);
+                if (match) {
+                    const times = parseInt(match[1], 10);
+                    if (times > 1) {
+                        redoText = `Lần ${times}`;
+                    }
+                } else if (item.remark2.toLowerCase().includes('làm lại') || item.remark2.toLowerCase().includes('làm lần')) {
+                    redoText = item.remark2;
+                }
+            }
+
             const row = {
                 'SO': item.so || '',
                 'Mã đơn (RPRO)': item.rpro,
+                'Lần làm': redoText,
                 'Brand': item.brand || '',
                 'Customer': item.customer || '',
                 '#MOLD': item.mold || '',
@@ -1029,7 +1044,18 @@ window.exportToExcel = async () => {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Tiến Độ Hàng Bù");
 
-        const wscols = [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 15 }];
+        const wscols = [
+            { wch: 15 }, // SO
+            { wch: 20 }, // Mã đơn (RPRO)
+            { wch: 12 }, // Lần làm
+            { wch: 15 }, // Brand
+            { wch: 20 }, // Customer
+            { wch: 15 }, // #MOLD
+            { wch: 12 }, // Total Qty
+            { wch: 12 }, // Qty_Sup
+            { wch: 25 }, // Stage_ID
+            { wch: 15 }  // Date Confirm Material (LPS)
+        ];
         for (let i = 0; i < 5 * 2; i++) wscols.push({ wch: 18 });
         wscols.push({ wch: 40 }); // For Note
         wscols.push({ wch: 15 }); // For Finish date
