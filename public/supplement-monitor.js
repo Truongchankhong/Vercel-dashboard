@@ -1149,6 +1149,17 @@ window.exportToExcel = async () => {
                 }
             }
 
+            // Tính toán Leadtime
+            let leadtime = '';
+            const endStageTime = item.stages['Molded']?.out?.time || item.stages['DC']?.out?.time;
+            const startStageTime = item.stages['Dán']?.out?.time || item.stages['Cắt']?.out?.time;
+
+            if (endStageTime && startStageTime) {
+                const diffMs = new Date(endStageTime) - new Date(startStageTime);
+                const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                leadtime = diffDays >= 0 ? Math.round(diffDays * 100) / 100 : 0;
+            }
+
             const row = {
                 'SO': item.so || '',
                 'Mã đơn (RPRO)': item.rpro,
@@ -1159,6 +1170,7 @@ window.exportToExcel = async () => {
                 'Total Qty': item.total_qty || '',
                 'Qty_Sup': item.qty_sup || '',
                 'Stage_ID': stageId,
+                'Leadtime': leadtime,
                 'Date Confirm Material (LPS)': item.confirm_date ? new Date(item.confirm_date).toLocaleDateString('vi-VN') : '',
             };
 
@@ -1192,6 +1204,7 @@ window.exportToExcel = async () => {
             { wch: 12 }, // Total Qty
             { wch: 12 }, // Qty_Sup
             { wch: 25 }, // Stage_ID
+            { wch: 12 }, // Leadtime
             { wch: 15 }  // Date Confirm Material (LPS)
         ];
         for (let i = 0; i < 5 * 2; i++) wscols.push({ wch: 18 });
