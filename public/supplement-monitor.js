@@ -1170,7 +1170,6 @@ window.exportToExcel = async () => {
                 'Total Qty': item.total_qty || '',
                 'Qty_Sup': item.qty_sup || '',
                 'Stage_ID': stageId,
-                'Leadtime': leadtime,
                 'Date Confirm Material (LPS)': item.confirm_date ? new Date(item.confirm_date).toLocaleDateString('vi-VN') : '',
             };
 
@@ -1186,6 +1185,7 @@ window.exportToExcel = async () => {
             });
             row['Note'] = combinedNotes.join('\n');
             row['Finish date'] = formatExcelDate(item.finish_date);
+            row['Leadtime'] = leadtime;
             return row;
         });
 
@@ -1204,12 +1204,12 @@ window.exportToExcel = async () => {
             { wch: 12 }, // Total Qty
             { wch: 12 }, // Qty_Sup
             { wch: 25 }, // Stage_ID
-            { wch: 12 }, // Leadtime
             { wch: 15 }  // Date Confirm Material (LPS)
         ];
         for (let i = 0; i < 5 * 2; i++) wscols.push({ wch: 18 });
         wscols.push({ wch: 40 }); // For Note
         wscols.push({ wch: 15 }); // For Finish date
+        wscols.push({ wch: 12 }); // Leadtime
         worksheet['!cols'] = wscols;
 
         const fileName = `Export_BùHàng_${fromDateTime.split('T')[0]}_den_${toDateTime.split('T')[0]}.xlsx`;
