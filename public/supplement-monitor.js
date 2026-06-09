@@ -1248,7 +1248,7 @@ window.exportToExcel = async () => {
                 }
             });
             row['Note'] = combinedNotes.join('\n');
-            row['Finish date'] = parseToLocalDate(item.finish_date);
+            row['Finish Date (PPC)'] = parseToLocalDate(item.finish_date);
             row['Leadtime'] = leadtime;
             return row;
         });
@@ -1290,7 +1290,7 @@ window.exportToExcel = async () => {
         ];
         for (let i = 0; i < 5 * 2; i++) wscols.push({ wch: 18 });
         wscols.push({ wch: 40 }); // For Note
-        wscols.push({ wch: 15 }); // For Finish date
+        wscols.push({ wch: 15 }); // For Finish Date (PPC)
         wscols.push({ wch: 12 }); // Leadtime
         worksheet['!cols'] = wscols;
 
