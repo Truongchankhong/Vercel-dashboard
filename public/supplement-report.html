@@ -135,20 +135,44 @@
             const toDate = new Date(to);
             toDate.setHours(23, 59, 59, 999);
 
-            const { data, error } = await supabase
-                .from('supplement_confirm')
-                .select('*')
-                .gte('created_at', new Date(from).toISOString())
-                .lte('created_at', toDate.toISOString())
-                .order('created_at', { ascending: false });
-
-            if (error) {
-                console.error(error);
-                return;
+            if (reportBody) {
+                reportBody.innerHTML = `<tr><td colspan="14" class="text-center py-8 text-emerald-600 font-bold"><span class="inline-block animate-spin mr-2">⏳</span>Đang tải dữ liệu... Vui lòng đợi.</td></tr>`;
             }
 
-            currentData = data;
-            renderReport(data);
+            let allData = [];
+            let page = 0;
+            const PAGE_SIZE = 1000;
+            let hasMore = true;
+
+            try {
+                while (hasMore) {
+                    const { data, error } = await supabase
+                        .from('supplement_confirm')
+                        .select('*')
+                        .gte('created_at', new Date(from).toISOString())
+                        .lte('created_at', toDate.toISOString())
+                        .order('created_at', { ascending: false })
+                        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        allData = allData.concat(data);
+                        hasMore = data.length === PAGE_SIZE;
+                        page++;
+                    } else {
+                        hasMore = false;
+                    }
+                }
+
+                currentData = allData || [];
+                renderReport(currentData);
+            } catch (error) {
+                console.error(error);
+                if (reportBody) {
+                    reportBody.innerHTML = `<tr><td colspan="14" class="text-center py-4 text-red-500 font-bold">Lỗi khi tải dữ liệu: ${error.message}</td></tr>`;
+                }
+            }
         }
 
         function exportToExcel() {

@@ -336,26 +336,54 @@ async function fetchProgressData() {
         const fromIso = new Date(fromDateTime).toISOString();
         const toIso = new Date(toDateTime).toISOString();
 
-        // 1. Fetch tracking scans in range
-        const { data: trackingData, error: trackingError } = await supabase
-            .from('supplement_tracking')
-            .select('id, rpro, section, action, quantity, note, created_at')
-            .gte('created_at', fromIso)
-            .lte('created_at', toIso)
-            .order('created_at', { ascending: false })
-            .limit(5000);
+        // 1. Fetch tracking scans in range (paginated chunks)
+        let trackingData = [];
+        let trackPage = 0;
+        const TRACK_PAGE_SIZE = 1000;
+        let trackHasMore = true;
 
-        if (trackingError) throw trackingError;
+        while (trackHasMore) {
+            const { data, error } = await supabase
+                .from('supplement_tracking')
+                .select('id, rpro, section, action, quantity, note, created_at')
+                .gte('created_at', fromIso)
+                .lte('created_at', toIso)
+                .order('created_at', { ascending: false })
+                .range(trackPage * TRACK_PAGE_SIZE, (trackPage + 1) * TRACK_PAGE_SIZE - 1);
 
-        // 2. Fetch confirmations in range
-        const { data: confirmationsInRange, error: confirmError } = await supabase
-            .from('supplement_confirm')
-            .select('id, rpro, total, available_supplement, confirm, updated_at, remark2, created_at')
-            .gte('created_at', fromIso)
-            .lte('created_at', toIso)
-            .limit(5000);
+            if (error) throw error;
+            if (data && data.length > 0) {
+                trackingData = trackingData.concat(data);
+                trackHasMore = data.length === TRACK_PAGE_SIZE;
+                trackPage++;
+            } else {
+                trackHasMore = false;
+            }
+        }
 
-        if (confirmError) throw confirmError;
+        // 2. Fetch confirmations in range (paginated chunks)
+        let confirmationsInRange = [];
+        let confirmPage = 0;
+        const CONFIRM_PAGE_SIZE = 1000;
+        let confirmHasMore = true;
+
+        while (confirmHasMore) {
+            const { data, error } = await supabase
+                .from('supplement_confirm')
+                .select('id, rpro, total, available_supplement, confirm, updated_at, remark2, created_at')
+                .gte('created_at', fromIso)
+                .lte('created_at', toIso)
+                .range(confirmPage * CONFIRM_PAGE_SIZE, (confirmPage + 1) * CONFIRM_PAGE_SIZE - 1);
+
+            if (error) throw error;
+            if (data && data.length > 0) {
+                confirmationsInRange = confirmationsInRange.concat(data);
+                confirmHasMore = data.length === CONFIRM_PAGE_SIZE;
+                confirmPage++;
+            } else {
+                confirmHasMore = false;
+            }
+        }
 
         // Extract all unique RPROs from both sources
         const rproSet = new Set();
@@ -1069,18 +1097,32 @@ window.exportToExcel = async () => {
             return;
         }
 
-        // Step 3: Fetch confirmations in range
+        // Step 3: Fetch confirmations in range (paginated chunks)
         const fromIso = new Date(fromDateTime).toISOString();
         const toIso = new Date(toDateTime).toISOString();
 
-        const { data: confirmationsInRange, error: confirmError } = await supabase
-            .from('supplement_confirm')
-            .select('id, rpro, total, available_supplement, confirm, updated_at, remark2, created_at')
-            .gte('created_at', fromIso)
-            .lte('created_at', toIso)
-            .limit(5000);
+        let confirmationsInRange = [];
+        let confirmPage = 0;
+        const CONFIRM_PAGE_SIZE = 1000;
+        let confirmHasMore = true;
 
-        if (confirmError) throw confirmError;
+        while (confirmHasMore) {
+            const { data, error } = await supabase
+                .from('supplement_confirm')
+                .select('id, rpro, total, available_supplement, confirm, updated_at, remark2, created_at')
+                .gte('created_at', fromIso)
+                .lte('created_at', toIso)
+                .range(confirmPage * CONFIRM_PAGE_SIZE, (confirmPage + 1) * CONFIRM_PAGE_SIZE - 1);
+
+            if (error) throw error;
+            if (data && data.length > 0) {
+                confirmationsInRange = confirmationsInRange.concat(data);
+                confirmHasMore = data.length === CONFIRM_PAGE_SIZE;
+                confirmPage++;
+            } else {
+                confirmHasMore = false;
+            }
+        }
 
         // Extract all unique RPROs
         const rproSet = new Set();

@@ -49,38 +49,58 @@ async function loadConfirmList() {
 
   const searchTerm = (searchRproInput?.value || "").trim().toUpperCase();
 
-  let query = supabase
-    .from('supplement_confirm')
-    .select('*')
-    .gte('created_at', new Date(from).toISOString())
-    .lte('created_at', new Date(to).toISOString())
-    .order('created_at', { ascending: false });
-
-  // Nếu người dùng có gõ tìm kiếm, dùng DB Query để tìm thẳng luôn thay vì load hết
-  if (searchTerm) {
-      const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, "");
-      query = query.ilike('rpro', `%${cleanSearch}%`);
-  } else {
-      // Chỉ giới hạn 1500 dòng nếu không tìm kiếm, để tránh tốn Egress
-      query = query.limit(1500);
+  if (confirmBody) {
+    confirmBody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-purple-600 font-bold"><span class="inline-block animate-spin mr-2">⏳</span>Đang tải dữ liệu... Vui lòng đợi.</td></tr>`;
   }
 
-  const { data, error } = await query;
+  let allData = [];
+  let page = 0;
+  const PAGE_SIZE = 1000;
+  let hasMore = true;
 
-  if (error) {
+  try {
+    while (hasMore) {
+      let query = supabase
+        .from('supplement_confirm')
+        .select('*')
+        .gte('created_at', new Date(from).toISOString())
+        .lte('created_at', new Date(to).toISOString())
+        .order('created_at', { ascending: false })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+      if (searchTerm) {
+        const cleanSearch = searchTerm.replace(/[^A-Z0-9]/g, "");
+        query = query.ilike('rpro', `%${cleanSearch}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData = allData.concat(data);
+        hasMore = data.length === PAGE_SIZE;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    currentData = allData || [];
+    filteredData = [...currentData]; // Initially same
+
+    // Calculate Pending Count (Not confirmed yet)
+    const pendingRows = currentData.filter(r => !r.confirm);
+    const pendingEl = document.getElementById('pending-count');
+    if (pendingEl) pendingEl.innerText = pendingRows.length;
+
+    applySearchAndRender();
+  } catch (error) {
     console.error('Error fetching confirm list:', error);
-    return;
+    if (confirmBody) {
+      confirmBody.innerHTML = `<tr><td colspan="12" class="text-center py-4 text-red-500 font-bold">Lỗi khi tải dữ liệu: ${error.message}</td></tr>`;
+    }
   }
-
-  currentData = data || [];
-  filteredData = [...currentData]; // Initially same
-
-  // Calculate Pending Count (Not confirmed yet)
-  const pendingRows = currentData.filter(r => !r.confirm);
-  const pendingEl = document.getElementById('pending-count');
-  if (pendingEl) pendingEl.innerText = pendingRows.length;
-
-  applySearchAndRender();
 }
 
 function applySearchAndRender() {
