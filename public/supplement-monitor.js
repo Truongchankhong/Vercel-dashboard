@@ -1173,6 +1173,28 @@ window.exportToExcel = async () => {
             'Molded': 'Leanline Molded'
         };
 
+        const toLocalDate = (dateVal) => {
+            if (!dateVal) return null;
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return null;
+            // Shift date to local time to prevent UTC conversion shift in SheetJS
+            return new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+        };
+
+        const parseToLocalDate = (val) => {
+            if (!val) return null;
+            let d;
+            const num = Number(val);
+            if (!isNaN(num) && num > 20000) {
+                d = new Date((num - 25569) * 86400 * 1000);
+            } else {
+                d = new Date(val);
+            }
+            if (isNaN(d.getTime())) return null;
+            // Shift date to local time to prevent UTC conversion shift in SheetJS
+            return new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+        };
+
         const exportData = filtered.map(item => {
             const lastScan = item.last_scan;
             const stageId = lastScan ? `${stageNames[lastScan.section]} - ${lastScan.action}` : '-';
@@ -1212,27 +1234,45 @@ window.exportToExcel = async () => {
                 'Total Qty': item.total_qty || '',
                 'Qty_Sup': item.qty_sup || '',
                 'Stage_ID': stageId,
-                'Date Confirm Material (LPS)': item.confirm_date ? new Date(item.confirm_date).toLocaleDateString('vi-VN') : '',
+                'Date Confirm Material (LPS)': toLocalDate(item.confirm_date),
             };
 
             let combinedNotes = [];
             ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'].forEach(stage => {
                 const data = item.stages[stage];
                 const displayName = stageNames[stage];
-                row[`${displayName} - IN Time`] = data.in ? new Date(data.in.time).toLocaleString('vi-VN') : '';
-                row[`${displayName} - OUT Time`] = data.out ? new Date(data.out.time).toLocaleString('vi-VN') : '';
+                row[`${displayName} - IN Time`] = data.in ? toLocalDate(data.in.time) : null;
+                row[`${displayName} - OUT Time`] = data.out ? toLocalDate(data.out.time) : null;
                 if (data.note && data.note.trim() !== '') {
                     combinedNotes.push(`${stage}: ${data.note.trim()}`);
                 }
             });
             row['Note'] = combinedNotes.join('\n');
-            row['Finish date'] = formatExcelDate(item.finish_date);
+            row['Finish date'] = parseToLocalDate(item.finish_date);
             row['Leadtime'] = leadtime;
             return row;
         });
 
         // Step 7: Generate File
-        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const worksheet = XLSX.utils.json_to_sheet(exportData, { cellDates: true });
+
+        // Format Date cells
+        for (const key in worksheet) {
+            if (key[0] === '!') continue;
+            const cell = worksheet[key];
+            if (cell.t === 'd' || cell.v instanceof Date) {
+                cell.t = 'd';
+                const hours = cell.v.getUTCHours();
+                const minutes = cell.v.getUTCMinutes();
+                const seconds = cell.v.getUTCSeconds();
+                if (hours !== 0 || minutes !== 0 || seconds !== 0) {
+                    cell.z = 'dd/mm/yyyy hh:mm:ss';
+                } else {
+                    cell.z = 'dd/mm/yyyy';
+                }
+            }
+        }
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Tiến Độ Hàng Bù");
 

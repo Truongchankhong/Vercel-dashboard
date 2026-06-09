@@ -181,10 +181,18 @@
                 return;
             }
 
+            const toLocalDate = (dateVal) => {
+                if (!dateVal) return null;
+                const d = new Date(dateVal);
+                if (isNaN(d.getTime())) return null;
+                // Shift date to local time to prevent UTC conversion shift in SheetJS
+                return new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+            };
+
             // Flatten data for Excel
             const excelData = currentData.map(r => {
                 const row = {
-                    "Ngày tạo": new Date(r.created_at).toLocaleString('vi-VN'),
+                    "Ngày tạo": toLocalDate(r.created_at),
                     "RPRO ID": r.rpro,
                     "S.O": r.so || "",
                     "Khách hàng": r.customers || "",
@@ -202,7 +210,25 @@
                 return row;
             });
 
-            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const worksheet = XLSX.utils.json_to_sheet(excelData, { cellDates: true });
+            
+            // Format Date cells
+            for (const key in worksheet) {
+                if (key[0] === '!') continue;
+                const cell = worksheet[key];
+                if (cell.t === 'd' || cell.v instanceof Date) {
+                    cell.t = 'd';
+                    const hours = cell.v.getUTCHours();
+                    const minutes = cell.v.getUTCMinutes();
+                    const seconds = cell.v.getUTCSeconds();
+                    if (hours !== 0 || minutes !== 0 || seconds !== 0) {
+                        cell.z = 'dd/mm/yyyy hh:mm:ss';
+                    } else {
+                        cell.z = 'dd/mm/yyyy';
+                    }
+                }
+            }
+
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "BaoCaoBuHang");
 

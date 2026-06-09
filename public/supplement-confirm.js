@@ -485,9 +485,17 @@ async function exportToExcel() {
     return;
   }
 
+  const toLocalDate = (dateVal) => {
+    if (!dateVal) return null;
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return null;
+    // Shift date to local time to prevent UTC conversion shift in SheetJS
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  };
+
   const excelData = currentData.map(r => {
     return {
-      'Ngày': new Date(r.created_at).toLocaleDateString('vi-VN'),
+      'Ngày': toLocalDate(r.created_at),
       'RPRO': r.rpro,
       'SO': r.so || '',
       'Khách hàng': r.customers || '',
@@ -506,7 +514,25 @@ async function exportToExcel() {
     };
   });
 
-  const worksheet = XLSX.utils.json_to_sheet(excelData);
+  const worksheet = XLSX.utils.json_to_sheet(excelData, { cellDates: true });
+  
+  // Format Date cells to 'dd/mm/yyyy'
+  for (const key in worksheet) {
+    if (key[0] === '!') continue;
+    const cell = worksheet[key];
+    if (cell.t === 'd' || cell.v instanceof Date) {
+      cell.t = 'd';
+      const hours = cell.v.getUTCHours();
+      const minutes = cell.v.getUTCMinutes();
+      const seconds = cell.v.getUTCSeconds();
+      if (hours !== 0 || minutes !== 0 || seconds !== 0) {
+        cell.z = 'dd/mm/yyyy hh:mm:ss';
+      } else {
+        cell.z = 'dd/mm/yyyy';
+      }
+    }
+  }
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Xác nhận Bù hàng");
 
