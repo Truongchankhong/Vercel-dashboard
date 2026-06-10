@@ -720,7 +720,8 @@ function updateSearchTypeUI() {
         bom: "Tìm theo mã BOM...",
         pu: "Tìm theo mã PU / PU Description...",
         fabric: "Tìm theo tên Vải / Fabric...",
-        molding_combo: "Tìm theo mã combo (Mold_PU_Fabric)..."
+        molding_combo: "Tìm theo mã combo (Mold_PU_Fabric)...",
+        rpro_run: "Nhập RPRO cần chạy..."
     };
     if (historySearch) historySearch.placeholder = placeholders[currentSearchType] || "Tìm kiếm...";
 }
@@ -1889,6 +1890,197 @@ async function loadHistory() {
 
     // OPTIMIZED: Select only needed columns for history list
     const historyColumns = 'id,rpro,section,created_at,bom,mold,pu,fabric,pu_code,fb_code,dynamic_sizes,size_3,size_3_5,size_4,size_4_5,size_5,size_5_5,size_6,size_6_5,size_7,size_7_5,size_8,size_8_5,size_9,size_9_5,size_10,size_10_5,size_11,size_11_5,size_12,size_12_5,size_13,size_13_5,size_14,size_14_5,size_15';
+
+    if (currentSearchType === 'rpro_run') {
+        if (!q) {
+            historyList.innerHTML = `<div class="p-8 text-center text-slate-300 italic text-sm">Vui lòng nhập mã RPRO cần chạy để tìm kiếm đơn dôi tương thích.</div>`;
+            return;
+        }
+
+        // Search RPRO in masterdata or power app
+        let searchRpro = q;
+        const rproRegex = /RPRO-?\d{6}-?\d{1,4}/i;
+        const match = searchRpro.match(rproRegex);
+        let pureId = "";
+        if (match) {
+            pureId = match[0].toUpperCase().replace(/RPRO-?/i, '').replace(/-+/g, '');
+        } else {
+            pureId = searchRpro.replace(/[^0-9]/g, '');
+        }
+
+        if (pureId.length >= 7) {
+            searchRpro = `RPRO-${pureId.substring(0, 6)}-${pureId.substring(6)}`;
+        } else if (pureId.length > 0) {
+            searchRpro = 'RPRO-' + pureId;
+        }
+
+        try {
+            const selectCols = '"PRO ODER", "PU", "PU DESCRIPTION", "FB", "FB DESCRIPTION", "BOM", "#MOLD"';
+            let paOrder = null;
+            let mdOrder = null;
+
+            // 1. Search in powerapp
+            let paRes = await supabase.from('powerapp').select(selectCols).eq('PRO ODER', searchRpro).limit(1);
+            paOrder = (paRes.data && paRes.data.length > 0) ? paRes.data[0] : null;
+
+            // 2. Search in Masterdata
+            if (!paOrder) {
+                let mdRes = await supabase.from('Masterdata').select(selectCols).eq('PRO ODER', searchRpro).limit(1);
+                mdOrder = (mdRes.data && mdRes.data.length > 0) ? mdRes.data[0] : null;
+
+                if (!mdOrder) {
+                    let mdResIlike = await supabase.from('Masterdata').select(selectCols).ilike('PRO ODER', `${searchRpro}%`).limit(1);
+                    mdOrder = (mdResIlike.data && mdResIlike.data.length > 0) ? mdResIlike.data[0] : null;
+                }
+            }
+
+            let order = mdOrder || paOrder;
+            if (!order) {
+                historyList.innerHTML = `<div class="p-8 text-center text-rose-500 italic text-sm font-semibold">❌ Không tìm thấy thông tin đơn cần chạy ${searchRpro} trên hệ thống.</div>`;
+                return;
+            }
+
+            const puCode = order.PU || '';
+            const puDesc = order['PU DESCRIPTION'] || '';
+            const fbCode = order.FB || '';
+            const fbDesc = order['FB DESCRIPTION'] || '';
+
+            if (!puCode && !puDesc && !fbCode && !fbDesc) {
+                historyList.innerHTML = `
+                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-2xl mb-4 text-xs text-amber-800">
+                        🔍 Đơn cần chạy: <span class="font-black">${searchRpro}</span><br>
+                        ⚠️ Đơn hàng này không có thông tin PU và Vải trên hệ thống!
+                    </div>
+                `;
+                return;
+            }
+
+            // Find matching surplus goods
+            let surplusQuery = supabase.from('surplusgoods').select(historyColumns).order('created_at', { ascending: false });
+            if (activeSection && !isSearchAll) {
+                surplusQuery = surplusQuery.eq('section', activeSection);
+            }
+
+            let orConditions = [];
+            if (puCode) orConditions.push(`pu_code.eq."${puCode}"`, `pu.eq."${puCode}"`);
+            if (puDesc) orConditions.push(`pu.eq."${puDesc}"`);
+            if (fbCode) orConditions.push(`fb_code.eq."${fbCode}"`, `fabric.eq."${fbCode}"`);
+            if (fbDesc) orConditions.push(`fabric.eq."${fbDesc}"`);
+
+            if (orConditions.length > 0) {
+                surplusQuery = surplusQuery.or(orConditions.join(','));
+            }
+
+            const { data: surplusData, error: surplusError } = await surplusQuery;
+            if (surplusError) throw surplusError;
+
+            // Match PU AND Fabric strictly
+            const matched = (surplusData || []).filter(item => {
+                const itemPu = (item.pu_code || item.pu || '').trim().toUpperCase();
+                const itemFb = (item.fb_code || item.fabric || '').trim().toUpperCase();
+
+                const targetPuCode = puCode.trim().toUpperCase();
+                const targetPuDesc = puDesc.trim().toUpperCase();
+                const targetFbCode = fbCode.trim().toUpperCase();
+                const targetFbDesc = fbDesc.trim().toUpperCase();
+
+                let puMatch = false;
+                if (targetPuCode) {
+                    if (itemPu === targetPuCode || item.pu.trim().toUpperCase() === targetPuCode) {
+                        puMatch = true;
+                    }
+                }
+                if (!puMatch && targetPuDesc) {
+                    if (item.pu.trim().toUpperCase() === targetPuDesc || itemPu === targetPuDesc) {
+                        puMatch = true;
+                    }
+                }
+
+                let fbMatch = false;
+                if (targetFbCode) {
+                    if (itemFb === targetFbCode || item.fabric.trim().toUpperCase() === targetFbCode) {
+                        fbMatch = true;
+                    }
+                }
+                if (!fbMatch && targetFbDesc) {
+                    if (item.fabric.trim().toUpperCase() === targetFbDesc || itemFb === targetFbDesc) {
+                        fbMatch = true;
+                    }
+                }
+
+                return puMatch && fbMatch;
+            });
+
+            const headerHtml = `
+                <div class="bg-indigo-50 border-2 border-indigo-100 p-4 rounded-3xl mb-4 text-xs font-medium text-slate-700 shadow-sm transition-all">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="w-2 h-4 bg-indigo-500 rounded-full"></span>
+                        <h4 class="font-black text-indigo-950 uppercase tracking-wide">Đơn Cần Chạy: ${searchRpro}</h4>
+                    </div>
+                    <div class="space-y-1 pl-4">
+                        <p>• Mã PU: <span class="font-black text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded">${puCode || '-'}</span> - <span class="italic text-slate-500">${puDesc || '-'}</span></p>
+                        <p>• Mã Vải: <span class="font-black text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">${fbCode || '-'}</span> - <span class="italic text-slate-500">${fbDesc || '-'}</span></p>
+                        <p>• BOM: <span class="font-bold text-slate-800">${order.BOM || '-'}</span></p>
+                    </div>
+                </div>
+                <div class="text-[10px] font-black text-indigo-500 uppercase tracking-wider mb-2 ml-1">
+                    🎯 DANH SÁCH HÀNG TỒN TƯƠNG THÍCH (${matched.length}):
+                </div>
+            `;
+
+            if (matched.length === 0) {
+                historyList.innerHTML = headerHtml + `<div class="p-8 text-center text-slate-400 italic text-sm bg-white border border-slate-100 rounded-2xl">Không tìm thấy hàng tồn tương thích khớp cả PU và Vải.</div>`;
+                return;
+            }
+
+            const { puMap, fbMap } = await getPuFbMaps(matched);
+
+            const itemsHtml = matched.map(item => {
+                let total = calculateTotalFromData(item);
+
+                const puDisplayText = item.pu_code && item.pu && item.pu_code !== item.pu ? `${item.pu_code} - ${item.pu}` : (item.pu || item.pu_code || '-');
+                const fbDisplayText = item.fb_code && item.fabric && item.fb_code !== item.fabric ? `${item.fb_code} - ${item.fabric}` : (item.fabric || item.fb_code || '-');
+
+                return `
+                    <div onclick="previewEntry('${item.id}')" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-200 hover:scale-[1.01] transition-all cursor-pointer group relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-2 h-full bg-emerald-500"></div>
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex gap-2 items-center">
+                                <span class="text-xs font-black text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">${item.rpro}</span>
+                                <span class="text-[9px] font-bold text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded uppercase">${item.section || '?'}</span>
+                            </div>
+                            <span class="text-[10px] font-bold text-slate-400">${new Date(item.created_at).toLocaleDateString('vi-VN')}</span>
+                        </div>
+                        <div class="flex justify-between items-end">
+                            <div class="space-y-0.5 overflow-hidden pr-2">
+                                <p class="text-xs font-bold text-slate-700">BOM: ${item.bom || '-'}</p>
+                                <p class="text-[10px] text-teal-700 font-semibold truncate" title="${puDisplayText}">PU: ${puDisplayText}</p>
+                                <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbDisplayText}">FB: ${fbDisplayText}</p>
+                                <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
+                            </div>
+                            <div class="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                                <div>
+                                    <span class="text-lg font-black text-slate-800">${total}</span>
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">${item.section === 'LEANLINE_DC' ? 'tấm' : 'đôi dôi'}</span>
+                                </div>
+                                <button onclick="event.stopPropagation(); openInOutHistory('${item.rpro ? item.rpro.replace(/'/g, "\\'") : ''}')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-bold border border-indigo-200 transition">
+                                    Lịch sử biến động
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            historyList.innerHTML = headerHtml + itemsHtml;
+            return;
+        } catch (err) {
+            console.error("Error matching compatible surplus items:", err);
+            historyList.innerHTML = `<div class="p-8 text-center text-rose-500 italic text-sm">❌ Có lỗi xảy ra khi tìm hàng tồn tương thích.</div>`;
+            return;
+        }
+    }
+
     let query = supabase.from('surplusgoods').select(historyColumns).order('created_at', { ascending: false });
 
     if (activeSection && !isSearchAll) {
