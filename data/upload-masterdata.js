@@ -80,7 +80,7 @@ async function uploadToMasterdata() {
 
         const { error } = await supabase
             .from('Masterdata')
-            .upsert(chunk, { onConflict: 'STT' });
+            .upsert(chunk, { onConflict: 'PRO ODER' });
 
         if (error) {
             console.error(`❌ Error in chunk starting at ${i}:`, error.message);

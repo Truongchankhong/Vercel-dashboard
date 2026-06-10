@@ -3,9 +3,9 @@
 -- Run this in the Supabase SQL Editor
 
 CREATE TABLE IF NOT EXISTS public."Masterdata" (
-    "STT" bigint PRIMARY KEY,
+    "STT" bigint,
     "SO" text,
-    "PRO ODER" text,
+    "PRO ODER" text PRIMARY KEY,
     "Brand Code" text,
     "CUSTOMERS" text,
     "#MOLDED" text,

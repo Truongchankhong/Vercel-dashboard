@@ -1838,6 +1838,45 @@ function updateSizeHighlights() {
 
 // ==================== HISTORY & SEARCH ====================
 
+async function getPuFbMaps(items) {
+    const puCodes = [...new Set(items.map(i => i.pu_code || i.pu).filter(c => c))];
+    const fbCodes = [...new Set(items.map(i => i.fb_code || i.fabric).filter(c => c))];
+    const puMap = {};
+    const fbMap = {};
+
+    if (puCodes.length > 0) {
+        try {
+            const { data: paPu } = await supabase.from('powerapp').select('"PU", "PU DESCRIPTION"').in('PU', puCodes);
+            if (paPu) paPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
+            
+            const missingPu = puCodes.filter(c => !puMap[c]);
+            if (missingPu.length > 0) {
+                try {
+                    const { data: mdPu } = await supabase.from('Masterdata').select('"PU", "PU DESCRIPTION"').in('PU', missingPu);
+                    if (mdPu) mdPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
+                } catch (e) { console.warn('Masterdata PU lookup failed (non-critical):', e.message); }
+            }
+        } catch (e) { console.warn('PU lookup failed (non-critical):', e.message); }
+    }
+
+    if (fbCodes.length > 0) {
+        try {
+            const { data: paFb } = await supabase.from('powerapp').select('"FB", "FB DESCRIPTION"').in('FB', fbCodes);
+            if (paFb) paFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
+            
+            const missingFb = fbCodes.filter(c => !fbMap[c]);
+            if (missingFb.length > 0) {
+                try {
+                    const { data: mdFb } = await supabase.from('Masterdata').select('"FB", "FB DESCRIPTION"').in('FB', missingFb);
+                    if (mdFb) mdFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
+                } catch (e) { console.warn('Masterdata FB lookup failed (non-critical):', e.message); }
+            }
+        } catch (e) { console.warn('FB lookup failed (non-critical):', e.message); }
+    }
+
+    return { puMap, fbMap };
+}
+
 async function loadHistory() {
     const q = historySearch ? historySearch.value.trim().toUpperCase() : "";
     const chkAll = document.getElementById('search-all-sections');
@@ -1923,6 +1962,8 @@ async function loadHistory() {
                                 return;
                             }
 
+                            const { puMap, fbMap } = await getPuFbMaps(merged);
+
                             historyList.innerHTML = merged.map(item => {
                                 let total = 0;
                                 Object.keys(item).forEach(k => {
@@ -1935,6 +1976,15 @@ async function loadHistory() {
                                         if (!isNaN(v)) total += v;
                                     });
                                 }
+
+                                const puDesc = puMap[item.pu_code || item.pu] || item.pu || '';
+                                const puCode = item.pu_code || (puMap[item.pu] ? item.pu : '');
+                                const puDisplayText = puCode && puDesc && puCode !== puDesc ? `${puCode} - ${puDesc}` : (puDesc || puCode || '-');
+
+                                const fbDesc = fbMap[item.fb_code || item.fabric] || item.fabric || '';
+                                const fbCode = item.fb_code || (fbMap[item.fabric] ? item.fabric : '');
+                                const fbDisplayText = fbCode && fbDesc && fbCode !== fbDesc ? `${fbCode} - ${fbDesc}` : (fbDesc || fbCode || '-');
+
                                 return `
                                     <div onclick="previewEntry('${item.id}')" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-200 transition-all cursor-pointer group">
                                         <div class="flex justify-between items-start mb-2">
@@ -1947,8 +1997,8 @@ async function loadHistory() {
                                         <div class="flex justify-between items-end">
                                             <div class="space-y-0.5 overflow-hidden pr-2">
                                                 <p class="text-xs font-bold text-slate-700">BOM: ${item.bom || '-'}</p>
-                                                ${(puMap[item.pu_code || item.pu] || item.pu) ? `<p class="text-[10px] text-teal-700 font-semibold truncate" title="${puMap[item.pu_code || item.pu] || item.pu || '-'}">PU: ${puMap[item.pu_code || item.pu] || item.pu || '-'}</p>` : ''}
-                                                ${(fbMap[item.fb_code || item.fabric] || item.fabric) ? `<p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}">FB: ${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}</p>` : ''}
+                                                ${(puDesc || puCode) ? `<p class="text-[10px] text-teal-700 font-semibold truncate" title="${puDisplayText}">PU: ${puDisplayText}</p>` : ''}
+                                                ${(fbDesc || fbCode) ? `<p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbDisplayText}">FB: ${fbDisplayText}</p>` : ''}
                                                 <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
                                             </div>
                                             <div class="text-right flex-shrink-0">
@@ -2034,41 +2084,7 @@ async function loadHistory() {
         return;
     }
 
-    // Lookup PU and Fabric Descriptions based on codes for the current view
-    const puCodes = [...new Set(filtered.map(i => i.pu_code || i.pu).filter(c => c))];
-    const fbCodes = [...new Set(filtered.map(i => i.fb_code || i.fabric).filter(c => c))];
-    const puMap = {};
-    const fbMap = {};
-
-    if (puCodes.length > 0) {
-        try {
-            const { data: paPu } = await supabase.from('powerapp').select('"PU", "PU DESCRIPTION"').in('PU', puCodes);
-            if (paPu) paPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
-            
-            const missingPu = puCodes.filter(c => !puMap[c]);
-            if (missingPu.length > 0) {
-                try {
-                    const { data: mdPu } = await supabase.from('Masterdata').select('"PU", "PU DESCRIPTION"').in('PU', missingPu);
-                    if (mdPu) mdPu.forEach(r => { if (r.PU) puMap[r.PU] = r['PU DESCRIPTION']; });
-                } catch (e) { console.warn('Masterdata PU lookup failed (non-critical):', e.message); }
-            }
-        } catch (e) { console.warn('PU lookup failed (non-critical):', e.message); }
-    }
-
-    if (fbCodes.length > 0) {
-        try {
-            const { data: paFb } = await supabase.from('powerapp').select('"FB", "FB DESCRIPTION"').in('FB', fbCodes);
-            if (paFb) paFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
-            
-            const missingFb = fbCodes.filter(c => !fbMap[c]);
-            if (missingFb.length > 0) {
-                try {
-                    const { data: mdFb } = await supabase.from('Masterdata').select('"FB", "FB DESCRIPTION"').in('FB', missingFb);
-                    if (mdFb) mdFb.forEach(r => { if (r.FB) fbMap[r.FB] = r['FB DESCRIPTION']; });
-                } catch (e) { console.warn('Masterdata FB lookup failed (non-critical):', e.message); }
-            }
-        } catch (e) { console.warn('FB lookup failed (non-critical):', e.message); }
-    }
+    const { puMap, fbMap } = await getPuFbMaps(filtered);
 
     historyList.innerHTML = filtered.map(item => {
         // Calculate total qty
@@ -2084,6 +2100,14 @@ async function loadHistory() {
             });
         }
 
+        const puDesc = puMap[item.pu_code || item.pu] || item.pu || '';
+        const puCode = item.pu_code || (puMap[item.pu] ? item.pu : '');
+        const puDisplayText = puCode && puDesc && puCode !== puDesc ? `${puCode} - ${puDesc}` : (puDesc || puCode || '-');
+
+        const fbDesc = fbMap[item.fb_code || item.fabric] || item.fabric || '';
+        const fbCode = item.fb_code || (fbMap[item.fabric] ? item.fabric : '');
+        const fbDisplayText = fbCode && fbDesc && fbCode !== fbDesc ? `${fbCode} - ${fbDesc}` : (fbDesc || fbCode || '-');
+
         return `
             <div onclick="previewEntry('${item.id}')" class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-teal-200 transition-all cursor-pointer group">
                 <div class="flex justify-between items-start mb-2">
@@ -2096,10 +2120,10 @@ async function loadHistory() {
                 <div class="flex justify-between items-end">
                     <div class="space-y-0.5 overflow-hidden pr-2">
                         <p class="text-xs font-bold text-slate-700">BOM: ${item.bom || '-'}</p>
-                        ${(puMap[item.pu_code || item.pu] || item.pu) ? `
-                        <p class="text-[10px] text-teal-700 font-semibold truncate" title="${puMap[item.pu_code || item.pu] || item.pu || '-'}">PU: ${puMap[item.pu_code || item.pu] || item.pu || '-'}</p>` : ''}
-                        ${(fbMap[item.fb_code || item.fabric] || item.fabric) ? `
-                        <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}">FB: ${fbMap[item.fb_code || item.fabric] || item.fabric || '-'}</p>` : ''}
+                        ${(puDesc || puCode) ? `
+                        <p class="text-[10px] text-teal-700 font-semibold truncate" title="${puDisplayText}">PU: ${puDisplayText}</p>` : ''}
+                        ${(fbDesc || fbCode) ? `
+                        <p class="text-[10px] text-indigo-700 font-semibold truncate" title="${fbDisplayText}">FB: ${fbDisplayText}</p>` : ''}
                         <p class="text-[10px] text-slate-400 italic">${item.mold || '-'}</p>
                     </div>
                     <div class="text-right flex-shrink-0 flex flex-col items-end gap-1">

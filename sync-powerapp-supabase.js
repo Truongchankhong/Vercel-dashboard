@@ -118,7 +118,7 @@ async function syncPowerApp() {
     console.log(`📦 Backing up ${storedRows.length} STORED orders to Masterdata...`);
     const { error: masterError } = await supabase
       .from('Masterdata')
-      .upsert(storedRows, { onConflict: 'STT' });
+      .upsert(storedRows, { onConflict: 'PRO ODER' });
 
     if (masterError) {
       console.error('❌ Error backing up to Masterdata:', masterError);
