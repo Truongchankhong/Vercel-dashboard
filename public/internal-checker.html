@@ -248,6 +248,19 @@
                         </div>
                     </div>
 
+                    <!-- Multi RPRO List Container -->
+                    <div id="multi-rpro-list-container" class="hidden flex flex-col gap-2.5 bg-slate-50 border border-slate-200/60 rounded-2xl p-4 mt-2 transition-all duration-300">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                                📦 Danh sách RPRO gộp:
+                            </span>
+                            <span class="text-[10px] bg-indigo-100 text-indigo-700 font-extrabold px-2.5 py-1 rounded-full uppercase" id="multi-rpro-count-badge">0 đơn</span>
+                        </div>
+                        <div id="multi-rpro-list-content" class="max-h-52 overflow-y-auto divide-y divide-slate-100 bg-white border border-slate-150 rounded-xl shadow-inner">
+                            <!-- Injected dynamically -->
+                        </div>
+                    </div>
+
                     <!-- Note -->
                     <div class="flex flex-col gap-1.5 mt-2 mb-2">
                         <label for="field-note" class="text-xs font-black text-slate-500 uppercase tracking-wider">Ghi chú (Note):</label>
@@ -370,6 +383,7 @@
         let currentPage = 1;
         let rowsPerPage = 15;
         let currentFilteredRecords = [];
+        let parsedRproList = []; // Array of { rpro: string, po_qty: number | null } for multiple RPROs
 
         // Image Compressor Utility
         function compressImage(file, maxWidth, maxHeight, quality) {
@@ -706,17 +720,20 @@
             loadHistory();
         }
 
-        // Normalize RPRO
-        function normalizeRPRO(text) {
+        // Check if a segment is a valid RPRO code (either contains 'RPRO' or has a number pattern like XXXXXX-XXXX)
+        function isRproSegment(part) {
+            let cleanPart = part.trim().toUpperCase();
+            if (cleanPart.includes('RPRO')) return true;
+            const pureNum = cleanPart.replace(/[^0-9]/g, '');
+            if (pureNum.length >= 8 && /^\d+-\d+$/.test(cleanPart)) return true;
+            if (pureNum.length >= 8 && /^\d+$/.test(pureNum)) return true;
+            return false;
+        }
+
+        // Normalize a single RPRO code
+        function normalizeSingleRPRO(text) {
             if (!text) return "";
             let clean = text.trim().toUpperCase();
-
-            if (clean.includes('|')) {
-                const parts = clean.split('|');
-                const found = parts.find(p => p.trim().startsWith('RPRO'));
-                if (found) clean = found.trim();
-            }
-
             clean = clean.replace(/^RPRO-+/i, '').replace(/^RPRO/i, '');
             clean = clean.replace(/[^A-Z0-9-]/g, '');
 
@@ -727,55 +744,199 @@
             return "RPRO-" + clean.replace(/-+/g, '-');
         }
 
+        // Extract all RPRO codes from a scanned QR or manual input string
+        function extractAllRPROs(text) {
+            if (!text) return [];
+            const parts = text.split(/[|,]/);
+            let rpros = [];
+            for (let part of parts) {
+                let partClean = part.trim();
+                if (!partClean) continue;
+                if (isRproSegment(partClean)) {
+                    const normalized = normalizeSingleRPRO(partClean);
+                    if (normalized && normalized !== 'RPRO-' && !rpros.includes(normalized)) {
+                        rpros.push(normalized);
+                    }
+                }
+            }
+            return rpros;
+        }
+
+        // Normalize RPRO (can be a joined list of normalized RPROs)
+        function normalizeRPRO(text) {
+            if (!text) return "";
+            const rpros = extractAllRPROs(text);
+            if (rpros.length > 0) {
+                return rpros.join(' | ');
+            }
+            // Fallback for single invalid/short codes
+            const normalized = normalizeSingleRPRO(text);
+            if (normalized && normalized !== 'RPRO-') {
+                return normalized;
+            }
+            return "";
+        }
+
         // Database Lookup
         async function fetchDetails(rawRpro) {
-            const rpro = normalizeRPRO(rawRpro);
-            if (!rpro || rpro === 'RPRO-' || rpro.length < 5) {
-                updatePhotoUI();
-                return;
+            const rpros = extractAllRPROs(rawRpro);
+            if (rpros.length === 0) {
+                const rpro = normalizeSingleRPRO(rawRpro);
+                if (!rpro || rpro === 'RPRO-' || rpro.length < 5) {
+                    updatePhotoUI();
+                    return;
+                }
+                rpros.push(rpro);
             }
 
-            currentLoadedRpro = rpro; // Track that we have an active RPRO session
+            currentLoadedRpro = rpros.join(' | '); // Track all loaded RPROs
             updatePhotoUI();
             const statusLabel = document.getElementById('lookup-status');
             statusLabel.classList.remove('hidden');
 
+            const firstRpro = rpros[0];
+            let firstRproDetails = null;
+
             try {
-                // 1. Search powerapp
+                // 1. Search powerapp for first RPRO (to fill Customer, Brand, Mold details)
                 let { data, error } = await supabase
                     .from('powerapp')
                     .select('*')
-                    .eq('PRO ODER', rpro)
+                    .eq('PRO ODER', firstRpro)
                     .limit(1);
 
                 if (!error && data && data.length > 0) {
-                    fillDetails(data[0]);
-                    statusLabel.classList.add('hidden');
-                    showToast("🔍 Đã tìm thấy RPRO từ PowerApp!", "success");
-                    return;
+                    firstRproDetails = data[0];
+                } else {
+                    // 2. Search Masterdata (Fallback)
+                    let { data: mdData, error: mdError } = await supabase
+                        .from('Masterdata')
+                        .select('*')
+                        .eq('PRO ODER', firstRpro)
+                        .limit(1);
+
+                    if (!mdError && mdData && mdData.length > 0) {
+                        firstRproDetails = mdData[0];
+                    }
                 }
 
-                // 2. Search Masterdata (Fallback)
-                let { data: mdData, error: mdError } = await supabase
-                    .from('Masterdata')
-                    .select('*')
-                    .eq('PRO ODER', rpro)
-                    .limit(1);
-
-                if (!mdError && mdData && mdData.length > 0) {
-                    fillDetails(mdData[0]);
-                    statusLabel.classList.add('hidden');
-                    showToast("🔍 Đã tìm thấy RPRO từ Masterdata!", "success");
-                    return;
+                if (firstRproDetails) {
+                    document.getElementById('field-customer').value = firstRproDetails['CUSTOMERS'] || '';
+                    document.getElementById('field-brand').value = firstRproDetails['Brand Code'] || '';
+                    document.getElementById('field-mold').value = firstRproDetails['#MOLD'] || '';
+                    if (rpros.length === 1) {
+                        document.getElementById('field-po-qty').value = firstRproDetails['Total Qty'] || '';
+                    }
+                } else {
+                    document.getElementById('field-customer').value = '';
+                    document.getElementById('field-brand').value = '';
+                    document.getElementById('field-mold').value = '';
+                    if (rpros.length === 1) {
+                        document.getElementById('field-po-qty').value = '';
+                    }
                 }
 
-                // If not found anywhere
+                // Query quantities for all RPROs in parallel
+                const fetchQtyPromises = rpros.map(async (rpro) => {
+                    let qty = null;
+                    // Check powerapp
+                    let { data: paData } = await supabase
+                        .from('powerapp')
+                        .select('"Total Qty"')
+                        .eq('PRO ODER', rpro)
+                        .limit(1);
+
+                    if (paData && paData.length > 0) {
+                        qty = paData[0]['Total Qty'];
+                    } else {
+                        // Check Masterdata
+                        let { data: mdData } = await supabase
+                            .from('Masterdata')
+                            .select('"Total Qty"')
+                            .eq('PRO ODER', rpro)
+                            .limit(1);
+                        if (mdData && mdData.length > 0) {
+                            qty = mdData[0]['Total Qty'];
+                        }
+                    }
+                    return { rpro, po_qty: qty !== null ? parseFloat(qty) : null };
+                });
+
+                parsedRproList = await Promise.all(fetchQtyPromises);
+
+                const rproListContainer = document.getElementById('multi-rpro-list-container');
+                const rproListContent = document.getElementById('multi-rpro-list-content');
+                const badge = document.getElementById('multi-rpro-count-badge');
+
+                if (rpros.length > 1) {
+                    if (rproListContainer && rproListContent) {
+                        rproListContainer.classList.remove('hidden');
+                        if (badge) badge.textContent = `${rpros.length} đơn`;
+                        rproListContent.innerHTML = '';
+
+                        parsedRproList.forEach((item, index) => {
+                            const itemRow = document.createElement('div');
+                            itemRow.className = "flex justify-between items-center p-3 text-sm border-b border-slate-100 hover:bg-slate-50 transition";
+                            itemRow.innerHTML = `
+                                <div class="flex items-center gap-2">
+                                    <span class="w-5 h-5 rounded-full bg-indigo-50 text-indigo-600 font-bold text-xs flex items-center justify-center">${index + 1}</span>
+                                    <span class="font-mono font-bold text-indigo-950">${item.rpro}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-slate-400 font-semibold">PO Qty:</span>
+                                    <input type="number" value="${item.po_qty !== null ? item.po_qty : ''}" 
+                                        data-rpro="${item.rpro}"
+                                        placeholder="Nhập SL..." 
+                                        class="w-24 bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg px-2 py-1 font-bold text-right outline-none transition text-slate-800 multi-rpro-qty-input">
+                                </div>
+                            `;
+                            rproListContent.appendChild(itemRow);
+                        });
+
+                        // Bind change events to quantity inputs
+                        rproListContent.querySelectorAll('.multi-rpro-qty-input').forEach(input => {
+                            input.addEventListener('change', (e) => {
+                                const targetRpro = e.target.getAttribute('data-rpro');
+                                const newQty = e.target.value ? parseFloat(e.target.value) : null;
+                                const targetItem = parsedRproList.find(item => item.rpro === targetRpro);
+                                if (targetItem) {
+                                    targetItem.po_qty = newQty;
+                                }
+                                updatePoQtySum();
+                            });
+                        });
+                    }
+
+                    const fieldPoQty = document.getElementById('field-po-qty');
+                    if (fieldPoQty) {
+                        fieldPoQty.disabled = true;
+                        fieldPoQty.classList.add('bg-slate-50', 'text-slate-500', 'cursor-not-allowed');
+                    }
+                    updatePoQtySum();
+                } else {
+                    if (rproListContainer) rproListContainer.classList.add('hidden');
+                    const fieldPoQty = document.getElementById('field-po-qty');
+                    if (fieldPoQty) {
+                        fieldPoQty.disabled = false;
+                        fieldPoQty.classList.remove('bg-slate-50', 'text-slate-500', 'cursor-not-allowed');
+                    }
+                }
+
                 statusLabel.classList.add('hidden');
-                showToast("⚠️ Không tìm thấy đơn hàng trên server. Bạn có thể nhập thủ công.", "warning");
+                if (firstRproDetails || parsedRproList.some(item => item.po_qty !== null)) {
+                    showToast(`🔍 Đã tìm thấy dữ liệu cho ${rpros.length} đơn RPRO!`, "success");
+                } else {
+                    showToast("⚠️ Không tìm thấy đơn hàng trên server. Bạn có thể nhập thủ công.", "warning");
+                }
             } catch (err) {
                 console.error("Lookup error:", err);
                 statusLabel.classList.add('hidden');
             }
+        }
+
+        function updatePoQtySum() {
+            const sum = parsedRproList.reduce((acc, curr) => acc + (curr.po_qty || 0), 0);
+            document.getElementById('field-po-qty').value = sum || '';
         }
 
         function fillDetails(row) {
@@ -797,6 +958,16 @@
             document.getElementById('lookup-status').classList.add('hidden');
             currentLoadedRpro = ''; // Clear RPRO state
             
+            // Clear multiple RPROs state
+            parsedRproList = [];
+            const rproListContainer = document.getElementById('multi-rpro-list-container');
+            if (rproListContainer) rproListContainer.classList.add('hidden');
+            const fieldPoQty = document.getElementById('field-po-qty');
+            if (fieldPoQty) {
+                fieldPoQty.disabled = false;
+                fieldPoQty.classList.remove('bg-slate-50', 'text-slate-500', 'cursor-not-allowed');
+            }
+
             // Clear photo preview and state
             capturedPhotoBlob = null;
             document.getElementById('photo-input').value = '';
@@ -923,8 +1094,6 @@
                 return;
             }
 
-            const rpro = normalizeRPRO(rproRaw);
-            const poQty = poQtyRaw ? parseFloat(poQtyRaw) : null;
             const targetTable = currentTab === 'crosscheck' ? 'crosscheck_sample' : 'test_lab';
 
             isSaving = true;
@@ -932,21 +1101,17 @@
             document.getElementById('btn-save-confirm').innerText = "Đang lưu bản ghi...";
 
             try {
-                const record = {
-                    msnv: currentMsnv,
-                    rpro: rpro,
-                    customer: customer || null,
-                    brand: brand || null,
-                    mold: mold || null,
-                    po_qty: poQty,
-                    note: note || null
-                };
+                let imageUrl = null;
 
-                // Upload photo to Supabase Storage if captured
+                // Extract all RPRO codes
+                const rpros = extractAllRPROs(rproRaw);
+                const firstRpro = rpros.length > 0 ? rpros[0] : normalizeSingleRPRO(rproRaw);
+
+                // Upload photo to Supabase Storage if captured (uploaded only ONCE for the group)
                 if (capturedPhotoBlob) {
                     document.getElementById('btn-save-confirm').innerText = "Đang tải ảnh mẫu...";
                     const fileExtension = 'jpg';
-                    const fileName = `${targetTable}/${rpro}_${Date.now()}.${fileExtension}`;
+                    const fileName = `${targetTable}/${firstRpro}_${Date.now()}.${fileExtension}`;
                     
                     const { data: uploadData, error: uploadError } = await supabase.storage
                         .from('photos')
@@ -966,21 +1131,49 @@
                             .from('photos')
                             .getPublicUrl(fileName);
                         
-                        record.image_url = urlData.publicUrl;
+                        imageUrl = urlData.publicUrl;
                     }
                 }
 
                 document.getElementById('btn-save-confirm').innerText = "Đang lưu bản ghi...";
 
+                // Prepare list of records to insert (separately for each RPRO)
+                let recordsToInsert = [];
+                if (rpros.length > 1 && parsedRproList && parsedRproList.length > 0) {
+                    recordsToInsert = parsedRproList.map(item => ({
+                        msnv: currentMsnv,
+                        rpro: item.rpro,
+                        customer: customer || null,
+                        brand: brand || null,
+                        mold: mold || null,
+                        po_qty: item.po_qty !== null ? parseFloat(item.po_qty) : null,
+                        note: note || null,
+                        image_url: imageUrl
+                    }));
+                } else {
+                    const finalRpro = rpros.length > 0 ? rpros[0] : normalizeSingleRPRO(rproRaw);
+                    const finalPoQty = poQtyRaw ? parseFloat(poQtyRaw) : null;
+                    recordsToInsert = [{
+                        msnv: currentMsnv,
+                        rpro: finalRpro,
+                        customer: customer || null,
+                        brand: brand || null,
+                        mold: mold || null,
+                        po_qty: finalPoQty,
+                        note: note || null,
+                        image_url: imageUrl
+                    }];
+                }
+
                 const { data, error } = await supabase
                     .from(targetTable)
-                    .insert([record]);
+                    .insert(recordsToInsert);
 
                 if (error) throw error;
 
                 // Success
                 playBeep(true);
-                showToast("✅ Lưu bản ghi thành công!", "success");
+                showToast(`✅ Lưu thành công ${recordsToInsert.length} bản ghi!`, "success");
                 
                 // Clear & reload
                 clearInputs();
