@@ -28,51 +28,73 @@ async function checkGatekeeper() {
     if (path === 'egress-monitor.html' || path === 'login.html') return;
 
     // ---------------------------------------------------------
+    // OPTIMIZATION: Load ALL status configs in ONE query with cache
+    // Cache lasts for 5 minutes in sessionStorage to avoid re-querying
+    // ---------------------------------------------------------
+    let allConfigs = null;
+    const CACHE_KEY = 'gatekeeper_system_config';
+    const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    try {
+        const cached = sessionStorage.getItem(CACHE_KEY);
+        if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Date.now() - parsed.ts < CACHE_TTL) {
+                allConfigs = parsed.data;
+            }
+        }
+    } catch (e) { /* ignore parse errors */ }
+
+    if (!allConfigs) {
+        // Single query, only 2 columns needed (was 2 separate queries before)
+        const { data, error } = await supabase
+            .from('system_config')
+            .select('id, value')
+            .like('id', 'status_%');
+
+        if (!error && data) {
+            allConfigs = data;
+            try {
+                sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+            } catch (e) { /* ignore storage errors */ }
+        }
+    }
+
+    if (!allConfigs) return; // Failed to load config, allow access
+
+    // ---------------------------------------------------------
     // STEP 1: Handle Index UI Components (Buttons Hiding)
     // ---------------------------------------------------------
     if (path === 'index.html' || path === '') {
-        const { data: allConfigs, error: allError } = await supabase
-            .from('system_config')
-            .select('*')
-            .like('id', 'status_%');
-
-        if (!allError && allConfigs) {
-            allConfigs.forEach(cfg => {
-                if (cfg.value === 'OFF') {
-                    const btnId = indexButtonMap[cfg.id];
-                    if (btnId) {
-                        const btn = document.getElementById(btnId);
-                        if (btn) btn.style.display = 'none';
-                    }
+        allConfigs.forEach(cfg => {
+            if (cfg.value === 'OFF') {
+                const btnId = indexButtonMap[cfg.id];
+                if (btnId) {
+                    const btn = document.getElementById(btnId);
+                    if (btn) btn.style.display = 'none';
                 }
-            });
-        }
+            }
+        });
         // DON'T return yet, need to check if index.html itself is blocked
     }
 
     // ---------------------------------------------------------
-    // STEP 2: Block Access to the Entire Page if OFF
+    // STEP 2: Block Access to the Entire Page if OFF (client-side from cache)
     // ---------------------------------------------------------
     try {
-        const { data, error } = await supabase
-            .from('system_config')
-            .select('value')
-            .eq('id', `status_${path}`)
-            .single();
+        const pageConfig = allConfigs.find(c => c.id === `status_${path}`);
 
-        if (error) {
+        if (!pageConfig) {
             // Auto-create status config if not found to allow future control
-            if (error.code === 'PGRST116') {
-                supabase.from('system_config').insert([{
-                    id: `status_${path}`,
-                    value: 'ON',
-                    description: `Status for ${path}`
-                }]);
-            }
+            supabase.from('system_config').insert([{
+                id: `status_${path}`,
+                value: 'ON',
+                description: `Status for ${path}`
+            }]);
             return;
         }
 
-        if (data && data.value === 'OFF') {
+        if (pageConfig.value === 'OFF') {
             document.body.innerHTML = `
                 <div style="font-family: -apple-system, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #eff6ff; color: #1e3a8a; text-align: center; padding: 24px;">
                     <div style="background: white; padding: 64px; border-radius: 40px; box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.1); max-width: 500px; border: 1px solid #dbeafe;">

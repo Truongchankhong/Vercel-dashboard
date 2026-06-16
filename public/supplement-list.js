@@ -110,7 +110,6 @@ async function loadSupplementList() {
         listBody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-red-500">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
     }
 }
-}
 
 window.handleSend = async (rpro) => {
     // OPTIMIZED: Select specifically needed columns to copy

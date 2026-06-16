@@ -801,7 +801,7 @@
                 // 1. Search powerapp for first RPRO (to fill Customer, Brand, Mold details)
                 let { data, error } = await supabase
                     .from('powerapp')
-                    .select('*')
+                    .select('"CUSTOMERS", "Brand Code", "#MOLD", "Total Qty"')
                     .eq('PRO ODER', firstRpro)
                     .limit(1);
 
@@ -811,7 +811,7 @@
                     // 2. Search Masterdata (Fallback)
                     let { data: mdData, error: mdError } = await supabase
                         .from('Masterdata')
-                        .select('*')
+                        .select('"CUSTOMERS", "Brand Code", "#MOLD", "Total Qty"')
                         .eq('PRO ODER', firstRpro)
                         .limit(1);
 
@@ -1201,7 +1201,7 @@
             try {
                 let queryBuilder = supabase
                     .from(targetTable)
-                    .select('*');
+                    .select('id, rpro, msnv, customer, brand, mold, po_qty, note, image_url, created_at');
 
                 if (dateFrom) {
                     queryBuilder = queryBuilder.gte('created_at', `${dateFrom}T00:00:00+07:00`);
@@ -1461,7 +1461,7 @@
 
                 let queryBuilder = supabase
                     .from(targetTable)
-                    .select('*');
+                    .select('id, rpro, msnv, customer, brand, mold, po_qty, note, image_url, created_at');
 
                 if (dateFrom) {
                     queryBuilder = queryBuilder.gte('created_at', `${dateFrom}T00:00:00+07:00`);

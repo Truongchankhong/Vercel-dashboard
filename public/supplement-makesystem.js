@@ -238,7 +238,7 @@ async function handleScan() {
         // 1. TẦNG 1: Tìm trong bảng 'supplement' (Giống trang Xác nhận)
         const { data: sRec, error: sError } = await supabase
             .from('supplement')
-            .select('*')
+            .select('rpro, so, customers, mold, total, pu, fabric')
             .eq('rpro', rpro)
             .maybeSingle();
 
@@ -255,7 +255,7 @@ async function handleScan() {
             };
         } else {
             // 2. TẦNG 2 & 3: Powerapp / Masterdata
-            const { data: pRec } = await supabase.from('powerapp').select('*').eq('PRO ODER', rpro).maybeSingle();
+            const { data: pRec } = await supabase.from('powerapp').select('"PRO ODER", "SO", "Brand Code", "CUSTOMERS", "#MOLD", "PU", "FB DESCRIPTION", "Tên vải"').eq('PRO ODER', rpro).maybeSingle();
             if (pRec) {
                 info = {
                     rpro: pRec['PRO ODER'],
@@ -268,7 +268,7 @@ async function handleScan() {
                     fabric: pRec['FB DESCRIPTION'] || pRec['Tên vải']
                 };
             } else {
-                const { data: mRec } = await supabase.from('Masterdata').select('*').eq('PRO ODER', rpro).maybeSingle();
+                const { data: mRec } = await supabase.from('Masterdata').select('"PRO ODER", "SO", "Brand Code", "CUSTOMERS", "#MOLD", "PU", "Tên vải"').eq('PRO ODER', rpro).maybeSingle();
                 if (mRec) {
                     info = {
                         rpro: mRec['PRO ODER'],

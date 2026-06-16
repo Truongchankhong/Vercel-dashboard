@@ -472,7 +472,7 @@ async function handleRproDetected(rawRpro) {
     try {
         const { data, error } = await supabase
             .from('powerapp')
-            .select('*')
+            .select('"PRO ODER", "LAMINATION MACHINE (REALTIME)", "Brand Code", "#MOLD", "PU DESCRIPTION", "FB DESCRIPTION", "Total Qty", "SO"')
             .eq('"PRO ODER"', rpro)
             .maybeSingle();
 
@@ -1488,7 +1488,7 @@ async function fetchRecentHistory() {
     try {
         const { data } = await supabase
             .from('hotmelt')
-            .select('*')
+            .select('rpro, hotmelt_in, hotmelt_out, hotmelt_qty_in, hotmelt_qty_out, prefitting_in, prefitting_out, prefitting_qty_in, prefitting_qty_out, molding_in, molding_out, molding_qty_in, molding_qty_out, leanline_in, leanline_out, leanline_qty_in, leanline_qty_out, updated_at')
             .order('updated_at', { ascending: false })
             .limit(10);
             

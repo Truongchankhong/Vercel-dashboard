@@ -591,7 +591,7 @@ async function checkExistingManualEntry() {
 
     // Search for a record where pu/fabric matches
     let query = supabase.from('surplusgoods')
-        .select('*')
+        .select('id, rpro, pu, fabric, section, note, mold, brand_code, bom, pu_code, fb_code, dynamic_sizes, created_at, msnv')
         .eq('pu', pu)
         .eq('fabric', fb)
         .order('created_at', { ascending: false })
@@ -1021,7 +1021,7 @@ async function handleScan(text) {
                 // Try searching for exact combo match in surplusgoods
                 // We check both the composite rpro field and the individual columns
                 const { data: comboCheck } = await supabase.from('surplusgoods')
-                    .select('*')
+                    .select('id, rpro, pu, fabric, section, note, mold, brand_code, bom, pu_code, fb_code, dynamic_sizes, created_at, msnv')
                     .eq('mold', moldV)
                     .or(`pu.eq."${puV}",pu_code.eq."${puV}"`)
                     .or(`fabric.eq."${fbV}",fb_code.eq."${fbV}"`)
@@ -1515,7 +1515,7 @@ async function saveSurplus() {
         // Final guard: Determine if user is unintentionally overwriting an existing record in the SAME section.
         if (!editingId && !isSplittingOrder) {
             const { data } = await supabase.from('surplusgoods')
-                .select('*')
+                .select('id, rpro, section, dynamic_sizes, pu, fabric, pu_code, fb_code, note, mold, brand_code, bom, msnv, created_at')
                 .eq('rpro', payload.rpro)
                 .eq('section', activeSection)
                 .order('created_at', { ascending: false })
@@ -1539,7 +1539,7 @@ async function saveSurplus() {
             if (activeOrderData && activeOrderData.id === editingId) {
                 oldTotal = calculateTotalFromData(activeOrderData);
             } else {
-                const { data: oldData } = await supabase.from('surplusgoods').select('*').eq('id', editingId).single();
+                const { data: oldData } = await supabase.from('surplusgoods').select('id, dynamic_sizes').eq('id', editingId).single();
                 if (oldData) oldTotal = calculateTotalFromData(oldData);
             }
             // UPDATE existing
@@ -1548,7 +1548,7 @@ async function saveSurplus() {
         } else {
             // Check if this exact rpro already exists in surplusgoods IN THE SAME SECTION to prevent duplicates
             const { data } = await supabase.from('surplusgoods')
-                .select('*')
+                .select('id, rpro, section, dynamic_sizes, pu, fabric, pu_code, fb_code, note, mold, brand_code, bom, msnv, created_at')
                 .eq('rpro', payload.rpro)
                 .eq('section', activeSection)
                 .order('created_at', { ascending: false })
@@ -2336,7 +2336,7 @@ async function loadHistory() {
 // Function to preview an entry from history
 window.previewEntry = async (id) => {
     showToast("📥 Đang tải thông tin chi tiết...", "info");
-    const { data, error } = await supabase.from('surplusgoods').select('*').eq('id', id).single();
+    const { data, error } = await supabase.from('surplusgoods').select('id, rpro, so, pu, fabric, section, note, mold, brand_code, bom, pu_code, fb_code, dynamic_sizes, created_at, msnv').eq('id', id).single();
     if (error || !data) return;
 
     resetEntry();
@@ -2380,7 +2380,7 @@ window.openInOutHistory = async (rpro) => {
 
     // fetch history
     const { data, error } = await supabase.from('surplusgoods_history')
-        .select('*')
+        .select('id, rpro, section, action_type, old_total, new_total, change_amount, created_at')
         .ilike('rpro', `%${rpro}%`)
         .order('created_at', { ascending: true }); // ascending for logical reading
 
@@ -2503,7 +2503,7 @@ async function exportSurplusExcel() {
 
         const { data, error } = await supabase
             .from('surplusgoods')
-            .select('*')
+            .select('id, rpro, so, pu, fabric, section, note, mold, brand_code, bom, pu_code, fb_code, dynamic_sizes, created_at, msnv')
             .gte('created_at', startTimestamp)
             .lte('created_at', endTimestamp)
             .order('created_at', { ascending: false });

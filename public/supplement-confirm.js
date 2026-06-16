@@ -619,7 +619,7 @@ async function handleNewRproScan(rawText) {
       // 2. TẦNG 2: Tìm trong bảng 'powerapp'
       let { data: pRec, error: pError } = await supabase
         .from('powerapp')
-        .select('*')
+        .select('"PRO ODER", "SO", "Sales Order", "CUSTOMERS", "Giới tính", "GENDER", "Mã Khuôn", "#MOLD", "Mã dao", "PU", "FB", "Tên vải", "FB DESCRIPTION", "BOM", "Total Qty"')
         .eq('PRO ODER', rpro)
         .maybeSingle();
 
@@ -631,7 +631,7 @@ async function handleNewRproScan(rawText) {
         // 3. TẦNG 3: Tìm trong bảng 'Masterdata'
         let { data: mRec, error: mError } = await supabase
           .from('Masterdata')
-          .select('*')
+          .select('"PRO ODER", "SO", "Sales Order", "CUSTOMERS", "Giới tính", "GENDER", "Mã Khuôn", "#MOLD", "Mã dao", "PU", "FB", "Tên vải", "FB DESCRIPTION", "BOM", "Total Qty"')
           .eq('PRO ODER', rpro)
           .maybeSingle();
 
