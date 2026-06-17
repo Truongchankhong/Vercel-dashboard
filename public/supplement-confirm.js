@@ -616,12 +616,14 @@ async function handleNewRproScan(rawText) {
     if (!finalRecord) {
       console.log(`🔍 Không thấy ${rpro} trong supplement, chuyển tầng 2: powerapp`);
 
-      // 2. TẦNG 2: Tìm trong bảng 'powerapp'
+      // 2. TẦNG 2: Tìm trong bảng 'powerapp' (dùng đúng tên cột thực tế)
       let { data: pRec, error: pError } = await supabase
         .from('powerapp')
-        .select('"PRO ODER", "SO", "Sales Order", "CUSTOMERS", "Giới tính", "GENDER", "Mã Khuôn", "#MOLD", "Mã dao", "PU", "FB", "Tên vải", "FB DESCRIPTION", "BOM", "Total Qty"')
-        .eq('PRO ODER', rpro)
+        .select('"PRO ODER", "SO", "CUSTOMERS", "GENDER", "#MOLD", "PU", "FB", "FB DESCRIPTION", "BOM", "Total Qty"')
+        .eq('"PRO ODER"', rpro)
         .maybeSingle();
+
+      if (pError) console.error('powerapp query error:', pError.message);
 
       if (pRec) {
         finalRecord = mapTableToSupplement(pRec, "Đơn chưa scan ở team hàng bù");
