@@ -602,7 +602,7 @@ async function handleNewRproScan(rawText) {
       if (pRec && pRec['FB']) {
         foundFb = pRec['FB'];
       } else {
-        const { data: mRec } = await supabase.from('Masterdata').select('FB').eq('PRO ODER', rpro).maybeSingle();
+        const { data: mRec } = await supabase.from('Masterdata').select('"FB"').eq('"PRO ODER"', rpro).maybeSingle();
         if (mRec && mRec['FB']) foundFb = mRec['FB'];
       }
       
@@ -629,14 +629,19 @@ async function handleNewRproScan(rawText) {
         console.log(`🔍 Không thấy ${rpro} trong powerapp, chuyển tầng 3: Masterdata`);
 
         // 3. TẦNG 3: Tìm trong bảng 'Masterdata'
+        // Dùng đúng tên cột của bảng Masterdata (khác với powerapp)
         let { data: mRec, error: mError } = await supabase
           .from('Masterdata')
-          .select('"PRO ODER", "SO", "Sales Order", "CUSTOMERS", "Giới tính", "GENDER", "Mã Khuôn", "#MOLD", "Mã dao", "PU", "FB", "Tên vải", "FB DESCRIPTION", "BOM", "Total Qty"')
-          .eq('PRO ODER', rpro)
+          .select('"PRO ODER", "SO", "CUSTOMERS", "GENDER", "#MOLD", "PU", "FB", "FB DESCRIPTION", "BOM", "Total Qty"')
+          .eq('"PRO ODER"', rpro)
           .maybeSingle();
 
+        if (mError) {
+          console.error('Masterdata query error:', mError.message);
+        }
+
         if (mRec) {
-          finalRecord = mapTableToSupplement(mRec, "Đơn chưa scan ở team hàng bù");
+          finalRecord = mapMasterdataToSupplement(mRec, "Đơn chưa scan ở team hàng bù");
         }
       }
     }
@@ -705,6 +710,24 @@ function mapTableToSupplement(rec, remarkValue) {
   });
 
   return result;
+}
+
+// Helper riêng để map từ bảng Masterdata sang supplement structure
+// (Masterdata dùng tên cột gốc khác với powerapp)
+function mapMasterdataToSupplement(rec, remarkValue) {
+  return {
+    rpro: rec['PRO ODER'],
+    so: rec['SO'] || '',
+    customers: rec['CUSTOMERS'] || '',
+    gender: (rec['GENDER'] || '').trim(),
+    mold: rec['#MOLD'] || '',
+    pu: rec['PU'] || '',
+    fb: rec['FB'] || '',
+    fabric: rec['FB DESCRIPTION'] || '',
+    bom: rec['BOM'] || '',
+    total: Number(rec['Total Qty']) || 0,
+    remark2: remarkValue
+  };
 }
 
 // ================= STATS LOGIC ================= //
