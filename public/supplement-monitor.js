@@ -1434,19 +1434,71 @@ window.deleteRecord = async (id) => {
 btnCloseModal.addEventListener('click', () => detailModal.classList.add('hidden'));
 
 // ==================== REALTIME ====================
-// Throttled refresh: chỉ fetch lại tối đa 1 lần/30 giây dù có bao nhiêu event
-// Trước khi fix: 343 scans/ngày → 343 lần fetch → ~345MB/ngày egress
-// Sau khi fix: nhiều scans gom thành 1 lần fetch sau 30s → ~10-20MB/ngày
-let _realtimeRefreshTimer = null;
-const REALTIME_THROTTLE_MS = 30000; // 30 giây
+// Incremental update từ Realtime payload — KHÔNG fetch lại, KHÔNG delay
+// Trước: mỗi scan → fetchProgressData() → 400KB egress
+// Sau: mỗi scan → update local state từ payload.new → 0 egress, update ngay
+let _pendingNewRpros = new Set(); // RPROs mới chưa có trong progressMap
 
-function scheduleThrottledRefresh() {
-    if (_realtimeRefreshTimer) return; // Đã có timer chờ, bỏ qua
-    _realtimeRefreshTimer = setTimeout(() => {
-        _realtimeRefreshTimer = null;
-        console.log('⚡ Realtime: Refresh sau 30s throttle');
+function applyIncrementalScan(newRecord) {
+    const { rpro, section, action, quantity, note, created_at, id } = newRecord;
+    if (!rpro || !section) return;
+
+    // Tìm key tương ứng trong progressMap (theo RPRO)
+    const matchingKeys = Object.keys(progressMap).filter(k => progressMap[k].rpro === rpro);
+
+    if (matchingKeys.length === 0) {
+        // RPRO này chưa có trong progressMap → cần fetch đầy đủ
+        _pendingNewRpros.add(rpro);
+        scheduleFullRefresh();
+        return;
+    }
+
+    // Lấy key mới nhất (confirm_id lớn nhất hoặc _none)
+    const targetKey = matchingKeys.sort((a, b) => {
+        const aId = progressMap[a].confirm_id || 0;
+        const bId = progressMap[b].confirm_id || 0;
+        return bId - aId;
+    })[0];
+
+    const item = progressMap[targetKey];
+    if (!item) return;
+
+    const dataPoint = { id, quantity: quantity || 0, time: created_at, note };
+    const stage = item.stages[section];
+
+    if (stage && action !== 'NOTE') {
+        if (action === 'IN') {
+            if (!stage.in || new Date(created_at) > new Date(stage.in.time)) {
+                stage.in = dataPoint;
+            }
+        } else if (action === 'OUT') {
+            if (!stage.out || new Date(created_at) > new Date(stage.out.time)) {
+                stage.out = dataPoint;
+            }
+        }
+    }
+
+    if (!item.last_scan || new Date(created_at) > new Date(item.last_scan.time)) {
+        item.last_scan = { section, action, time: created_at };
+    }
+    item.last_updated = created_at;
+    item.has_scans_in_range = true;
+
+    // Re-render ngay lập tức (chỉ UI, không fetch)
+    refreshTableData();
+    console.log(`⚡ Incremental update: ${rpro} / ${section} ${action} → không tốn egress`);
+}
+
+// Fallback: Nếu có RPRO mới chưa biết, fetch sau 5s (gom lại)
+let _fullRefreshTimer = null;
+function scheduleFullRefresh() {
+    if (_fullRefreshTimer) return;
+    _fullRefreshTimer = setTimeout(() => {
+        _fullRefreshTimer = null;
+        _pendingNewRpros.clear();
+        console.log('⚡ Full refresh cho RPRO mới');
         fetchProgressData();
-    }, REALTIME_THROTTLE_MS);
+    }, 5000); // 5s: nhanh hơn nhiều, chỉ khi cần
 }
 
 function setupRealtimeSubscription() {
@@ -1456,8 +1508,9 @@ function setupRealtimeSubscription() {
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'supplement_tracking' },
             (payload) => {
-                console.log('⚡ Scan mới:', payload.new?.rpro);
-                scheduleThrottledRefresh(); // Gom nhiều events vào 1 lần fetch
+                if (payload.new) {
+                    applyIncrementalScan(payload.new);
+                }
             }
         )
         .subscribe();
