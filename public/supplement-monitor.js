@@ -1434,15 +1434,30 @@ window.deleteRecord = async (id) => {
 btnCloseModal.addEventListener('click', () => detailModal.classList.add('hidden'));
 
 // ==================== REALTIME ====================
+// Throttled refresh: chỉ fetch lại tối đa 1 lần/30 giây dù có bao nhiêu event
+// Trước khi fix: 343 scans/ngày → 343 lần fetch → ~345MB/ngày egress
+// Sau khi fix: nhiều scans gom thành 1 lần fetch sau 30s → ~10-20MB/ngày
+let _realtimeRefreshTimer = null;
+const REALTIME_THROTTLE_MS = 30000; // 30 giây
+
+function scheduleThrottledRefresh() {
+    if (_realtimeRefreshTimer) return; // Đã có timer chờ, bỏ qua
+    _realtimeRefreshTimer = setTimeout(() => {
+        _realtimeRefreshTimer = null;
+        console.log('⚡ Realtime: Refresh sau 30s throttle');
+        fetchProgressData();
+    }, REALTIME_THROTTLE_MS);
+}
+
 function setupRealtimeSubscription() {
     const channel = supabase
         .channel('supplement_tracking_monitor')
         .on(
             'postgres_changes',
-            { event: '*', schema: 'public', table: 'supplement_tracking' },
+            { event: 'INSERT', schema: 'public', table: 'supplement_tracking' },
             (payload) => {
-                console.log('⚡ Event:', payload);
-                fetchProgressData();
+                console.log('⚡ Scan mới:', payload.new?.rpro);
+                scheduleThrottledRefresh(); // Gom nhiều events vào 1 lần fetch
             }
         )
         .subscribe();
