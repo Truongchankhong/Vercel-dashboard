@@ -1176,9 +1176,7 @@ window.exportToExcel = async () => {
         const toLocalDate = (dateVal) => {
             if (!dateVal) return null;
             const d = new Date(dateVal);
-            if (isNaN(d.getTime())) return null;
-            // Shift date to local time to prevent UTC conversion shift in SheetJS
-            return new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+            return isNaN(d.getTime()) ? null : d;
         };
 
         const parseToLocalDate = (val) => {
@@ -1190,9 +1188,7 @@ window.exportToExcel = async () => {
             } else {
                 d = new Date(val);
             }
-            if (isNaN(d.getTime())) return null;
-            // Shift date to local time to prevent UTC conversion shift in SheetJS
-            return new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+            return isNaN(d.getTime()) ? null : d;
         };
 
         const exportData = filtered.map(item => {
