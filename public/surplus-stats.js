@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient.js';
 let dayChart = null;
 let brandChart = null;
 let sectionChart = null;
+let inOutChart = null;
 let currentSection = 'ALL';
 
 document.addEventListener('DOMContentLoaded', init);
@@ -35,9 +36,13 @@ function setupFilters() {
 }
 
 async function refreshStats() {
-    const data = await fetchFilteredSurplusData();
-    if (data && data.length > 0) {
-        processAndRender(data);
+    const [data, historyData] = await Promise.all([
+        fetchFilteredSurplusData(),
+        fetchFilteredHistoryData()
+    ]);
+    
+    if ((data && data.length > 0) || (historyData && historyData.length > 0)) {
+        processAndRender(data, historyData);
     } else {
         clearStats();
     }
@@ -64,17 +69,38 @@ async function fetchFilteredSurplusData() {
     return data;
 }
 
+async function fetchFilteredHistoryData() {
+    let query = supabase.from('surplusgoods_history')
+        .select('id, rpro, section, action_type, old_total, new_total, change_amount, created_at')
+        .order('created_at', { ascending: true });
+
+    if (currentSection !== 'ALL') {
+        query = query.eq('section', currentSection);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+        console.error("Error fetching history data:", error);
+        return [];
+    }
+    return data;
+}
+
 function clearStats() {
     document.getElementById('stat-total-qty').textContent = "0";
+    document.getElementById('stat-total-in').textContent = "+0";
+    document.getElementById('stat-total-out').textContent = "-0";
     document.getElementById('stat-total-orders').textContent = "0";
     document.getElementById('stat-top-brand').textContent = "-";
     if (dayChart) dayChart.destroy();
     if (brandChart) brandChart.destroy();
     if (sectionChart) sectionChart.destroy();
+    if (inOutChart) inOutChart.destroy();
     document.getElementById('top-orders-table').innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400 italic">Không có dữ liệu cho mục này</td></tr>`;
 }
 
-function processAndRender(data) {
+function processAndRender(data, historyData = []) {
     const dailyIncrease = {};
     const statsByBrand = {};
     const topOrders = [];
@@ -82,7 +108,7 @@ function processAndRender(data) {
     let totalQty = 0;
     const statsBySection = {};
 
-    data.forEach(item => {
+    (data || []).forEach(item => {
         // Calculate Total Qty for this item
         let itemTotal = 0;
         Object.keys(item).forEach(k => {
@@ -141,23 +167,131 @@ function processAndRender(data) {
         statsByDay[`${d}/${m}/${y}`] = cumulative;
     });
 
+    // --- Xử lý dữ liệu Lịch sử Nhập/Xuất ---
+    let totalIn = 0;
+    let totalOut = 0;
+    const dailyIn = {};
+    const dailyOut = {};
+
+    (historyData || []).forEach(item => {
+        const change = item.change_amount || 0;
+        const dateObj = new Date(item.created_at);
+        const yyyy = dateObj.getFullYear();
+        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+
+        if (change > 0) {
+            totalIn += change;
+            dailyIn[dateStr] = (dailyIn[dateStr] || 0) + change;
+        } else if (change < 0) {
+            const absChange = Math.abs(change);
+            totalOut += absChange;
+            dailyOut[dateStr] = (dailyOut[dateStr] || 0) + absChange;
+        }
+    });
+
     // Update Summary Cards
     document.getElementById('stat-total-qty').textContent = totalQty.toLocaleString();
-    document.getElementById('stat-total-orders').textContent = data.length.toLocaleString();
+    document.getElementById('stat-total-in').textContent = "+" + totalIn.toLocaleString();
+    document.getElementById('stat-total-out').textContent = "-" + totalOut.toLocaleString();
+    document.getElementById('stat-total-orders').textContent = (data || []).length.toLocaleString();
 
     const sortedBrands = Object.entries(statsByBrand).sort((a, b) => b[1] - a[1]);
     document.getElementById('stat-top-brand').textContent = sortedBrands[0] ? sortedBrands[0][0] : '-';
 
     renderDayChart(statsByDay);
+    renderInOutChart(dailyIn, dailyOut);
     renderBrandChart(statsByBrand);
     renderSectionChart(statsBySection);
     renderTopTable(topOrders);
 
-    // Hide section chart when filtering by specific section
+    // Hide section chart when filtering by specific section, and adjust grid layout
     const sectionChartContainer = document.getElementById('section-chart-container');
-    if (sectionChartContainer) {
-        sectionChartContainer.style.display = currentSection === 'ALL' ? '' : 'none';
+    const breakdownGrid = document.getElementById('breakdown-grid');
+    if (sectionChartContainer && breakdownGrid) {
+        if (currentSection === 'ALL') {
+            sectionChartContainer.style.display = '';
+            breakdownGrid.classList.add('lg:grid-cols-2');
+        } else {
+            sectionChartContainer.style.display = 'none';
+            breakdownGrid.classList.remove('lg:grid-cols-2');
+        }
     }
+}
+
+function renderInOutChart(dailyIn, dailyOut) {
+    const ctx = document.getElementById('chart-in-out-flow').getContext('2d');
+    
+    // Hợp nhất và sắp xếp tất cả các ngày có phát sinh giao dịch nhập/xuất
+    const allDates = Array.from(new Set([...Object.keys(dailyIn), ...Object.keys(dailyOut)])).sort();
+    
+    const labels = allDates.map(dateStr => {
+        const [y, m, d] = dateStr.split('-');
+        return `${d}/${m}/${y}`;
+    });
+    
+    const inData = allDates.map(dateStr => dailyIn[dateStr] || 0);
+    const outData = allDates.map(dateStr => dailyOut[dateStr] || 0);
+
+    if (inOutChart) inOutChart.destroy();
+
+    inOutChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Nhập vào (+)',
+                    data: inData,
+                    backgroundColor: 'rgba(16, 185, 129, 0.85)', // Emerald
+                    borderColor: '#10b981',
+                    borderWidth: 1,
+                    borderRadius: 6
+                },
+                {
+                    label: 'Lấy ra (-)',
+                    data: outData,
+                    backgroundColor: 'rgba(239, 68, 68, 0.85)', // Rose
+                    borderColor: '#ef4444',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { 
+                    position: 'top', 
+                    labels: { 
+                        usePointStyle: true,
+                        font: { weight: 'bold' } 
+                    } 
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            return ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} đôi`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    grid: { display: false },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString();
+                        }
+                    }
+                },
+                x: { grid: { display: false } }
+            }
+        }
+    });
 }
 
 function renderDayChart(stats) {

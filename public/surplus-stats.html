@@ -74,57 +74,81 @@
         </div>
 
         <!-- Dashboard Summary Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="glass-card p-8 rounded-[2rem] border-l-8 border-emerald-500 shadow-lg">
-                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Tổng số lượng dôi</p>
-                <h2 id="stat-total-qty" class="text-5xl font-black text-slate-800 tracking-tighter">0</h2>
-                <p class="text-sm font-bold text-emerald-600 mt-2">Tổng tất cả các đơn</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div class="glass-card p-6 rounded-[2rem] border-l-8 border-teal-500 shadow-lg">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Tồn dư thực tế</p>
+                <h2 id="stat-total-qty" class="text-4xl font-black text-slate-800 tracking-tighter">0</h2>
+                <p class="text-xs font-bold text-teal-600 mt-2">Đang có trong kho</p>
             </div>
-            <div class="glass-card p-8 rounded-[2rem] border-l-8 border-sky-500 shadow-lg">
+            <div class="glass-card p-6 rounded-[2rem] border-l-8 border-emerald-500 shadow-lg">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Tổng Nhập (In)</p>
+                <h2 id="stat-total-in" class="text-4xl font-black text-emerald-600 tracking-tighter">+0</h2>
+                <p class="text-xs font-bold text-emerald-600 mt-2">Lũy kế scan vào</p>
+            </div>
+            <div class="glass-card p-6 rounded-[2rem] border-l-8 border-rose-500 shadow-lg">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Tổng Lấy Ra (Out)</p>
+                <h2 id="stat-total-out" class="text-4xl font-black text-rose-600 tracking-tighter">-0</h2>
+                <p class="text-xs font-bold text-rose-600 mt-2">Đã được sử dụng</p>
+            </div>
+            <div class="glass-card p-6 rounded-[2rem] border-l-8 border-sky-500 shadow-lg">
                 <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Tổng số đơn hàng</p>
-                <h2 id="stat-total-orders" class="text-5xl font-black text-slate-800 tracking-tighter">0</h2>
-                <p class="text-sm font-bold text-sky-600 mt-2">Đã được ghi nhận</p>
+                <h2 id="stat-total-orders" class="text-4xl font-black text-slate-800 tracking-tighter">0</h2>
+                <p class="text-xs font-bold text-sky-600 mt-2">Đã được ghi nhận</p>
             </div>
-            <div class="glass-card p-8 rounded-[2rem] border-l-8 border-indigo-500 shadow-lg">
-                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Brand hoạt động nhất</p>
-                <h2 id="stat-top-brand" class="text-4xl font-black text-slate-800 tracking-tight">-</h2>
-                <p class="text-sm font-bold text-indigo-600 mt-2">Đang có nhiều hàng dư nhất</p>
+            <div class="glass-card p-6 rounded-[2rem] border-l-8 border-indigo-500 shadow-lg">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Brand nổi bật</p>
+                <h2 id="stat-top-brand" class="text-3xl font-black text-slate-800 tracking-tight">-</h2>
+                <p class="text-xs font-bold text-indigo-600 mt-2">Nhiều hàng dư nhất</p>
             </div>
         </div>
 
-        <!-- Charts Container -->
+        <!-- Row 1: Time Series Charts -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Chart 1: Qty by Day -->
+            <!-- Chart 1: Qty by Day (Cumulative) -->
             <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
                 <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
                     <span class="w-2 h-8 bg-indigo-500 rounded-full"></span>
-                    XU HƯỚNG THEO NGÀY
+                    XU HƯỚNG TỒN LŨY KẾ
                 </h3>
                 <div class="h-[350px]">
                     <canvas id="chart-by-day"></canvas>
                 </div>
             </div>
 
-            <!-- Chart 2: Qty by Brand -->
+            <!-- Chart 2: In/Out Daily Flow -->
             <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
                 <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
                     <span class="w-2 h-8 bg-emerald-500 rounded-full"></span>
+                    BIẾN ĐỘNG NHẬP / XUẤT HÀNG NGÀY
+                </h3>
+                <div class="h-[350px]">
+                    <canvas id="chart-in-out-flow"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Breakdown Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8" id="breakdown-grid">
+            <!-- Chart 3: Qty by Brand -->
+            <div class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
+                <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                    <span class="w-2 h-8 bg-amber-500 rounded-full"></span>
                     TỶ LỆ THEO BRAND CODE
                 </h3>
                 <div class="h-[350px]">
                     <canvas id="chart-by-brand"></canvas>
                 </div>
             </div>
-        </div>
 
-        <!-- Chart 3: By Section (only visible on ALL) -->
-        <div id="section-chart-container" class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
-            <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
-                <span class="w-2 h-8 bg-purple-500 rounded-full"></span>
-                TỶ LỆ THEO SECTION
-            </h3>
-            <div class="h-[350px]">
-                <canvas id="chart-by-section"></canvas>
+            <!-- Chart 4: By Section (only visible on ALL) -->
+            <div id="section-chart-container" class="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
+                <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                    <span class="w-2 h-8 bg-purple-500 rounded-full"></span>
+                    TỶ LỆ THEO SECTION
+                </h3>
+                <div class="h-[350px]">
+                    <canvas id="chart-by-section"></canvas>
+                </div>
             </div>
         </div>
 
