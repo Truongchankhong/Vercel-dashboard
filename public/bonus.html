@@ -837,7 +837,34 @@
             } else {
                 amountEl.textContent = '0 VND';
             }
+
+            // Adjust input font sizes based on text length to prevent truncation
+            adjustAllInputFontSizes();
         }
+
+        function adjustAllInputFontSizes() {
+            const inputs = document.querySelectorAll('.input-premium');
+            inputs.forEach(input => {
+                if (input.tagName.toLowerCase() === 'input' && !input.classList.contains('bonus-note')) {
+                    const length = input.value.trim().length;
+                    if (window.innerWidth > 768) {
+                        if (length > 11) {
+                            input.style.fontSize = '0.85rem';
+                        } else if (length > 9) {
+                            input.style.fontSize = '1.0rem';
+                        } else if (length > 7) {
+                            input.style.fontSize = '1.15rem';
+                        } else {
+                            input.style.fontSize = '1.4rem';
+                        }
+                    } else {
+                        input.style.fontSize = ''; // keep mobile CSS defaults
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('resize', adjustAllInputFontSizes);
 
         // Set default month to current
         const now = new Date();
