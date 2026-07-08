@@ -1234,16 +1234,25 @@ window.exportToExcel = async () => {
             };
 
             let combinedNotes = [];
+            let hasHbkd = false;
             ['Dán', 'Cắt', 'Molding', 'DC', 'Molded'].forEach(stage => {
                 const data = item.stages[stage];
                 const displayName = stageNames[stage];
                 row[`${displayName} - IN Time`] = data.in ? toLocalDate(data.in.time) : null;
                 row[`${displayName} - OUT Time`] = data.out ? toLocalDate(data.out.time) : null;
                 if (data.note && data.note.trim() !== '') {
-                    combinedNotes.push(`${stage}: ${data.note.trim()}`);
+                    const trimmedNote = data.note.trim();
+                    if (trimmedNote.toUpperCase().includes('HBKD') || trimmedNote.toUpperCase().includes('HBKĐ')) {
+                        hasHbkd = true;
+                    }
+                    combinedNotes.push(`${stage}: ${trimmedNote}`);
                 }
             });
-            row['Note'] = combinedNotes.join('\n');
+            if (hasHbkd) {
+                row['Note'] = 'HBKĐ';
+            } else {
+                row['Note'] = combinedNotes.join('\n');
+            }
             row['Finish Date (PPC)'] = parseToLocalDate(item.finish_date);
             row['Leadtime'] = leadtime;
             return row;
