@@ -541,17 +541,28 @@ async function exportToExcel() {
 
 // ================= RPRO SCAN LOGIC ================= //
 
-async function handleNewRproScan(rawText) {
-  let cleanText = (rawText || "").trim().toUpperCase();
-  let rpro = "";
+function extractSuffixAndClean(text) {
+  if (!text) return { cleanText: "", suffix: "" };
+  let cleanText = text.trim();
+  let suffix = "";
 
   if (cleanText.includes('|')) {
     const parts = cleanText.split('|');
-    const found = parts.find(p => p.trim().toUpperCase().startsWith('RPRO'));
-    rpro = found ? found.trim().toUpperCase() : cleanText;
-  } else {
-    rpro = cleanText;
+    const rproIndex = parts.findIndex(p => p.toUpperCase().includes('RPRO'));
+    if (rproIndex !== -1) {
+      cleanText = parts[rproIndex].trim();
+      suffix = parts.filter((_, idx) => idx !== rproIndex).map(p => p.trim()).join('|');
+    } else {
+      cleanText = parts[0].trim();
+      suffix = parts.slice(1).map(p => p.trim()).join('|');
+    }
   }
+  return { cleanText, suffix };
+}
+
+async function handleNewRproScan(rawText) {
+  const { cleanText: parsedRpro, suffix } = extractSuffixAndClean(rawText || "");
+  let rpro = parsedRpro.toUpperCase();
 
   // Chuẩn hóa RPRO: Loại bỏ prefix cũ và thêm lại chuẩn RPRO-
   rpro = rpro.replace(/^RPRO-+/i, '').replace(/^RPRO/i, '');
@@ -657,6 +668,16 @@ async function handleNewRproScan(rawText) {
     // Nếu là đơn làm lại, cập nhật remark2
     if (isRedo) {
       dataToCopy.remark2 = `Đơn làm lại lần thứ ${redoCount + 1}`;
+    }
+
+    if (suffix) {
+      if (dataToCopy.remark) {
+        if (!dataToCopy.remark.includes(suffix)) {
+          dataToCopy.remark = dataToCopy.remark + ' ' + suffix;
+        }
+      } else {
+        dataToCopy.remark = suffix;
+      }
     }
 
     // Insert as a NEW record

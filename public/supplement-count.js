@@ -128,14 +128,28 @@ async function stopCamera() {
 async function onCameraScanSuccess(decodedText) {
     if (isProcessing) return;
 
-    const rproMatches = decodedText.match(/RPRO-[\d-]+/g);
+    const rproMatches = decodedText.match(/RPRO-[\d-]+(?:\|[^,\s\)]+)?/gi);
     if (rproMatches && rproMatches.length > 1) {
         showMultiRproConfirmation(rproMatches, "CAMERA", "");
     } else {
-        const code = (rproMatches && rproMatches.length === 1) ? rproMatches[0] : decodedText.trim().toUpperCase();
-        if (!code) return;
+        const rawCode = (rproMatches && rproMatches.length === 1) ? rproMatches[0] : decodedText.trim();
+        if (!rawCode) return;
+
+        const { cleanText: code, suffix } = extractSuffixAndClean(rawCode);
 
         if (manualRproInput) manualRproInput.value = code;
+        
+        if (suffix && manualNoteInput) {
+            const currentNote = manualNoteInput.value.trim();
+            if (currentNote) {
+                if (!currentNote.includes(suffix)) {
+                    manualNoteInput.value = currentNote + ' ' + suffix;
+                }
+            } else {
+                manualNoteInput.value = suffix;
+            }
+        }
+
         const status = await fetchDetails(code);
 
         stopCamera();
@@ -155,6 +169,25 @@ async function onCameraScanSuccess(decodedText) {
             setTimeout(() => handleManualSave(true), 800);
         }
     }
+}
+
+function extractSuffixAndClean(text) {
+    if (!text) return { cleanText: "", suffix: "" };
+    let cleanText = text.trim();
+    let suffix = "";
+
+    if (cleanText.includes('|')) {
+        const parts = cleanText.split('|');
+        const rproIndex = parts.findIndex(p => p.toUpperCase().includes('RPRO'));
+        if (rproIndex !== -1) {
+            cleanText = parts[rproIndex].trim();
+            suffix = parts.filter((_, idx) => idx !== rproIndex).map(p => p.trim()).join('|');
+        } else {
+            cleanText = parts[0].trim();
+            suffix = parts.slice(1).map(p => p.trim()).join('|');
+        }
+    }
+    return { cleanText, suffix };
 }
 
 function normalizeRPRO(text) {
@@ -384,7 +417,8 @@ function showMultiRproConfirmation(matches, mode, note) {
 }
 
 async function processRPRO(text, mode, note = '', isInBatch = false) {
-    const rpro = normalizeRPRO(text);
+    const { cleanText, suffix } = extractSuffixAndClean(text);
+    const rpro = normalizeRPRO(cleanText);
     if (!isInBatch) isProcessing = true;
 
     if (rpro === 'RPRO-' || rpro.length < 8) {
@@ -397,6 +431,16 @@ async function processRPRO(text, mode, note = '', isInBatch = false) {
     try {
         const quantity = parseInt(inputQty.value) || 1;
         let finalNote = note || (manualNoteInput ? manualNoteInput.value.trim() : '');
+
+        if (suffix) {
+            if (finalNote) {
+                if (!finalNote.includes(suffix)) {
+                    finalNote = finalNote + ' ' + suffix;
+                }
+            } else {
+                finalNote = suffix;
+            }
+        }
 
         const insertRecord = {
             rpro,
@@ -498,19 +542,34 @@ async function handleManualSave(forceSave = false) {
     const val = manualRproInput.value.trim().toUpperCase();
     if (!val) return;
 
+    const { cleanText: code, suffix } = extractSuffixAndClean(val);
+    if (suffix) {
+        manualRproInput.value = code;
+        if (manualNoteInput) {
+            const currentNote = manualNoteInput.value.trim();
+            if (currentNote) {
+                if (!currentNote.includes(suffix)) {
+                    manualNoteInput.value = currentNote + ' ' + suffix;
+                }
+            } else {
+                manualNoteInput.value = suffix;
+            }
+        }
+    }
+
     const isAutoSave = autoSaveCheckbox ? autoSaveCheckbox.checked : false;
 
     showFeedback("🔍 Đang tìm thông tin đơn hàng...", "text-blue-500");
-    await fetchDetails(val);
+    await fetchDetails(code);
 
     if (!forceSave && !isAutoSave) {
         // Just fetched, do not save yet
-        showFeedback(`✅ Đã tìm thấy: ${val}. Vui lòng kiểm tra và NHẤN LƯU!`, "text-blue-600");
+        showFeedback(`✅ Đã tìm thấy: ${code}. Vui lòng kiểm tra và NHẤN LƯU!`, "text-blue-600");
         return;
     }
 
     const note = manualNoteInput ? manualNoteInput.value.trim() : '';
-    await processRPRO(val, "MANUAL", note);
+    await processRPRO(code, "MANUAL", note);
     manualRproInput.value = "";
 }
 
@@ -799,7 +858,7 @@ async function handleBatchImport() {
     }
 
     // Extract all RPRO codes using regex
-    const rproMatches = text.match(/RPRO-?[\d-]+/gi) || [];
+    const rproMatches = text.match(/RPRO-?[\d-]+(?:\|[^,\s\)]+)?/gi) || [];
     if (rproMatches.length === 0) {
         showToast("❌ Không tìm thấy mã RPRO hợp lệ nào!", "error");
         return;
@@ -818,14 +877,26 @@ async function handleBatchImport() {
     showToast(`🔄 Đang phân tích ${rproMatches.length} đơn hàng...`, "success");
 
     for (const rawCode of rproMatches) {
-        const code = normalizeRPRO(rawCode);
+        const { cleanText: code, suffix } = extractSuffixAndClean(rawCode);
+        const normalized = normalizeRPRO(code);
 
-        const status = await fetchDetails(code);
+        const status = await fetchDetails(normalized);
+
+        let batchNote = manualNoteInput ? manualNoteInput.value.trim() : '';
+        if (suffix) {
+            if (batchNote) {
+                if (!batchNote.includes(suffix)) {
+                    batchNote = batchNote + ' ' + suffix;
+                }
+            } else {
+                batchNote = suffix;
+            }
+        }
 
         const item = {
-            rpro: code,
+            rpro: normalized,
             quantity: parseInt(inputQty.value) || 1,
-            note: manualNoteInput.value.trim(),
+            note: batchNote,
             pu_sheets: (activeSection === 'Dán' && inputPuSheets) ? parseInt(inputPuSheets.value) : null,
             status: status
         };
