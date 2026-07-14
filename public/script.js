@@ -663,7 +663,12 @@ async function exportProgressToExcel() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Progress");
 
     const dateStr = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(workbook, `Progress_Export_${dateStr}.xlsx`);
+    const fileName = `Progress_Export_${dateStr}.xlsx`;
+    if (window.saveExcelFile) {
+        await window.saveExcelFile(workbook, fileName);
+    } else {
+        XLSX.writeFile(workbook, fileName);
+    }
 
   } catch (err) {
     console.error('[exportProgress error]', err);

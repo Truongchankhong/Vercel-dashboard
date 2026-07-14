@@ -9,6 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
+    <script src="./desktop-helper.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -79,7 +80,7 @@
                         Excel
                     </button>
                 </div>
-                <button onclick="window.location.href='https://vercel-dashboard-new.vercel.app/surplus-landing.html'"
+                <button onclick="window.location.href='surplus-landing.html'"
                     class="px-4 py-2.5 bg-white text-slate-600 hover:bg-slate-50 font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-2 shadow-sm">
                     🏠
                 </button>
@@ -449,7 +450,12 @@
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "SURPLUS_DASHBOARD");
-            XLSX.writeFile(wb, `Surplus_Dashboard_${dateStr}.xlsx`);
+            const fileName = `Surplus_Dashboard_${dateStr}.xlsx`;
+            if (window.saveExcelFile) {
+                await window.saveExcelFile(wb, fileName);
+            } else {
+                XLSX.writeFile(wb, fileName);
+            }
         };
 
         if (document.getElementById('btn-export-excel')) {

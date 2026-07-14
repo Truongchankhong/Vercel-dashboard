@@ -2453,9 +2453,12 @@ window.exportInOutHistoryExcel = () => {
 
         const rproName = (currentHistoryDataForExport[0].rpro || 'Unknown').replace(/[^a-zA-Z0-9-]/g, '_');
         const fileName = `Lich_Su_${rproName}.xlsx`;
-        XLSX.writeFile(workbook, fileName);
-
-        showToast("✅ Đã xuất file Excel!", "success");
+        if (window.saveExcelFile) {
+            await window.saveExcelFile(workbook, fileName, showToast);
+        } else {
+            XLSX.writeFile(workbook, fileName);
+            showToast("✅ Đã xuất file Excel!", "success");
+        }
     } catch (err) {
         console.error(err);
         showToast("❌ Lỗi xuất Excel: " + err.message, "error");
@@ -2587,9 +2590,12 @@ async function exportSurplusExcel() {
         XLSX.utils.book_append_sheet(workbook, worksheet, "Surplus_Goods");
 
         const fileName = `Surplus_Goods_${start}_den_${end}.xlsx`;
-        XLSX.writeFile(workbook, fileName);
-
-        showToast("✅ Đã tải file Excel thành công!", "success");
+        if (window.saveExcelFile) {
+            await window.saveExcelFile(workbook, fileName, showToast);
+        } else {
+            XLSX.writeFile(workbook, fileName);
+            showToast("✅ Đã tải file Excel thành công!", "success");
+        }
     } catch (err) {
         console.error(err);
         showToast("❌ Lỗi xuất Excel: " + err.message, "error");

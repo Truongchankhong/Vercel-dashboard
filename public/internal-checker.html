@@ -358,6 +358,7 @@
 
     <!-- SheetJS (Excel) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="./desktop-helper.js"></script>
     <!-- html5-qrcode -->
     <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
     <!-- Supabase JS Client -->
@@ -1514,9 +1515,12 @@
                 XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.substring(0, 31)); // sheetname limit 31 chars
                 
                 // Save File
-                const filename = `Internal_Checker_${currentTab}_${new Date().toISOString().slice(0, 10)}.xlsx`;
-                XLSX.writeFile(workbook, filename);
-                showToast("📗 Tải file Excel thành công!", "success");
+                if (window.saveExcelFile) {
+                    await window.saveExcelFile(workbook, filename, showToast);
+                } else {
+                    XLSX.writeFile(workbook, filename);
+                    showToast("📗 Tải file Excel thành công!", "success");
+                }
             } catch (err) {
                 console.error("Export error:", err);
                 showToast("❌ Lỗi khi xuất Excel: " + err.message, "error");

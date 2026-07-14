@@ -106,6 +106,7 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="./desktop-helper.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import { supabase } from './supabaseClient.js';
@@ -232,7 +233,11 @@
 
             // Build filename with date range
             const filename = `Bao_cao_Bu_hang_${dateFromInput.value}_den_${dateToInput.value}.xlsx`;
-            XLSX.writeFile(workbook, filename);
+            if (window.saveExcelFile) {
+                await window.saveExcelFile(workbook, filename);
+            } else {
+                XLSX.writeFile(workbook, filename);
+            }
         }
 
         function renderReport(data) {

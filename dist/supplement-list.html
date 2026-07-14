@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh sách Bù hàng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-6">
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-lg">
+        <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4 mb-6">
+            <h1 class="text-2xl font-bold">Danh sách đã scan</h1>
+
+            <div class="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
+                <!-- Date Group -->
+                <div
+                    class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border flex-1 sm:flex-none justify-between">
+                    <input type="date" id="date-start"
+                        class="bg-transparent text-sm font-bold text-gray-700 outline-none px-1">
+                    <span class="text-gray-400">→</span>
+                    <input type="date" id="date-end"
+                        class="bg-transparent text-sm font-bold text-gray-700 outline-none px-1">
+                </div>
+
+                <!-- Search Input -->
+                <div class="relative flex-1 sm:min-w-[200px]">
+                    <input type="text" id="search-input" placeholder="🔍 Tìm mã RPRO..."
+                        class="w-full pl-3 pr-10 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase shadow-sm">
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-2">
+                    <button id="btn-refresh"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition shadow-md text-sm font-bold active:scale-95">
+                        🔄 Xem
+                    </button>
+                    <button onclick="window.location.href='index.html'"
+                        class="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition shadow-md text-sm font-bold active:scale-95">
+                        ← Quay lại
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto max-h-[80vh] overflow-y-auto shadow-md rounded-lg border border-gray-200">
+            <table class="min-w-full bg-white border">
+                <thead class="bg-gray-200 sticky top-0 z-20">
+                    <tr>
+                        <th class="px-4 py-2 border">Thời gian</th>
+                        <th class="px-4 py-2 border sticky left-0 z-30 bg-gray-200 drop-shadow-md">RPRO</th>
+                        <th class="px-4 py-2 border">SO</th>
+                        <th class="px-4 py-2 border">Khách hàng</th>
+                        <th class="px-4 py-2 border">Gender</th>
+                        <th class="px-4 py-2 border">PU</th>
+                        <th class="px-4 py-2 border">Fabric</th>
+                        <th class="px-4 py-2 border">BOM</th>
+                        <th class="px-4 py-2 border">Tổng Qty</th>
+                        <th class="px-4 py-2 border">Ghi chú</th>
+                        <th class="px-4 py-2 border">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="list-body">
+                    <!-- Data rows will be injected here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./supabaseClient.js"></script>
+    <script type="module" src="./supplement-list.js"></script>
+    <script type="module" src="./supplement-list.js"></script>
+    <script src="./chatbot.js"></script>
+</body>
+
+</html>

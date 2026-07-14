@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotmelt Tracking - Dashboard & Scan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        emerald: { 400: '#34d399', 500: '#10b981', 600: '#059669' },
+                        rose: { 500: '#f43f5e', 400: '#fb7185', 200: '#fecdd3' }
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <style>
+        :root {
+            --bg-main: #f8fafc;
+            --bg-card: rgba(255, 255, 255, 0.95);
+            --bg-header: #ffffff;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --border: #e2e8f0;
+            --accent: #ef4444;
+            --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .dark {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --bg-header: #1e293b;
+            --text-main: #f1f5f9;
+            --text-sub: #94a3b8;
+            --border: #334155;
+            --accent: #f43f5e;
+            --card-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+        }
+
+        body { background-color: var(--bg-main); color: var(--text-main); transition: background-color 0.3s, color 0.3s; }
+        header { background-color: var(--bg-header) !important; border-color: var(--border) !important; }
+        
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-btn {
+            color: #64748b;  /* slate-500 default */
+            border-bottom: 3px solid transparent;
+        }
+        .tab-btn.active {
+            border-bottom: 3px solid var(--accent);
+            color: var(--accent);
+            font-weight: 900;
+        }
+        /* Dark mode: inactive tabs clearly visible */
+        .dark .tab-btn { color: #94a3b8; }
+        .dark .tab-btn:hover { color: #cbd5e1; }
+        .dark .tab-btn.active { color: var(--accent); }
+
+        input, select, table, th, td {
+            background-color: var(--bg-card) !important;
+            color: var(--text-main) !important;
+            border-color: var(--border) !important;
+        }
+
+        .dark .bg-white { background-color: #1e293b !important; border-color: #334155 !important; }
+        .dark .bg-slate-50 { background-color: #0f172a !important; border-color: #334155 !important; }
+        .dark .bg-slate-100 { background-color: #334155 !important; }
+        .dark .table-hover:hover { background-color: #334155 !important; }
+        .dark .text-slate-800 { color: #f1f5f9 !important; }
+        .dark .text-slate-700 { color: #e2e8f0 !important; }
+        .dark .text-slate-600 { color: #cbd5e1 !important; }
+        .dark .text-slate-500 { color: #94a3b8 !important; }
+        .dark .text-slate-400 { color: #64748b !important; }
+        .dark .border-slate-200, .dark .border-slate-100 { border-color: #334155 !important; }
+        .dark .check-brand-chip { background-color: #1e293b !important; border-color: #334155 !important; color: #94a3b8 !important; }
+        .dark .check-brand-chip.chip-active { background-color: #ef4444 !important; border-color: #ef4444 !important; color: #fff !important; }
+
+        /* ─── Loading Skeleton ─── */
+        @keyframes shimmer {
+            0%   { background-position: -800px 0; }
+            100% { background-position: 800px 0; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+            background-size: 800px 100%;
+            animation: shimmer 1.4s infinite;
+            border-radius: 12px;
+        }
+        .dark .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 800px 100%;
+        }
+
+        /* ─── Full-page loading overlay ─── */
+        #page-loading-overlay {
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(248,250,252,0.92);
+            backdrop-filter: blur(4px);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.4s ease;
+        }
+        .dark #page-loading-overlay { background: rgba(15,23,42,0.92); }
+        #page-loading-overlay.fade-out { opacity: 0; pointer-events: none; }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+        #scanner-input-overlay { position: fixed; top: -9999px; left: -9999px; opacity: 0; }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 min-h-screen font-sans">
+    <!-- Navbar/Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="px-6 lg:px-12 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg text-white shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-tight text-slate-800">HOTMELT <span class="text-red-600">TRACKING</span></h1>
+                    <p class="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Realtime Production System</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <!-- Theme Toggle -->
+                <button id="theme-toggle" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition dark:bg-slate-800 dark:hover:bg-slate-700">
+                    <svg id="theme-sun" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-500 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <svg id="theme-moon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
+
+                <!-- Language Toggle -->
+                <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl items-center mr-2">
+                    <button id="lang-vi" onclick="setLanguage('vi')" class="px-3 py-1 rounded-lg text-[10px] font-black transition-all duration-300 bg-white text-red-600 shadow-sm dark:bg-slate-700 dark:text-red-400">VI</button>
+                    <button id="lang-en" onclick="setLanguage('en')" class="px-3 py-1 rounded-lg text-[10px] font-black transition-all duration-300 text-slate-400">EN</button>
+                </div>
+                
+                <button onclick="window.location.href='index.html'" class="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition dark:text-slate-300 dark:hover:bg-slate-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span data-i18n="back">BACK</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mode Indicator (Visible when linked directly) -->
+        <div id="mode-badge" class="hidden px-6 py-2 bg-slate-800 text-white text-[10px] font-black uppercase tracking-[0.2em] text-center">
+            Mode: <span id="current-mode-text">Viewer</span>
+        </div>
+    </header>
+
+    <!-- Full-page Loading Overlay -->
+    <div id="page-loading-overlay">
+        <div class="flex flex-col items-center gap-5">
+            <!-- Animated logo -->
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-xl shadow-red-200 animate__animated animate__pulse animate__infinite">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <!-- Spinner -->
+            <div class="relative w-12 h-12">
+                <div class="absolute inset-0 border-4 border-slate-200 dark:border-slate-700 rounded-full"></div>
+                <div class="absolute inset-0 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <div class="text-center">
+                <p id="loading-text" class="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-widest">Đang tải dữ liệu...</p>
+                <p class="text-[10px] text-slate-400 mt-1 font-bold">Loading production data...</p>
+            </div>
+            <!-- Skeleton bars -->
+            <div class="flex flex-col gap-2 w-64">
+                <div class="skeleton h-3 w-full"></div>
+                <div class="skeleton h-3 w-4/5"></div>
+                <div class="skeleton h-3 w-3/5"></div>
+            </div>
+        </div>
+    </div>
+
+    <main class="w-full px-6 lg:px-12 py-8">
+        <div class="flex gap-4 mb-8 border-b border-slate-200 dark:border-slate-700 overflow-x-auto no-scrollbar">
+            <button id="tab-dashboard" class="tab-btn active px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap transition-all duration-300" onclick="switchTab('dashboard')">
+                📊 <span data-i18n="tab_dashboard">DASHBOARD</span>
+            </button>
+            <button id="tab-check" class="tab-btn px-6 py-4 text-sm font-black flex items-center gap-2 whitespace-nowrap transition-all duration-300" onclick="switchTab('check')">
+                🔍 <span data-i18n="tab_check">CHECK ĐƠN</span>
+            </button>
+        </div>
+
+        <div id="content-check" class="animate__animated animate__fadeIn hidden">
+            <!-- Check Order Card — lives permanently in this tab -->
+            <div id="check-order-card-source" class="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl overflow-hidden mb-6">
+                <div class="flex flex-col md:flex-row justify-between items-start lg:items-center gap-8">
+                    <div class="flex-1 w-full">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 text-white flex items-center justify-center shadow-lg shadow-red-200">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest leading-none" data-i18n="check_title">CHECK ĐƠN THEO BRAND</h3>
+                                <p class="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-tighter" data-i18n="check_sub">Phân tích sản lượng PO thực tế từ PowerApp</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                            <div class="flex justify-between items-center mb-3">
+                                <div>
+                                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest" data-i18n="check_select_brand">Chọn Brand:</span>
+                                    <span class="text-[9px] text-slate-400 ml-2" data-i18n="check_hint">(Nhấn vào từng Brand để chọn)</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="toggleAllBrandsCheck(true)" class="px-3 py-1 bg-white border border-slate-200 text-[9px] font-black rounded-lg hover:bg-slate-100 transition uppercase shadow-sm" data-i18n="check_all">TẤT CẢ</button>
+                                    <button onclick="toggleAllBrandsCheck(false)" class="px-3 py-1 bg-white border border-slate-200 text-[9px] font-black rounded-lg hover:bg-slate-100 transition uppercase shadow-sm" data-i18n="check_clear">BỎ CHỌN</button>
+                                </div>
+                            </div>
+                            <div id="check-brand-chips" class="flex flex-wrap gap-2 min-h-[36px]">
+                                <span class="text-xs text-slate-300 italic self-center">Đang tải danh sách brand...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full md:w-auto flex-shrink-0">
+                        <div class="w-full md:w-56 p-6 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl shadow-xl shadow-emerald-200 text-white relative overflow-hidden group">
+                            <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-700"></div>
+                            <p class="text-[9px] font-black uppercase opacity-80 mb-2 tracking-widest" data-i18n="check_running">TỔNG PO ĐANG CHẠY</p>
+                            <div class="flex items-baseline gap-2">
+                                <p id="check-stat-running" class="text-4xl font-black">0</p>
+                                <span class="text-xs font-bold opacity-60">ĐÔI</span>
+                            </div>
+                            <p class="text-[8px] font-bold opacity-60 italic mt-3 pt-2 border-t border-white/20" data-i18n="check_running_sub">Đơn đã bắt đầu Laminating</p>
+                        </div>
+                        <div class="w-full md:w-56 p-6 bg-gradient-to-br from-slate-700 to-slate-900 rounded-3xl shadow-xl shadow-slate-300 text-white relative overflow-hidden group">
+                            <div class="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-all duration-700"></div>
+                            <p class="text-[9px] font-black uppercase opacity-80 mb-2 tracking-widest" data-i18n="check_pending">TỔNG PO CHƯA CHẠY</p>
+                            <div class="flex items-baseline gap-2">
+                                <p id="check-stat-pending" class="text-4xl font-black">0</p>
+                                <span class="text-xs font-bold opacity-60">ĐÔI</span>
+                            </div>
+                            <p class="text-[8px] font-bold opacity-60 italic mt-3 pt-2 border-t border-white/20" data-i18n="check_pending_sub">Đơn chưa có ghi nhận SX</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mold Pivot Table -->
+            <div id="check-mold-pivot-wrapper" class="hidden mt-6">
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 bg-gradient-to-r from-slate-800 to-slate-900 flex justify-between items-center">
+                        <div>
+                            <h3 class="text-[11px] font-black text-white uppercase tracking-widest">PHÂN TÍCH THEO KHUÔN (#MOLD)</h3>
+                            <p class="text-[9px] text-slate-400 mt-0.5">Pivot: Khuôn × Đang chạy / Chưa chạy</p>
+                        </div>
+                        <span id="check-mold-pivot-count" class="px-2 py-0.5 bg-white/10 text-white text-[9px] font-black rounded-full">0 khuôn</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 bg-slate-50">
+                                    <th class="px-4 py-3 border-r">#MOLD</th>
+                                    <th class="px-4 py-3 border-r text-center text-emerald-600">✅ ĐANG CHẠY</th>
+                                    <th class="px-4 py-3 border-r text-center text-rose-500">⏳ CHƯA CHẠY</th>
+                                    <th class="px-4 py-3 text-center text-slate-500">TỔNG</th>
+                                </tr>
+                            </thead>
+                            <tbody id="check-mold-pivot-body" class="divide-y divide-slate-50 text-[11px]">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Orders Table -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mt-6">
+                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest">DANH SÁCH ĐƠN CHƯA CHẠY HOTMELT</h3>
+                        <p class="text-[10px] text-slate-400 mt-1">Các đơn có cột <span class="font-black text-slate-600">Laminating (Pro)</span> = NULL</p>
+                    </div>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <span id="check-pending-count" class="px-3 py-1 bg-slate-800 text-white text-[10px] font-black rounded-full">0 ĐƠN</span>
+                        <span id="check-pending-total-qty" class="px-3 py-1 bg-red-500 text-white text-[10px] font-black rounded-full">0 ĐÔI</span>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 sticky top-0 z-10">
+                            <tr class="text-[10px] font-black text-slate-400 uppercase tracking-tighter border-b border-slate-100">
+                                <th class="px-3 py-3 border-r w-10">STT</th>
+                                <th class="px-4 py-3 border-r min-w-[160px]">RPRO</th>
+                                <th class="px-4 py-3 border-r min-w-[90px]">BRAND</th>
+                                <th class="px-4 py-3 border-r min-w-[120px] cursor-pointer select-none group" onclick="toggleCheckFilter('mold')">
+                                    <div class="flex items-center gap-1">#MOLD <span class="text-[8px] text-slate-300 group-hover:text-red-400 transition">🔍</span></div>
+                                    <div id="check-filter-mold-wrap" class="hidden mt-1">
+                                        <input id="check-filter-mold" type="text" placeholder="Tìm khuôn..." onclick="event.stopPropagation()" oninput="renderCheckPendingTable()" class="w-full text-[10px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-red-400" />
+                                    </div>
+                                </th>
+                                <th class="px-4 py-3 border-r text-center min-w-[90px]">TOTAL PO</th>
+                                <th class="px-4 py-3 border-r min-w-[180px]">PU DESCRIPTION</th>
+                                <th class="px-4 py-3 border-r min-w-[150px]">FB DESCRIPTION</th>
+                                <th class="px-4 py-3 min-w-[160px] cursor-pointer select-none group" onclick="toggleCheckFilter('date')">
+                                    <div class="flex items-center gap-1">FINISH DATE <span class="text-[8px] text-slate-300 group-hover:text-red-400 transition">🗓</span></div>
+                                    <div id="check-filter-date-wrap" class="hidden mt-1">
+                                        <select id="check-filter-date" onclick="event.stopPropagation()" onchange="renderCheckPendingTable()"
+                                            class="w-full text-[10px] font-bold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:border-red-400 cursor-pointer">
+                                            <option value="">— Tất cả ngày —</option>
+                                        </select>
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="check-pending-table-body" class="text-sm font-bold text-slate-600 divide-y divide-slate-50">
+                            <tr><td colspan="8" class="px-6 py-16 text-center text-slate-300 text-xs italic">Chọn Brand để xem danh sách...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Pagination -->
+                <div id="check-pagination" class="hidden px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-4 bg-slate-50/50">
+                    <span id="check-page-info" class="text-[10px] font-bold text-slate-400"></span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="changeCheckPage(-1)" id="check-btn-prev" class="px-4 py-2 text-[10px] font-black bg-white border border-slate-200 rounded-xl hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition disabled:opacity-30 disabled:pointer-events-none">← TRƯỚC</button>
+                        <div id="check-page-numbers" class="flex gap-1"></div>
+                        <button onclick="changeCheckPage(1)" id="check-btn-next" class="px-4 py-2 text-[10px] font-black bg-white border border-slate-200 rounded-xl hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition disabled:opacity-30 disabled:pointer-events-none">SAU →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="content-dashboard" class="animate__animated animate__fadeIn">
+            <!-- Dashboard Content (Visible) -->
+            <!-- New Horizontal Filter Bar -->
+            <div class="bg-white p-6 rounded-3xl border border-slate-200 mb-8 shadow-sm">
+                <div class="flex flex-wrap items-end gap-4">
+                    <div class="flex-1 min-w-[200px]">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1" data-i18n="filter_time">Thời gian</label>
+                        <div class="relative">
+                            <input type="text" id="date-range-picker" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400" placeholder="Chọn khoảng ngày...">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 min-w-[180px]">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1" data-i18n="filter_brand">Brand Filter</label>
+                        <select id="brand-filter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400">
+                            <option value="all">Tất cả Brand</option>
+                        </select>
+                    </div>
+
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1" data-i18n="filter_mold">#Mold (Lọc khuôn)</label>
+                        <input type="text" id="mold-filter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400" placeholder="Nhập mã khuôn...">
+                    </div>
+
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1" data-i18n="filter_finish">Finish Date</label>
+                        <input type="date" id="finish-date-filter" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-red-400">
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button id="btn-export" class="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition shadow-lg shadow-green-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            EXPORT
+                        </button>
+                        <button id="btn-refresh-dashboard" class="flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm hover:bg-slate-900 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            REFRESH
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Overview Stats (Two Rows) -->
+            <div class="space-y-6 mb-8">
+                <!-- Part 1: Productivity & Volume -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_hotmelt_orders">CÁC ĐƠN ĐÃ SCAN OUT HOTMELT</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-hotmelt-orders" class="text-4xl font-black text-indigo-500">0</span>
+                            <span class="text-[9px] font-bold text-slate-400">ORDERS</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_productivity">NĂNG SUẤT TRUNG BÌNH/H</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-productivity" class="text-4xl font-black text-orange-500">0</span>
+                            <span class="text-[9px] font-bold text-slate-400">P/H</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_avg_daily">SẢN LƯỢNG TRUNG BÌNH/NGÀY</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-avg-daily" class="text-4xl font-black text-blue-500">0</span>
+                            <span class="text-[9px] font-bold text-slate-400" data-i18n="unit">ĐÔI/NGÀY</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_hotmelt_ratio">TỈ LỆ HOTMELT / TỔNG PO</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-hotmelt-ratio" class="text-4xl font-black text-rose-500">0</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">% VOLUME</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Part 2: Workflow & Completion -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_wip">Đang chạy (WIP)</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-wip" class="text-3xl font-black text-slate-800">0</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">ORDERS</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_total_brands">TỔNG BRAND ÁP DỤNG HOTMELT</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-total-brands" class="text-3xl font-black text-emerald-600">0</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">BRANDS</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_out">ĐÃ HOÀN THÀNH LEANLINE</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-total-out" class="text-3xl font-black text-blue-600">0</span>
+                            <span class="text-[9px] font-bold text-slate-400" data-i18n="unit">ĐÔI</span>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-card p-6 rounded-3xl border border-slate-100 flex flex-col justify-center overflow-hidden">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1" data-i18n="stat_rate">Tỷ lệ hoàn thành</p>
+                        <div class="flex items-baseline gap-2">
+                            <span id="stat-completion" class="text-3xl font-black text-slate-800">0%</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                            <div id="stat-completion-bar" class="h-full bg-red-500 transition-all duration-1000" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Charts and Visualization (Row 1) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Brand Analysis Chart -->
+                <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-6 px-2 italic" data-i18n="chart_brand_ratio">PHÂN TÍCH THEO BRAND (%)</h3>
+                    <div class="h-[250px]">
+                        <canvas id="chart-brands"></canvas>
+                    </div>
+                </div>
+
+                <!-- Hotmelt Hourly Productivity Trend -->
+                <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-6 px-2 italic text-indigo-600 dark:text-indigo-400" data-i18n="chart_prod_hourly">BIỂU ĐỒ NĂNG SUẤT HOTMELT (ĐÔI/GIỜ)</h3>
+                    <div class="h-[250px]">
+                        <canvas id="chart-productivity-trend"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts and Visualization (Row 2) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <!-- Productivity by Brand -->
+                <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-6 px-2 italic text-emerald-600 dark:text-emerald-400" data-i18n="chart_brand_prod">NĂNG SUẤT HOTMELT THEO BRAND</h3>
+                    <div class="h-[250px]">
+                        <canvas id="chart-brand-productivity"></canvas>
+                    </div>
+                </div>
+
+                <!-- Production Volume Chart -->
+                <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-6 px-2 italic" data-i18n="chart_prod_finished">SẢN LƯỢNG HOÀN THÀNH LEANLINE (SỐ ĐÔI)</h3>
+                    <div class="h-[250px]">
+                        <canvas id="chart-production"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Table Container -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden border-t-8 border-t-red-500">
+                <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest" data-i18n="table_title">DANH SÁCH CHI TIẾT ĐƠN HÀNG HOTMELT</h3>
+                    <div class="relative w-full sm:w-64">
+                        <input type="text" id="table-search" placeholder="Tìm kiến RPRO/Brand..." data-i18n-placeholder="search_placeholder" class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-red-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 sticky top-0 z-10">
+                            <tr class="text-[10px] font-black text-slate-400 uppercase tracking-tighter border-b border-slate-100">
+                                <th class="px-3 py-4 border-r">STT</th>
+                                <th class="px-4 py-4 border-r min-w-[120px]" data-i18n="col_rpro">THÔNG TIN RPRO</th>
+                                <th class="px-4 py-4 border-r min-w-[100px]" data-i18n="col_brand">BRAND</th>
+                                <th class="px-4 py-4 border-r min-w-[140px]" data-i18n="col_pu">CHI TIẾT PU</th>
+                                <th class="px-4 py-4 border-r min-w-[140px]" data-i18n="col_fb">CHI TIẾT FB</th>
+                                <th class="px-4 py-4 border-r min-w-[130px] text-center relative group bg-slate-50/80 hover:bg-slate-100 transition">
+                                    <div class="flex flex-col items-center justify-center gap-1">
+                                        <div class="flex items-center gap-1 font-black text-slate-500">
+                                            <span>#MOLD</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                        </div>
+                                        <input type="text" id="mold-filter-header" placeholder="Lọc khuôn..." class="w-full mt-1 px-2 py-1 text-[10px] bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-400 focus:outline-none font-bold uppercase" autocomplete="off">
+                                    </div>
+                                </th>
+                                <th class="px-4 py-4 border-r text-center" data-i18n="col_total">TỔNG PO</th>
+                                <th class="px-4 py-4 border-r bg-emerald-50/50 text-emerald-700 min-w-[180px] text-center">01. HOTMELT</th>
+                                <th class="px-4 py-4 border-r bg-blue-50/50 text-blue-700 min-w-[180px] text-center">02. PREFITTING</th>
+                                <th class="px-4 py-4 border-r bg-orange-50/50 text-orange-700 min-w-[180px] text-center">03. MOLDING</th>
+                                <th class="px-4 py-4 border-r bg-rose-50/50 text-rose-700 min-w-[180px] text-center">04. LEANLINE</th>
+                                <th class="px-4 py-4 text-center min-w-[140px] relative group bg-slate-50/80 hover:bg-slate-100 transition cursor-pointer" onclick="document.getElementById('finish-date-filter-header').showPicker()">
+                                    <!-- Hidden Date Picker that we trigger via showPicker() -->
+                                    <input type="date" id="finish-date-filter-header" class="absolute h-0 w-0 opacity-0 pointer-events-none">
+                                    
+                                    <div class="flex flex-col items-center justify-center gap-1">
+                                        <div class="flex items-center gap-1 font-black text-slate-500">
+                                            <span data-i18n="col_finish">FINISH DATE</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                        </div>
+                                        <div id="finish-date-badge-header" class="hidden px-2 py-0.5 bg-red-500 text-white rounded-full text-[9px] font-black animate__animated animate__zoomIn">00/00</div>
+                                        <p class="text-[7px] text-slate-300 font-normal mt-1 uppercase tracking-tighter" data-i18n="click_filter_date">Bấm để chọn ngày</p>
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-table-body" class="text-sm font-bold text-slate-600 divide-y divide-slate-50">
+                            <!-- Rows go here -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Pagination -->
+                <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <span data-i18n="showing">Hiển thị</span> <span id="page-start">0</span> - <span id="page-end">0</span> 
+                        <span data-i18n="of">của</span> <span id="total-records">0</span>
+                    </p>
+                    <div class="flex items-center gap-2" id="pagination-controls">
+                        <!-- Dynamic pagination buttons -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scanner Audio Elements (Embedded Base64 for 100% reliability) -->
+    <audio id="audio-success" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YREAAAAAgH+Af4B/gH+Af4B/gH+Af4B/gH8=" preload="auto"></audio>
+    <audio id="audio-error" src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YREAAAAAgH+Af4B/gH+Af4B/gH+Af4B/gH8=" preload="auto"></audio>
+
+    <!-- Hidden input for handheld scanner -->
+    <input type="text" id="scanner-input-overlay" autocomplete="off" />
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/html5-qrcode" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./supabaseClient.js"></script>
+    <script type="module" src="./hotmelt.js"></script>
+
+    <script>
+        // Inline UI logic for tabs and modal
+        function switchTab(tab) {
+            document.getElementById('tab-dashboard').classList.toggle('active', tab === 'dashboard');
+            document.getElementById('tab-check').classList.toggle('active', tab === 'check');
+
+            document.getElementById('content-dashboard').classList.toggle('hidden', tab !== 'dashboard');
+            document.getElementById('content-check').classList.toggle('hidden', tab !== 'check');
+
+            if (tab === 'check') {
+                // Show loading while fetching Check tab data
+                if (typeof showLoading === 'function') showLoading('Đang tải danh sách đơn...');
+                if (typeof loadCheckOrderData === 'function') {
+                    Promise.resolve(loadCheckOrderData()).finally(() => {
+                        if (typeof hideLoading === 'function') hideLoading();
+                    });
+                }
+                history.replaceState(null, null, "#check");
+            } else {
+                window.dispatchEvent(new CustomEvent('dashboard-active'));
+                history.replaceState(null, null, "#dashboard");
+            }
+        }
+
+        // Handle URL Hash on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash.substring(1);
+            if (hash === 'check') {
+                switchTab('check');
+            } else {
+                switchTab('dashboard');
+            }
+        });
+    </script>
+</body>
+
+</html>

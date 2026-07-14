@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Tồn Kho Hàng Dư</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
+    <script src="./desktop-helper.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .table-container {
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: #f8fafc;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen text-slate-800 p-4 md:p-8 bg-gradient-to-br from-slate-50 to-indigo-50">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <div class="glass-panel rounded-3xl p-6 shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-black text-slate-800 flex items-center gap-3">
+                    <span class="p-2 bg-indigo-100 text-indigo-600 rounded-xl">📊</span>
+                    DASHBOARD HÀNG DƯ TỔNG HỢP
+                </h1>
+                <p class="text-slate-500 font-bold mt-1">Theo dõi tồn kho hàng dư tại các bộ phận</p>
+            </div>
+            <div class="flex flex-wrap gap-3 items-end mt-4 md:mt-0">
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-wider">Từ ngày -
+                        Giờ</label>
+                    <input type="datetime-local" id="export-start-date"
+                        class="px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:border-indigo-500 shadow-sm bg-white">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-wider">Đến ngày -
+                        Giờ</label>
+                    <input type="datetime-local" id="export-end-date"
+                        class="px-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:border-indigo-500 shadow-sm bg-white">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-wider">Tìm kiếm
+                        nhanh</label>
+                    <div class="relative">
+                        <input type="text" id="dashboard-search" placeholder="RPRO, BOM, Mold..."
+                            class="pl-8 pr-3 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:border-indigo-500 shadow-sm bg-white w-48">
+                        <span class="absolute left-2.5 top-2.5 text-slate-400">🔍</span>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="loadDashboardData()"
+                        class="px-4 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 font-bold rounded-xl shadow-md transition-all flex items-center gap-2 active:scale-95">
+                        🔄 Lọc
+                    </button>
+                    <button id="btn-export-excel"
+                        class="px-4 py-2.5 bg-emerald-500 text-white hover:bg-emerald-600 font-bold rounded-xl shadow-md transition-all flex items-center gap-2 active:scale-95">
+                        Excel
+                    </button>
+                </div>
+                <button onclick="window.location.href='surplus-landing.html'"
+                    class="px-4 py-2.5 bg-white text-slate-600 hover:bg-slate-50 font-bold rounded-xl border border-slate-200 transition-colors flex items-center gap-2 shadow-sm">
+                    🏠
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Table -->
+        <div class="glass-panel rounded-3xl p-6 shadow-lg">
+
+            <div id="loading-spinner" class="py-20 text-center">
+                <div
+                    class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600 mb-4">
+                </div>
+                <p class="font-bold text-slate-500">Đang tải dữ liệu...</p>
+            </div>
+
+            <div class="table-container rounded-2xl border border-slate-200 hidden" id="main-content">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr
+                            class="text-[10px] font-black uppercase tracking-wider text-slate-500 border-b-2 border-slate-200">
+                            <th
+                                class="p-4 bg-slate-50 rounded-tl-xl w-64 min-w-[250px] sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                Thông tin Đơn/RPRO
+                            </th>
+                            <th class="p-4 bg-slate-50 border-l border-slate-200 w-32 text-center">#Mold</th>
+                            <th class="p-4 bg-teal-50 text-teal-700 text-center border-l border-white w-28">LPS</th>
+                            <th class="p-4 bg-indigo-50 text-indigo-700 text-center border-l border-white w-28">MOLDING
+                            </th>
+                            <th class="p-4 bg-orange-50 text-orange-700 text-center border-l border-white w-28">LEANLINE
+                            </th>
+                            <th
+                                class="p-4 bg-slate-100 text-slate-800 text-center border-l border-white w-32 rounded-tr-xl">
+                                TỔNG CỘNG
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashboard-tbody" class="divide-y divide-slate-100 text-sm">
+                        <!-- Rows rendered by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Info Modal -->
+        <div id="info-modal"
+            class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all">
+            <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-95 opacity-0 duration-300"
+                id="modal-content">
+                <div class="p-8">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <span
+                                class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider mb-2 inline-block"
+                                id="modal-rpro-badge">RPRO-XXXX</span>
+                            <h2 class="text-2xl font-black text-slate-800 uppercase leading-tight">Chi tiết đơn hàng
+                            </h2>
+                        </div>
+                        <button onclick="closeModal()"
+                            class="p-2 bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-xl transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="space-y-5">
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <label
+                                class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">BOM
+                                Code</label>
+                            <div class="text-lg font-bold text-slate-700" id="modal-bom">-</div>
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <label
+                                class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mold
+                                Number (#MOLD)</label>
+                            <div class="text-lg font-bold text-slate-700" id="modal-mold">-</div>
+                        </div>
+
+                        <div class="bg-teal-50/50 p-4 rounded-2xl border border-teal-100">
+                            <label class="block text-[10px] font-black text-teal-500 uppercase tracking-widest mb-1">PU
+                                Description (Tên đầy đủ)</label>
+                            <div class="text-sm font-bold text-teal-800 leading-relaxed" id="modal-pu">-</div>
+                        </div>
+
+                        <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+                            <label
+                                class="block text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Fabric
+                                Description (Tên đầy đủ)</label>
+                            <div class="text-sm font-bold text-indigo-800 leading-relaxed" id="modal-fabric">-</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        <button onclick="closeModal()"
+                            class="w-full py-4 bg-slate-800 text-white font-black rounded-2xl hover:bg-slate-900 transition-all shadow-lg active:scale-95 uppercase tracking-wider">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase } from './supabaseClient.js';
+
+        const tbody = document.getElementById('dashboard-tbody');
+        const spinner = document.getElementById('loading-spinner');
+        const mainContent = document.getElementById('main-content');
+
+        const startDateInput = document.getElementById('export-start-date');
+        const endDateInput = document.getElementById('export-end-date');
+        const dashboardSearch = document.getElementById('dashboard-search');
+
+        // Live filtering
+        dashboardSearch.addEventListener('input', () => {
+            const term = dashboardSearch.value.trim().toLowerCase();
+            if (!window._dashboardData) return;
+            const filtered = window._dashboardData.filter(r =>
+                r.rpro.toLowerCase().includes(term) ||
+                r.bom.toLowerCase().includes(term) ||
+                r.mold.toLowerCase().includes(term) ||
+                r.pu.toLowerCase().includes(term) ||
+                r.fabric.toLowerCase().includes(term)
+            );
+            renderTable(filtered);
+        });
+
+        // Fetch and process data
+        window.loadDashboardData = async function () {
+            spinner.classList.remove('hidden');
+            mainContent.classList.add('hidden');
+            tbody.innerHTML = '';
+
+            try {
+                // Get surplus goods within date range - OPTIMIZED: Select only needed columns
+                const neededColumns = 'id,rpro,pu,fabric,bom,mold,pu_code,fb_code,section,created_at,dynamic_sizes,' +
+                    'size_3,size_3_5,size_4,size_4_5,size_5,size_5_5,size_6,size_6_5,size_7,size_7_5,size_8,size_8_5,size_9,size_9_5,size_10,size_10_5,size_11,size_11_5,size_12,size_12_5,size_13,size_13_5,size_14,size_14_5,size_15';
+
+                let query = supabase.from('surplusgoods').select(neededColumns);
+
+                const startVal = startDateInput.value;
+                const endVal = endDateInput.value;
+                if (startVal) query = query.gte('created_at', startVal + ':00+07:00');
+                if (endVal) query = query.lte('created_at', endVal + ':59+07:00');
+
+                const { data, error } = await query;
+                if (error) throw error;
+                // ... (Logic regrouping stays same)
+                // Group by RPRO, PU, FABRIC (using rpro as primary key since manual rpros are unique per mat combination)
+                const groupings = {};
+
+                data.forEach(item => {
+                    const rpro = item.rpro || 'UNKNOWN';
+                    if (!groupings[rpro]) {
+                        groupings[rpro] = {
+                            rpro: rpro,
+                            pu: item.pu || '-',
+                            fabric: item.fabric || '-',
+                            bom: item.bom || '-',
+                            mold: item.mold || '-',
+                            pu_code: item.pu_code || '-',
+                            fb_code: item.fb_code || '-',
+                            lps: 0,
+                            molding: 0,
+                            leanline: 0,
+                            lpsLastUpdated: null,
+                            moldingLastUpdated: null,
+                            leanlineLastUpdated: null,
+                            lastUpdated: new Date(item.created_at)
+                        };
+                    }
+
+                    // Calculate total qty for this specific line
+                    let totalQty = 0;
+                    Object.keys(item).forEach(k => {
+                        if (k.startsWith('size_') && !isNaN(item[k])) totalQty += item[k];
+                    });
+                    if (item.dynamic_sizes) {
+                        Object.values(item.dynamic_sizes).forEach(v => {
+                            if (!isNaN(v)) totalQty += v;
+                        });
+                    }
+
+                    // Add to section totals and track individual last updated dates
+                    const section = (item.section || '').toUpperCase();
+                    const itemDate = new Date(item.created_at);
+
+                    if (section === 'LPS') {
+                        groupings[rpro].lps += totalQty;
+                        if (!groupings[rpro].lpsLastUpdated || itemDate > groupings[rpro].lpsLastUpdated) groupings[rpro].lpsLastUpdated = itemDate;
+                    } else if (section === 'MOLDING') {
+                        groupings[rpro].molding += totalQty;
+                        if (!groupings[rpro].moldingLastUpdated || itemDate > groupings[rpro].moldingLastUpdated) groupings[rpro].moldingLastUpdated = itemDate;
+                    } else if (section === 'LEANLINE') {
+                        groupings[rpro].leanline += totalQty;
+                        if (!groupings[rpro].leanlineLastUpdated || itemDate > groupings[rpro].leanlineLastUpdated) groupings[rpro].leanlineLastUpdated = itemDate;
+                    }
+
+                    // Update global timestamp for sorting
+                    if (itemDate > groupings[rpro].lastUpdated) {
+                        groupings[rpro].lastUpdated = itemDate;
+                    }
+                });
+
+                window._dashboardData = Object.values(groupings);
+                renderTable(window._dashboardData);
+
+            } catch (err) {
+                console.error(err);
+                alert("Lỗi khi tải dữ liệu: " + err.message);
+            } finally {
+                spinner.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+            }
+        };
+
+        function renderTable(rows) {
+            // Sort by last updated (newest first)
+            rows.sort((a, b) => b.lastUpdated - a.lastUpdated);
+
+            const now = new Date();
+            const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+
+            const html = rows.map(r => {
+                const total = r.lps + r.molding + r.leanline;
+                if (total === 0) return ''; // Skip empty records
+
+                const timeDiff = now - r.lastUpdated;
+                const isWarningGlobal = timeDiff > sevenDaysInMs;
+                const rowWarningClass = isWarningGlobal ? 'bg-rose-50/30' : ''; // Optional subtle highlight for very old entries
+
+                // Format helper for dates
+                const getDateHtml = (qty, dateObj) => {
+                    if (qty <= 0 || !dateObj) return '-';
+                    const diff = now - dateObj;
+                    const isWarn = diff > sevenDaysInMs;
+
+                    const timeStr = dateObj.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                    const dateStr = dateObj.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+
+                    return `
+                        <div class="text-xs text-slate-400 mt-1">${timeStr}</div>
+                        <div class="text-[10px] text-slate-500 font-medium mb-1">${dateStr}</div>
+                        ${isWarn ? `<span class="inline-block bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded text-[9px] font-bold"><span class="animate-pulse">⚠️</span> Quá hạn</span>` : ''}
+                    `;
+                };
+
+                return `
+                    <tr onclick="showDetails('${r.rpro}')" class="hover:bg-indigo-50/50 transition-all group ${rowWarningClass} cursor-pointer">
+                        <td class="p-4 border-r border-slate-100 sticky left-0 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] group-hover:bg-indigo-50/50">
+                            <div class="font-black text-slate-700 mb-1 flex items-center gap-2">
+                                <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">${r.rpro}</span>
+                            </div>
+                            <div class="text-[10px] text-slate-500 font-bold uppercase tracking-tight">BOM: ${r.bom}</div>
+                        </td>
+                        <td class="p-4 text-center border-r border-slate-100 align-middle">
+                            <span class="text-xs font-black text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">${r.mold}</span>
+                        </td>
+                        <td class="p-4 text-center border-r border-slate-100 align-top">
+                            <div class="font-bold text-teal-600 text-base mb-1">${r.lps > 0 ? r.lps : '-'}</div>
+                            ${getDateHtml(r.lps, r.lpsLastUpdated)}
+                        </td>
+                        <td class="p-4 text-center border-r border-slate-100 align-top">
+                            <div class="font-bold text-indigo-600 text-base mb-1">${r.molding > 0 ? r.molding : '-'}</div>
+                            ${getDateHtml(r.molding, r.moldingLastUpdated)}
+                        </td>
+                        <td class="p-4 text-center border-r border-slate-100 align-top">
+                            <div class="font-bold text-orange-600 text-base mb-1">${r.leanline > 0 ? r.leanline : '-'}</div>
+                            ${getDateHtml(r.leanline, r.leanlineLastUpdated)}
+                        </td>
+                        <td class="p-4 text-center border-slate-100 bg-slate-50 align-top">
+                            <span class="text-xl font-black text-slate-800 block mb-1">${total}</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = html || `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold uppercase">Kho trống</td></tr>`;
+        }
+
+        // Modal Functions
+        window.showDetails = function (rpro) {
+            const data = window._dashboardData.find(d => d.rpro === rpro);
+            if (!data) return;
+
+            document.getElementById('modal-rpro-badge').textContent = data.rpro;
+            document.getElementById('modal-bom').textContent = data.bom;
+            document.getElementById('modal-mold').textContent = data.mold;
+            document.getElementById('modal-pu').textContent = data.pu;
+            document.getElementById('modal-fabric').textContent = data.fabric;
+
+            const modal = document.getElementById('info-modal');
+            const content = document.getElementById('modal-content');
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            // Trigger animation
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        };
+
+        window.closeModal = function () {
+            const modal = document.getElementById('info-modal');
+            const content = document.getElementById('modal-content');
+
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 200);
+        };
+
+        // Close on backdrop click
+        document.getElementById('info-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'info-modal') closeModal();
+        });
+
+        // Excel Export
+        window.exportSurplusDashboardExcel = function () {
+            if (!window._dashboardData || window._dashboardData.length === 0) {
+                alert("Không có dữ liệu để xuất!");
+                return;
+            }
+
+            const startVal = startDateInput.value;
+            const endVal = endDateInput.value;
+            const dateStr = startVal === endVal ? startVal : `${startVal}_den_${endVal}`;
+
+            // Sort data like the UI before exporting
+            window._dashboardData.sort((a, b) => b.lastUpdated - a.lastUpdated);
+
+            const exportData = window._dashboardData.map((r, index) => {
+                const total = r.lps + r.molding + r.leanline;
+                return {
+                    "STT": index + 1,
+                    "RPRO": r.rpro,
+                    "BOM": r.bom,
+                    "#MOLD": r.mold,
+                    "Code PU": r.pu_code,
+                    "Code FB": r.fb_code,
+                    "PU DESCRIPTION": r.pu,
+                    "FABRIC DESCRIPTION": r.fabric,
+                    "LPS": r.lps,
+                    "MOLDING": r.molding,
+                    "LEANLINE": r.leanline,
+                    "TOTAL": total,
+                    "Last Updated": r.lastUpdated.toLocaleString('vi-VN')
+                };
+            }).filter(item => item.TOTAL > 0);
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+
+            const colWidths = [
+                { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, // STT, RPRO, BOM, MOLD, CodePU, CodeFB
+                { wch: 35 }, { wch: 35 }, // PU Desc, FB Desc
+                { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 20 } // Sections, Total, LastUpdated
+            ];
+            ws['!cols'] = colWidths;
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "SURPLUS_DASHBOARD");
+            const fileName = `Surplus_Dashboard_${dateStr}.xlsx`;
+            if (window.saveExcelFile) {
+                await window.saveExcelFile(wb, fileName);
+            } else {
+                XLSX.writeFile(wb, fileName);
+            }
+        };
+
+        if (document.getElementById('btn-export-excel')) {
+            document.getElementById('btn-export-excel').onclick = window.exportSurplusDashboardExcel;
+        }
+
+        // Init Dates
+        document.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            const lastWeek = new Date(now);
+            lastWeek.setDate(now.getDate() - 7); // OPTIMIZED: Reduce from 30 days to 7 days
+
+            // Format to YYYY-MM-DDTHH:mm
+            const formatDT = (d) => {
+                const pad = (n) => n.toString().padStart(2, '0');
+                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            };
+
+            startDateInput.value = formatDT(lastWeek);
+            endDateInput.value = formatDT(now);
+
+            loadDashboardData();
+        });
+
+
+    </script>
+</body>
+
+</html>

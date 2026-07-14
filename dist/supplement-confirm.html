@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bù hàng - Xác nhận</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-2 sm:p-6">
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-lg">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-xl md:text-2xl font-bold text-purple-700">🛒 Bù hàng - Xác nhận</h1>
+            <button onclick="window.location.href='index.html'"
+                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-bold shadow-sm transition">
+                ← Quay lại
+            </button>
+        </div>
+
+        <!-- Date filtering & Actions -->
+        <div class="bg-purple-50 p-4 rounded-xl border border-purple-200 mb-6 space-y-4">
+            <div class="flex flex-wrap gap-4 items-end">
+                <div
+                    class="flex items-center gap-2 bg-white p-2 rounded-xl border border-purple-200 flex-1 sm:flex-none justify-between shadow-sm">
+                    <input type="datetime-local" id="date-from"
+                        class="bg-transparent text-sm font-bold text-purple-700 outline-none px-1 w-full">
+                    <span class="text-purple-300">→</span>
+                    <input type="datetime-local" id="date-to"
+                        class="bg-transparent text-sm font-bold text-purple-700 outline-none px-1 w-full">
+                </div>
+                <div class="flex gap-2">
+                    <button id="btn-filter"
+                        class="px-6 py-2 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 transition shadow-md">
+                        Lọc
+                    </button>
+                    <!-- Search RPRO Field -->
+                    <div class="relative flex-1 min-w-[200px]">
+                        <input type="text" id="search-rpro" placeholder="🔍 Tìm RPRO trong danh sách..."
+                            class="w-full border-2 border-purple-300 p-2 rounded-lg shadow-sm focus:ring-2 focus:ring-purple-400 outline-none font-bold">
+                    </div>
+                    <div class="px-4 py-2 bg-white border border-red-200 rounded-lg shadow-sm flex items-center gap-2">
+                        <span class="text-[10px] font-bold text-red-500 uppercase">Chờ:</span>
+                        <span id="pending-count" class="text-lg font-black text-red-600">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons for Mobile Accessibility -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-purple-100">
+                <button id="btn-export-excel"
+                    class="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold shadow-lg transition active:scale-95">
+                    <span>📗 Xuất Excel</span>
+                </button>
+                <button id="btn-show-stats"
+                    class="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold shadow-lg transition active:scale-95">
+                    <span>📊 Thống kê</span>
+                </button>
+                <button id="btn-export-zalo"
+                    class="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold shadow-lg transition active:scale-95">
+                    <span>🚀 Gửi Zalo</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Scan QR RPRO Section -->
+        <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200 mb-6 flex flex-wrap gap-4 items-end">
+            <div class="flex-1 min-w-[300px]">
+                <label class="block text-sm font-bold text-indigo-700 mb-2">🔍 QUÉT QR RPRO HOẶC NHẬP MÃ ĐỂ THÊM
+                    NHANH:</label>
+                <div class="flex gap-2">
+                    <input type="text" id="scan-input" placeholder="Dán hoặc Quét QR RPRO tại đây..."
+                        class="flex-1 border-2 border-indigo-300 p-3 rounded-xl shadow-inner focus:ring-4 focus:ring-indigo-400 focus:border-indigo-500 outline-none font-mono text-lg transition-all">
+                    <button id="btn-add-scan"
+                        class="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-md active:scale-95">
+                        THÊM
+                    </button>
+                </div>
+                <p id="scan-status" class="text-xs mt-2 text-indigo-500 italic hidden">Đang tìm dữ liệu đơn hàng...</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow border border-gray-200 overflow-x-auto max-h-[75vh] overflow-y-auto">
+            <table class="min-w-full bg-white divide-y divide-gray-200">
+                <thead class="bg-gray-50 sticky top-0 z-20 shadow-sm">
+                    <tr>
+                        <th class="px-2 py-2 border text-red-600">Xóa</th>
+                        <th class="px-4 py-2 border">Ngày tạo</th>
+                        <th class="px-4 py-2 border font-bold sticky left-0 z-30 bg-gray-50 drop-shadow-md">RPRO</th>
+                        <th class="px-4 py-2 border font-bold">Mã PU</th>
+                        <th class="px-4 py-2 border font-bold">Mã Vải</th>
+                        <th class="px-4 py-2 border font-bold">Tên Vải</th>
+                        <th class="px-4 py-2 border">Qty</th>
+                        <th class="px-4 py-2 border bg-yellow-50 text-yellow-800 font-bold">Số tấm</th>
+                        <th class="px-4 py-2 border">Số đôi có thể bù</th>
+                        <th class="px-4 py-2 border">Xác nhận của Kho</th>
+                        <th class="px-4 py-2 border text-center">
+                            <input type="checkbox" id="check-all" class="w-4 h-4">
+                            <br><span class="text-[10px]">Chọn gửi</span>
+                        </th>
+                        <th class="px-4 py-2 border text-blue-600">Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody id="confirm-body">
+                    <!-- Data rows -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="stats-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-6 relative">
+            <button id="btn-close-stats"
+                class="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl font-bold">×</button>
+
+            <h2 class="text-2xl font-extrabold text-indigo-800 mb-6 flex items-center gap-2">
+                📊 Thống kê tình trạng Bù hàng
+            </h2>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Daily Qty Bar Chart (New) -->
+                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 shadow-sm lg:col-span-2">
+                    <h3 class="text-lg font-bold text-indigo-700 mb-3">Số lượng Qty theo ngày (7 ngày gần nhất)</h3>
+                    <div class="h-[250px]">
+                        <canvas id="chart-daily-qty"></canvas>
+                    </div>
+                </div>
+
+                <!-- Daily Bar Chart -->
+                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 shadow-sm lg:col-span-2">
+                    <h3 class="text-lg font-bold text-indigo-700 mb-3">Số lượng đơn theo ngày (7 ngày gần nhất)</h3>
+                    <div class="h-[250px]">
+                        <canvas id="chart-daily"></canvas>
+                    </div>
+                </div>
+
+                <!-- Weekly Pie Chart -->
+                <div class="bg-green-50 p-4 rounded-lg border border-green-100 shadow-sm">
+                    <h3 class="text-lg font-bold text-green-700 mb-3">Tỷ lệ theo Tuần này (%)</h3>
+                    <div class="h-[250px] flex justify-center">
+                        <canvas id="chart-weekly"></canvas>
+                    </div>
+                </div>
+
+                <!-- Monthly Pie Chart -->
+                <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 shadow-sm">
+                    <h3 class="text-lg font-bold text-blue-700 mb-3">Tỷ lệ theo Tháng này (%)</h3>
+                    <div class="h-[250px] flex justify-center">
+                        <canvas id="chart-monthly"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SheetJS -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="./desktop-helper.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="./supabaseClient.js"></script>
+    <script type="module" src="./supplement-confirm.js"></script>
+    <script src="./chatbot.js"></script>
+    <script type="module" src="/gatekeeper.js"></script>
+</body>
+
+</html>

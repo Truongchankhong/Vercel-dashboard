@@ -9,7 +9,9 @@
     "start": "node server.js",
     "sync": "node sync-supplement-qr-supabase.js",
     "sync-powerapp": "node sync-powerapp-supabase.js",
-    "cleanup": "node cleanup-supabase.js"
+    "cleanup": "node cleanup-supabase.js",
+    "build": "node -e \"const fs = require('fs'); fs.rmSync('dist', { recursive: true, force: true }); fs.cpSync('public', 'dist', { recursive: true });\"",
+    "build-desktop": "pyinstaller --noconsole --onefile --add-data \"dist;dist\" --distpath \"release\" desktop_app.py"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

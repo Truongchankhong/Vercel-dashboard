@@ -1300,8 +1300,12 @@ window.exportToExcel = async () => {
         worksheet['!cols'] = wscols;
 
         const fileName = `Export_BùHàng_${fromDateTime.split('T')[0]}_den_${toDateTime.split('T')[0]}.xlsx`;
-        XLSX.writeFile(workbook, fileName);
-        showToast("✅ Đã tải file thành công!", "success");
+        if (window.saveExcelFile) {
+            await window.saveExcelFile(workbook, fileName, showToast);
+        } else {
+            XLSX.writeFile(workbook, fileName);
+            showToast("✅ Đã tải file thành công!", "success");
+        }
 
     } catch (err) {
         console.error("Export Error:", err);

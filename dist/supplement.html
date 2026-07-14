@@ -1,0 +1,151 @@
+<!-- supplement.html -->
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bù hàng — Supplement</title>
+  <!-- Tailwind -->
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* Video và canvas luôn vừa container, không bị tràn */
+    /* Video và canvas trùng nhau, không bị tràn */
+    #qr-reader__scan_region video,
+    #qr-reader__scan_region canvas {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      /* Để canvas trùng video */
+    }
+
+    #qr-reader__dashboard_section_csr,
+    #qr-reader__dashboard_section_swaplink {
+      display: none !important;
+    }
+  </style>
+
+  <!-- QR Library -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
+
+
+</head>
+
+<body class="bg-gray-100 p-6">
+
+  <div class="max-w-xl mx-auto bg-white p-6 rounded-lg shadow-lg">
+    <!-- header/back -->
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">Bù hàng</h1>
+      <div class="flex gap-2">
+        <button id="btn-view-list" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded">
+          Xem danh sách
+        </button>
+        <button id="btn-back" class="px-3 py-1 bg-gray-300 hover:bg-gray-400 rounded">
+          ← Trang chủ
+        </button>
+      </div>
+    </div>
+
+    <!-- Camera mount point -->
+    <div id="qr-reader" style="
+              width: 80vw;              /* Giảm từ 100% xuống 80% màn hình */
+              max-width: 320px;         /* Không lớn hơn 320px */
+              aspect-ratio: 4/3;        /* Giữ tỷ lệ 4:3 */
+              margin: auto;
+              overflow: hidden;
+              position: relative;
+            ">
+    </div>
+
+    <!-- Scan success alert directly below camera -->
+    <div id="scan-success-alert"
+      class="hidden mt-4 mx-auto max-w-[320px] bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-md animate-bounce"
+      role="alert">
+      <p class="font-bold flex items-center gap-2"><span>✅</span> Scan Thành Công!</p>
+      <p id="scan-success-msg" class="text-sm font-mono break-all"></p>
+    </div>
+
+
+
+
+    <!-- manual entry -->
+    <div class="mb-4">
+      <label for="manualRpro" class="block mb-1 font-medium">Nhập RPRO thủ công</label>
+      <div class="flex">
+        <input id="manualRpro" type="text" class="flex-1 border px-3 py-2 rounded-l"
+          placeholder="Ví dụ: RPRO-123456-1234" />
+        <button id="btn-manual-ok" class="bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-r">
+          OK
+        </button>
+      </div>
+      <div id="loading-status" class="mt-2 text-blue-600 font-semibold hidden">
+        🔄 Đang tải dữ liệu...
+      </div>
+    </div>
+
+    <!-- order info -->
+    <div id="order-info" class="mb-4 hidden space-y-1">
+      <p><b>RPRO:</b> <span id="info-rpro"></span></p>
+      <p><b>SO:</b> <span id="info-so"></span></p>
+      <p><b>CUSTOMERS:</b> <span id="info-customers"></span></p>
+      <p><b>Giới tính:</b> <span id="info-gender"></span></p>
+      <p><b>Mã khuôn:</b> <span id="info-mold"></span></p>
+      <p><b>Mã PU:</b> <span id="info-pu"></span></p>
+      <p><b>Mã vải:</b> <span id="info-fb"></span></p>
+      <p><b>Tên vải:</b> <span id="info-fabric"></span></p>
+      <p><b>BOM:</b> <span id="info-bom"></span></p>
+    </div>
+
+    <!-- size table -->
+    <div id="size-table-container" class="overflow-x-auto hidden"></div>
+
+    <!-- Ghi chú -->
+    <div class="mt-4">
+      <label for="note-textarea" class="block mb-1 font-medium">Ghi chú:</label>
+      <textarea id="note-textarea" class="w-full border px-3 py-2 rounded"
+        placeholder="Nhập ghi chú cho đơn hàng này (nếu có)"></textarea>
+    </div>
+
+    <!-- confirm -->
+    <div class="text-right mt-6">
+      <button id="btn-confirm-supplement"
+        class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded disabled:opacity-50" disabled>
+        Xác nhận
+      </button>
+    </div>
+
+    <!-- Last sync time -->
+    <div class="mt-6 pt-4 border-t text-sm text-gray-500 flex flex-col items-center">
+      <div>⏱️ Dữ liệu cập nhật lúc: <span id="last-sync-time" class="font-mono">Đang tải...</span></div>
+      <div>⚡ Thời gian Dán (LAMINATION) gần nhất: <span id="last-lamination-time" class="font-mono">Đang tải...</span>
+      </div>
+      <div id="staleness-warning" class="mt-1 text-red-600 font-bold hidden">⚠️ CẢNH BÁO: Data rất cũ, cần update!</div>
+    </div>
+  </div>
+
+  <!-- back handler -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("btn-back")
+        .addEventListener("click", () => window.location.href = "/");
+      document.getElementById("btn-view-list")
+        .addEventListener("click", () => window.location.href = "/supplement-list.html");
+    });
+  </script>
+
+  <!-- Supabase + your logic -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+  <script type="module" src="./supabaseClient.js"></script>
+  <script type="module" src="./supplement.js"></script>
+
+
+  <script src="./chatbot.js"></script>
+  <script type="module" src="/gatekeeper.js"></script>
+</body>
+
+</html>

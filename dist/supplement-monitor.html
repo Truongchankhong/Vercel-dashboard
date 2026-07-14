@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiến Độ Hàng Bù - Realtime Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <style>
+        .status-cell {
+            transition: all 0.3s ease;
+        }
+
+        /* Custom scrollbar for table */
+        .table-container::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .blink-bg {
+            animation: bg-pulse 2s infinite;
+        }
+
+        @keyframes bg-pulse {
+
+            0%,
+            100% {
+                background-color: #fee2e2;
+            }
+
+            /* Red-100 */
+            50% {
+                background-color: #fca5a5;
+            }
+
+            /* Red-300 */
+        }
+
+        /* Loading Overlay Styles */
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+
+        #loading-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loader-ring {
+            width: 80px;
+            height: 80px;
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .progress-bar-container {
+            width: 300px;
+            height: 12px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            margin-top: 20px;
+            overflow: hidden;
+            border: 1px solid #cbd5e1;
+        }
+
+        #progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3b82f6, #6366f1);
+            transition: width 0.3s ease;
+        }
+
+        /* Pagination Styles */
+        .pagination-btn {
+            padding: 0.375rem 0.75rem;
+            border-width: 1px;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition-property: all;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 150ms;
+            background-color: white;
+            border-color: #e2e8f0;
+        }
+
+        .pagination-btn.active {
+            background-color: #2563eb;
+            color: white;
+            border-color: #2563eb;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transform: scale(1.05);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .pending-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: 900;
+            padding: 2px 6px;
+            border-radius: 9999px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+            transition: all 0.2s;
+            margin-top: 4px;
+        }
+
+        .pending-badge:hover {
+            transform: scale(1.1);
+            background-color: #dc2626;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen p-4">
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="loader-ring"></div>
+        <div class="progress-bar-container">
+            <div id="progress-bar-fill"></div>
+        </div>
+        <div id="loading-text" class="mt-4 text-xl font-black text-blue-600 animate-pulse">
+            Đang tải: <span id="loading-percentage">0</span>%
+        </div>
+        <p id="loading-subtext" class="text-gray-500 text-sm mt-1 font-medium">Đang khởi tạo hệ thống...</p>
+    </div>
+    <div class="max-w-[1600px] mx-auto">
+        <!-- Header -->
+        <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border border-gray-200">
+            <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-bold text-gray-800">📊 Tiến Độ Hàng Bù (Realtime)</h1>
+                        <p class="text-[10px] md:text-xs text-gray-500 mt-1">Theo dõi trạng thái IN/OUT qua các công
+                            đoạn</p>
+                    </div>
+                    <!-- Back button on mobile title row -->
+                    <button onclick="window.location.href='supplement-count.html'"
+                        class="lg:hidden px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition text-sm">
+                        ← Quay lại
+                    </button>
+                </div>
+
+                <div class="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
+                    <!-- Date Group -->
+                    <div
+                        class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border flex-1 sm:flex-none justify-between">
+                        <input type="datetime-local" id="date-start"
+                            class="bg-transparent text-sm font-bold text-gray-700 outline-none px-1 w-full">
+                        <span class="text-gray-400">→</span>
+                        <input type="datetime-local" id="date-end"
+                            class="bg-transparent text-sm font-bold text-gray-700 outline-none px-1 w-full">
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="relative flex-1 sm:min-w-[200px]">
+                        <input type="text" id="search-input" placeholder="🔍 Tìm mã RPRO..."
+                            class="w-full pl-3 pr-10 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none uppercase shadow-sm">
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="grid grid-cols-3 sm:flex gap-2">
+                        <button id="btn-refresh"
+                            class="flex-1 px-3 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition shadow-md text-sm font-bold active:scale-95">
+                            🔄 Xem
+                        </button>
+                        <button id="btn-export"
+                            class="flex-1 px-3 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition shadow-md text-sm font-bold active:scale-95">
+                            Excel
+                        </button>
+                        <button id="btn-show-stats"
+                            class="flex-1 px-3 py-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition shadow-md text-sm font-bold active:scale-95">
+                            📊 Thống kê
+                        </button>
+                        <!-- Back button only on Desktop -->
+                        <button onclick="window.location.href='supplement-count.html'"
+                            class="hidden lg:block px-3 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition shadow-md text-sm font-bold active:scale-95">
+                            ← Quay lại
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination Container -->
+            <div id="pagination-top"
+                class="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4">
+                <div class="text-[10px] md:text-xs text-gray-500 font-medium italic">
+                    Hiển thị <span id="showing-range" class="font-bold text-blue-600 text-xs md:text-sm">0 - 0</span>
+                    trong tổng số <span id="total-count" class="font-bold text-gray-800 text-xs md:text-sm">0</span> đơn
+                    hàng
+                    <span id="current-range-label"
+                        class="ml-2 px-2 py-0.5 bg-gray-100 rounded-full text-[10px] text-gray-400 not-italic hidden sm:inline-block"></span>
+                </div>
+                <div id="pagination-controls"
+                    class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar max-w-full">
+                    <!-- Pagination buttons will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Table -->
+        <div
+            class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden flex flex-col h-[calc(100vh-140px)]">
+            <!-- Table Header (Sticky) -->
+            <div class="overflow-x-auto table-container flex-1">
+                <table class="w-full border-collapse text-sm">
+                    <thead class="bg-gray-100 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th onclick="toggleSort('rpro')"
+                                class="p-4 text-left font-extrabold text-gray-700 border-b-2 border-r w-40 min-w-[150px] cursor-pointer hover:bg-gray-200 transition-colors">
+                                MÃ ĐƠN <span id="sort-icon-rpro"></span></th>
+                            <th onclick="openMoldFilter()"
+                                class="p-3 text-center font-bold text-gray-700 border-b-2 border-r min-w-[100px] bg-gray-50 cursor-pointer hover:bg-gray-200 transition-colors"
+                                title="Click để tìm kiếm Mã Khuôn">
+                                #MOLD 🔍</th>
+                            <th onclick="toggleSort('Dán')" id="th-Dán"
+                                class="p-3 text-center font-bold text-indigo-700 border-b-2 border-r min-w-[180px] bg-indigo-50 cursor-pointer hover:bg-indigo-100 transition-colors">
+                                <div class="flex flex-col items-center">
+                                    <span>🏷️ Dán <span id="sort-icon-Dán"></span></span>
+                                    <div id="pending-Dán" class="hidden"></div>
+                                </div>
+                            </th>
+                            <th onclick="toggleSort('Cắt')" id="th-Cắt"
+                                class="p-3 text-center font-bold text-green-700 border-b-2 border-r min-w-[180px] bg-green-50 cursor-pointer hover:bg-green-100 transition-colors">
+                                <div class="flex flex-col items-center">
+                                    <span>✂️ Cắt <span id="sort-icon-Cắt"></span></span>
+                                    <div id="pending-Cắt" class="hidden"></div>
+                                </div>
+                            </th>
+                            <th onclick="toggleSort('Molding')" id="th-Molding"
+                                class="p-3 text-center font-bold text-blue-700 border-b-2 border-r min-w-[180px] bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors">
+                                <div class="flex flex-col items-center">
+                                    <span>🔨 Molding <span id="sort-icon-Molding"></span></span>
+                                    <div id="pending-Molding" class="hidden"></div>
+                                </div>
+                            </th>
+                            <th onclick="toggleSort('DC')" id="th-DC"
+                                class="p-3 text-center font-bold text-purple-700 border-b-2 border-r min-w-[180px] bg-purple-50 cursor-pointer hover:bg-purple-100 transition-colors">
+                                <div class="flex flex-col items-center">
+                                    <span>🏭 DC <span id="sort-icon-DC"></span></span>
+                                    <div id="pending-DC" class="hidden"></div>
+                                </div>
+                            </th>
+                            <th onclick="toggleSort('Molded')" id="th-Molded"
+                                class="p-3 text-center font-bold text-pink-700 border-b-2 min-w-[180px] bg-pink-50 border-r cursor-pointer hover:bg-pink-100 transition-colors">
+                                <div class="flex flex-col items-center">
+                                    <span>🎯 Molded <span id="sort-icon-Molded"></span></span>
+                                    <div id="pending-Molded" class="hidden"></div>
+                                </div>
+                            </th>
+                            <th class="p-3 text-center border-b-2 min-w-[140px] bg-gray-100 relative group/header overflow-hidden"
+                                id="th-finish-date">
+                                <div onclick="toggleSort('finish_date')"
+                                    class="absolute top-0 right-0 p-1 cursor-pointer hover:text-blue-600 z-50 text-[10px] font-bold">
+                                    SORT <span id="sort-icon-finish_date"></span></div>
+                                <!-- Hidden date input that covers the ENTIRE TH area -->
+                                <input type="date" id="finish-date-filter"
+                                    class="absolute inset-0 opacity-0 cursor-pointer z-20 w-full h-full">
+
+                                <div
+                                    class="flex flex-col items-center justify-center gap-1 relative z-30 pointer-events-none">
+                                    <div
+                                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-200/50 group-hover/header:bg-blue-50 transition-all border border-transparent group-hover/header:border-blue-200 shadow-sm border">
+                                        <span
+                                            class="text-gray-700 font-extrabold text-[11px] uppercase tracking-wider">🏁
+                                            Finish Date (PPC)</span>
+                                        <div
+                                            class="bg-white p-1 rounded-lg shadow-sm border border-gray-100 group-hover/header:scale-110 transition-transform">
+                                            <span class="text-xs">📅</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Active filter badge -->
+                                    <div id="finish-date-badge-container"
+                                        class="hidden flex items-center gap-1 animate-in fade-in zoom-in duration-200 pointer-events-auto">
+                                        <div
+                                            class="flex items-center bg-blue-600 text-white pl-2 pr-1 py-1 rounded-full font-black text-[10px] shadow-lg border border-blue-400">
+                                            <span id="finish-date-badge"></span>
+                                            <button id="btn-clear-date-filter"
+                                                class="ml-2 w-5 h-5 flex items-center justify-center bg-white/20 hover:bg-white/40 rounded-full transition-colors z-40 relative"
+                                                title="Xóa lọc">✕</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Tooltip hint -->
+                                    <span
+                                        class="text-[8px] text-gray-400 font-bold uppercase group-hover/header:text-blue-600 transition-colors">Bấm
+                                        vào đây để lọc</span>
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="progress-table-body" class="divide-y divide-gray-100">
+                        <!-- Data rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+
+
+            <!-- Empty State -->
+            <div id="empty-state"
+                class="hidden flex flex-col items-center justify-center h-64 text-gray-400 bg-gray-50 border-t">
+                <div class="text-4xl mb-2">📦</div>
+                <p>Chưa có dữ liệu theo dõi hôm nay</p>
+            </div>
+        </div>
+
+        <!-- Detail Modal -->
+        <div id="detail-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+            <div
+                class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100">
+                <div
+                    class="bg-gradient-to-r from-blue-600 to-indigo-700 p-4 text-white flex justify-between items-center">
+                    <h3 class="font-bold text-lg">📄 Chi Tiết Đơn Hàng</h3>
+                    <button id="btn-close-modal" class="text-white hover:text-gray-200 text-2xl">&times;</button>
+                </div>
+                <div class="p-6 space-y-3" id="modal-content">
+                    <p class="text-center text-gray-400">Đang tải...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Note Modal -->
+        <div id="note-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+            <div
+                class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100">
+                <div class="bg-yellow-500 p-3 text-white flex justify-between items-center">
+                    <h3 class="font-bold">📝 Ghi chú</h3>
+                    <button onclick="document.getElementById('note-modal').classList.add('hidden')"
+                        class="text-white hover:text-gray-100 text-xl font-bold">&times;</button>
+                </div>
+                <div class="p-4 space-y-3">
+                    <p id="note-modal-title" class="text-xs text-gray-500 font-semibold uppercase">RPRO - SECTION</p>
+                    <textarea id="note-input" rows="3"
+                        class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-yellow-500 outline-none"
+                        placeholder="Nhập ghi chú..."></textarea>
+                    <div class="flex justify-end gap-2">
+                        <button onclick="document.getElementById('note-modal').classList.add('hidden')"
+                            class="px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded text-sm font-semibold">Hủy</button>
+                        <button id="btn-save-note"
+                            class="px-3 py-1.5 bg-yellow-500 text-white hover:bg-yellow-600 rounded text-sm font-bold shadow-sm">Lưu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Realtime Indicator -->
+        <div
+            class="fixed bottom-4 right-4 bg-white rounded-full shadow-lg px-3 py-1 flex items-center gap-2 border border-green-400 z-50">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span class="text-[10px] font-bold text-gray-700">LIVE</span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="./desktop-helper.js"></script>
+    <script type="module" src="./supabaseClient.js"></script>
+    <script type="module" src="./supplement-monitor.js"></script>
+    <!-- Pending Orders Modal -->
+    <div id="pending-modal" class="fixed inset-0 bg-black/60 z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all">
+            <div class="bg-red-600 p-4 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <span>⏳ Danh Sách Đơn Cần Scan In</span>
+                    <span id="pending-modal-title" class="bg-white/20 px-2 py-0.5 rounded text-sm uppercase italic"></span>
+                </h3>
+                <button onclick="document.getElementById('pending-modal').classList.add('hidden')"
+                    class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
+            </div>
+            <div class="p-6">
+                <!-- Search for Pending List -->
+                <div class="mb-4">
+                    <input type="text" id="pending-search-input" placeholder="🔍 Tìm nhanh mã đơn trong danh sách chờ..." 
+                           class="w-full px-4 py-2 border-2 border-red-100 rounded-xl outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all uppercase font-bold text-sm">
+                </div>
+                <div id="pending-modal-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <!-- List items will be injected here -->
+                </div>
+            </div>
+            <div class="p-4 bg-gray-50 border-t flex justify-end">
+                <button onclick="document.getElementById('pending-modal').classList.add('hidden')"
+                    class="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl font-bold text-gray-700 transition">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="stats-modal" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-2 sm:p-4">
+        <div
+            class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-y-auto transform transition-all">
+            <div class="sticky top-0 bg-white z-10 p-4 border-b flex justify-between items-center">
+                <h3 class="font-bold text-xl text-gray-800 flex items-center gap-2">
+                    📈 Phân Tích Dữ Liệu Hàng Bù
+                </h3>
+                <button id="btn-close-stats"
+                    class="text-gray-400 hover:text-gray-600 text-3xl font-bold">&times;</button>
+            </div>
+            <div class="p-6 space-y-6">
+                <!-- Chart 0: Line Chart - Daily Quantity by Section (Full Width) -->
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+                    <h4 class="text-center font-bold text-gray-700 mb-3">📈 Số lượng đôi hàng bù mỗi section qua từng
+                        ngày</h4>
+                    <!-- Date Picker for Line Chart -->
+                    <div class="flex flex-wrap items-center justify-center gap-2 mb-4">
+                        <div
+                            class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm">
+                            <label class="text-xs font-bold text-gray-500">Từ:</label>
+                            <input type="date" id="chart-line-date-from"
+                                class="text-sm font-bold text-gray-700 outline-none bg-transparent cursor-pointer">
+                        </div>
+                        <span class="text-gray-400 font-bold">→</span>
+                        <div
+                            class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm">
+                            <label class="text-xs font-bold text-gray-500">Đến:</label>
+                            <input type="date" id="chart-line-date-to"
+                                class="text-sm font-bold text-gray-700 outline-none bg-transparent cursor-pointer">
+                        </div>
+                        <button id="btn-refresh-line-chart"
+                            class="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition shadow-sm active:scale-95">
+                            🔄 Xem
+                        </button>
+                    </div>
+                    <div class="h-[350px]">
+                        <canvas id="chart-daily-section-qty"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Chart 1: Stacked Bar -->
+                    <div class="bg-gray-50 p-4 rounded-xl border">
+                        <h4 class="text-center font-bold text-gray-600 mb-4">Trạng thái xử lý theo công đoạn</h4>
+                        <div class="h-[400px]">
+                            <canvas id="chart-status-stacked"></canvas>
+                        </div>
+                    </div>
+                    <!-- Chart 2: Section Breakdown -->
+                    <div class="bg-gray-50 p-4 rounded-xl border">
+                        <h4 class="text-center font-bold text-gray-600 mb-4">Tỷ lệ đơn đang chạy theo bộ phận</h4>
+                        <div class="h-[400px] flex items-center justify-center">
+                            <canvas id="chart-processing-pie"></canvas>
+                        </div>
+                    </div>
+                    <!-- Chart 3: Waiting Time Analysis -->
+                    <div class="bg-gray-50 p-4 rounded-xl border">
+                        <h4 class="text-center font-bold text-gray-600 mb-4 text-sm sm:text-base">Top 10 Đơn hàng có
+                            thời
+                            gian chờ chuyển công đoạn lâu nhất (Giờ)</h4>
+                        <div class="h-[300px]">
+                            <canvas id="chart-gap-monitor"></canvas>
+                        </div>
+                    </div>
+                    <!-- Chart 4: Brand Breakdown -->
+                    <div class="bg-gray-50 p-4 rounded-xl border">
+                        <h4 class="text-center font-bold text-gray-600 mb-4 text-sm sm:text-base">Top 5 Brands (Theo số
+                            đơn)
+                        </h4>
+                        <div class="h-[300px] flex items-center justify-center">
+                            <canvas id="chart-brand-pie"></canvas>
+                        </div>
+                    </div>
+                    <!-- Chart 5: Avg Transfer Time -->
+                    <div class="bg-gray-50 p-4 rounded-xl border col-span-1 lg:col-span-2">
+                        <h4 class="text-center font-bold text-gray-700 mb-4">⚡ Tốc độ luân chuyển: Trung bình thời gian chờ chuyển công đoạn (Giờ)</h4>
+                        <div class="h-[350px]">
+                            <canvas id="chart-avg-transfer"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./chatbot.js"></script>
+</body>
+
+</html>

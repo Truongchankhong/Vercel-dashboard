@@ -338,7 +338,12 @@ function exportExcel() {
     const ws = XLSX.utils.json_to_sheet(exportRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Báo cáo vật tư hệ thống");
-    XLSX.writeFile(wb, `Bao_cao_lieu_HeThong_${new Date().toISOString().split('T')[0]}.xlsx`);
+    const fileName = `Bao_cao_lieu_HeThong_${new Date().toISOString().split('T')[0]}.xlsx`;
+    if (window.saveExcelFile) {
+        await window.saveExcelFile(wb, fileName);
+    } else {
+        XLSX.writeFile(wb, fileName);
+    }
 }
 
 btnExportExcel.addEventListener('click', exportExcel);

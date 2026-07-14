@@ -536,7 +536,11 @@ async function exportToExcel() {
 
   // File name based on filter dates
   const filename = `Xac_nhan_Bu_hang_${dateFromInput.value}_den_${dateToInput.value}.xlsx`;
-  XLSX.writeFile(workbook, filename);
+  if (window.saveExcelFile) {
+      await window.saveExcelFile(workbook, filename);
+  } else {
+      XLSX.writeFile(workbook, filename);
+  }
 }
 
 // ================= RPRO SCAN LOGIC ================= //

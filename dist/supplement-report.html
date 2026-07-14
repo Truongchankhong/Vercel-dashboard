@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo cáo Bù hàng - Excel Online</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+        body {
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .excel-table th {
+            background: #e2e8f0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border: 1px solid #cbd5e1;
+        }
+
+        .excel-table td {
+            border: 1px solid #cbd5e1;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        .excel-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        .excel-table tr:hover {
+            background-color: #e2e8f0;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <div class="p-4 sm:p-8">
+        <div
+            class="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-6 rounded-xl shadow-sm border border-emerald-100">
+            <div>
+                <h1 class="text-3xl font-black text-emerald-700 flex items-center gap-2">
+                    🖇️ Báo cáo Bù hàng (Online)
+                </h1>
+                <p class="text-gray-500 text-sm mt-1 uppercase tracking-widest font-bold">Ortholite Vietnam -
+                    Manufacturing Report</p>
+            </div>
+
+            <div class="flex flex-wrap gap-3 mt-4 md:mt-0 items-end">
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-gray-400 mb-1">TỪ NGÀY</label>
+                    <input type="date" id="date-from" class="text-sm border rounded px-2 py-1 outline-none">
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-gray-400 mb-1">ĐẾN NGÀY</label>
+                    <input type="date" id="date-to" class="text-sm border rounded px-2 py-1 outline-none">
+                </div>
+                <button id="btn-export-excel"
+                    class="px-4 py-1.5 bg-green-600 text-white rounded font-bold hover:bg-green-700 transition shadow-md flex items-center gap-1">
+                    <span>📗 Xuất Excel</span>
+                </button>
+                <button id="btn-filter"
+                    class="px-4 py-1.5 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 transition shadow-md">
+                    Lọc
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto overflow-y-auto max-h-[75vh]">
+                <table class="excel-table min-w-full table-auto border-collapse">
+                    <thead>
+                        <tr class="text-[11px] font-bold uppercase tracking-wider text-gray-600">
+                            <th class="px-3 py-2 text-left">Ngày tạo</th>
+                            <th class="px-3 py-2 text-left">RPRO ID</th>
+                            <th class="px-3 py-2 text-left">S.O</th>
+                            <th class="px-3 py-2 text-left">Khách hàng</th>
+                            <th class="px-3 py-2 text-left">Gender</th>
+                            <th class="px-3 py-2 text-left">Mã Khuôn</th>
+                            <th class="px-3 py-2 text-left">Mã PU</th>
+                            <th class="px-3 py-2 text-left">Mã Vải</th>
+                            <th class="px-3 py-2 text-left">BOM</th>
+                            <th class="px-3 py-2 text-right">Tổng Qty</th>
+                            <th class="px-3 py-2 text-right">Đáp ứng</th>
+                            <th class="px-3 py-2 text-left">Chi tiết Size</th>
+                            <th class="px-3 py-2 text-center">Trạng thái</th>
+                            <th class="px-3 py-2 text-left">Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-body">
+                        <!-- Data rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div
+            class="mt-4 flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            <div>© 2026 Production Tech System</div>
+            <div id="row-count">Đang tải dữ liệu...</div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="./desktop-helper.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module">
+        import { supabase } from './supabaseClient.js';
+
+        const reportBody = document.getElementById('report-body');
+        const dateFromInput = document.getElementById('date-from');
+        const dateToInput = document.getElementById('date-to');
+        const btnFilter = document.getElementById('btn-filter');
+        const btnExportExcel = document.getElementById('btn-export-excel');
+        const rowCountEl = document.getElementById('row-count');
+        let currentData = [];
+
+        const formatSizeBreakdown = (r) => {
+            let sizes = [];
+            Object.keys(r).forEach(key => {
+                if (key.startsWith('size_') && Number(r[key]) > 0) {
+                    const sizeName = key.replace('size_', '').replace(/_/g, '.');
+                    sizes.push(`${sizeName}: ${r[key]}`);
+                }
+            });
+            return sizes.join(', ');
+        };
+
+        async function loadReport() {
+            const from = dateFromInput.value;
+            const to = dateToInput.value;
+            const toDate = new Date(to);
+            toDate.setHours(23, 59, 59, 999);
+
+            if (reportBody) {
+                reportBody.innerHTML = `<tr><td colspan="14" class="text-center py-8 text-emerald-600 font-bold"><span class="inline-block animate-spin mr-2">⏳</span>Đang tải dữ liệu... Vui lòng đợi.</td></tr>`;
+            }
+
+            let allData = [];
+            let page = 0;
+            const PAGE_SIZE = 1000;
+            let hasMore = true;
+
+            try {
+                while (hasMore) {
+                    const { data, error } = await supabase
+                        .from('supplement_confirm')
+                        .select('*')
+                        .gte('created_at', new Date(from).toISOString())
+                        .lte('created_at', toDate.toISOString())
+                        .order('created_at', { ascending: false })
+                        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        allData = allData.concat(data);
+                        hasMore = data.length === PAGE_SIZE;
+                        page++;
+                    } else {
+                        hasMore = false;
+                    }
+                }
+
+                currentData = allData || [];
+                renderReport(currentData);
+            } catch (error) {
+                console.error(error);
+                if (reportBody) {
+                    reportBody.innerHTML = `<tr><td colspan="14" class="text-center py-4 text-red-500 font-bold">Lỗi khi tải dữ liệu: ${error.message}</td></tr>`;
+                }
+            }
+        }
+
+        function exportToExcel() {
+            if (!currentData || currentData.length === 0) {
+                alert("Không có dữ liệu để xuất!");
+                return;
+            }
+
+            const toLocalDate = (dateVal) => {
+                if (!dateVal) return null;
+                const d = new Date(dateVal);
+                return isNaN(d.getTime()) ? null : d;
+            };
+
+            // Flatten data for Excel
+            const excelData = currentData.map(r => {
+                const row = {
+                    "Ngày tạo": toLocalDate(r.created_at),
+                    "RPRO ID": r.rpro,
+                    "S.O": r.so || "",
+                    "Khách hàng": r.customers || "",
+                    "Gender": r.gender || "",
+                    "Mã Khuôn": r.mold || "",
+                    "Mã PU": r.pu || "",
+                    "Mã Vải": r.fabric || "",
+                    "BOM": r.bom || "",
+                    "Tổng Qty": r.total,
+                    "Đáp ứng": r.available_supplement !== null ? r.available_supplement : r.total,
+                    "Chi tiết Size": formatSizeBreakdown(r),
+                    "Trạng thái": r.confirm || "CHƯƠNG P/A",
+                    "Ghi chú": r.remark || ""
+                };
+                return row;
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(excelData, { cellDates: true });
+            
+            // Format Date cells
+            for (const key in worksheet) {
+                if (key[0] === '!') continue;
+                const cell = worksheet[key];
+                if (cell.t === 'd' || cell.v instanceof Date) {
+                    cell.t = 'd';
+                    const hours = cell.v.getUTCHours();
+                    const minutes = cell.v.getUTCMinutes();
+                    const seconds = cell.v.getUTCSeconds();
+                    if (hours !== 0 || minutes !== 0 || seconds !== 0) {
+                        cell.z = 'dd/mm/yyyy hh:mm:ss';
+                    } else {
+                        cell.z = 'dd/mm/yyyy';
+                    }
+                }
+            }
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "BaoCaoBuHang");
+
+            // Build filename with date range
+            const filename = `Bao_cao_Bu_hang_${dateFromInput.value}_den_${dateToInput.value}.xlsx`;
+            if (window.saveExcelFile) {
+                await window.saveExcelFile(workbook, filename);
+            } else {
+                XLSX.writeFile(workbook, filename);
+            }
+        }
+
+        function renderReport(data) {
+            rowCountEl.innerText = `Tổng cộng: ${data.length} dòng dữ liệu`;
+            reportBody.innerHTML = data.map(r => `
+                <tr>
+                    <td class="px-3 py-2">${new Date(r.created_at).toLocaleString('vi-VN')}</td>
+                    <td class="px-3 py-2 font-mono font-bold text-indigo-700">${r.rpro}</td>
+                    <td class="px-3 py-2">${r.so || ''}</td>
+                    <td class="px-3 py-2">${r.customers || ''}</td>
+                    <td class="px-3 py-2 text-center">${r.gender || ''}</td>
+                    <td class="px-3 py-2 font-medium">${r.mold || ''}</td>
+                    <td class="px-3 py-2">${r.pu || ''}</td>
+                    <td class="px-3 py-2">${r.fabric || ''}</td>
+                    <td class="px-3 py-2">${r.bom || ''}</td>
+                    <td class="px-3 py-2 text-right font-bold">${r.total}</td>
+                    <td class="px-3 py-2 text-right font-bold text-emerald-600">${r.available_supplement !== null ? r.available_supplement : r.total}</td>
+                    <td class="px-3 py-2 italic text-gray-500 font-mono">${formatSizeBreakdown(r)}</td>
+                    <td class="px-3 py-2 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${r.confirm === 'Có liệu' ? 'bg-green-100 text-green-700' :
+                    (r.confirm === 'Không có liệu' ? 'bg-red-100 text-red-700' :
+                        (r.confirm === 'Có PU - ko Vải' ? 'bg-amber-100 text-amber-700' :
+                            (r.confirm === 'Có Vải - ko PU' ? 'bg-cyan-100 text-cyan-700' :
+                                'bg-gray-100 text-gray-400')))
+                }">
+                            ${r.confirm || 'CHỜ'}
+                        </span>
+                    </td>
+                    <td class="px-3 py-2 text-gray-500">${r.remark || ''}</td>
+                </tr>
+            `).join('');
+        }
+
+        function setInitialDates() {
+            const today = new Date();
+            const from = new Date();
+            from.setDate(today.getDate() - 3);
+            dateFromInput.value = from.toISOString().split('T')[0];
+            dateToInput.value = today.toISOString().split('T')[0];
+        }
+
+        btnFilter.addEventListener('click', loadReport);
+        btnExportExcel.addEventListener('click', exportToExcel);
+        document.addEventListener('DOMContentLoaded', () => {
+            setInitialDates();
+            loadReport();
+        });
+    </script>
+    <script src="./chatbot.js"></script>
+</body>
+
+</html>

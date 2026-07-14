@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc; transition: .4s; border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #6366f1; }
+        input:checked + .slider:before { transform: translateX(26px); }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <!-- Login Overlay -->
+    <div id="login-overlay" class="fixed inset-0 bg-slate-900 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full">
+            <h2 class="text-2xl font-black text-slate-800 mb-2">🔒 Admin Login</h2>
+            <p class="text-slate-500 text-sm mb-6">Nhập mật khẩu quản trị để truy cập bảng điều khiển.</p>
+            <input type="password" id="admin-pass" class="w-full border-2 border-slate-100 p-3 rounded-xl mb-4 focus:border-indigo-500 outline-none font-bold" placeholder="Mật khẩu...">
+            <button onclick="handleLogin()" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition active:scale-95 shadow-lg shadow-indigo-100">
+                ĐĂNG NHẬP
+            </button>
+            <p id="login-error" class="text-rose-500 text-xs mt-3 font-bold hidden text-center">❌ Sai mật khẩu, vui lòng thử lại.</p>
+        </div>
+    </div>
+
+    <div id="main-content" class="p-4 md:p-8 opacity-0 pointer-events-none transition-opacity duration-500">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                <div>
+                    <h1 class="text-3xl font-black text-slate-800 tracking-tight">🛠️ SYSTEM CONTROL PANEL</h1>
+                    <p class="text-slate-500 font-medium">Quản lý hệ thống & Giám sát dữ liệu</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="logout()" class="px-6 py-2 bg-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-300 transition">
+                        Đăng xuất
+                    </button>
+                    <button onclick="window.location.href='index.html'" class="px-6 py-2 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition">
+                        🏠 Dashboard
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex gap-4 mb-8 border-b border-slate-200">
+                <button onclick="switchTab('egress')" id="tab-egress" class="pb-4 px-4 font-bold text-indigo-600 border-b-4 border-indigo-600">📊 Giám sát Egress</button>
+                <button onclick="switchTab('pages')" id="tab-pages" class="pb-4 px-4 font-bold text-slate-400 hover:text-slate-600 transition">⚙️ Quản lý Trang</button>
+            </div>
+
+            <!-- Egress Tab -->
+            <div id="content-egress">
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                        <p class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Tổng Egress (24h)</p>
+                        <h2 id="total-egress" class="text-4xl font-black text-indigo-600">0 MB</h2>
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                        <p class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Số yêu cầu (24h)</p>
+                        <h2 id="total-requests" class="text-4xl font-black text-emerald-600">0</h2>
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                        <p class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Điểm nóng nhất</p>
+                        <h2 id="heaviest-page" class="text-xl font-black text-rose-500 truncate">---</h2>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-[400px]">
+                        <h3 class="text-lg font-bold text-slate-800 mb-6 font-black uppercase tracking-widest text-[10px] text-slate-400">Dung lượng theo Trang (MB)</h3>
+                        <div class="h-[250px]"><canvas id="chart-pages"></canvas></div>
+                    </div>
+                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 h-[400px]">
+                        <h3 class="text-lg font-bold text-slate-800 mb-6 font-black uppercase tracking-widest text-[10px] text-slate-400">Dung lượng theo Bảng (MB)</h3>
+                        <div class="h-[250px]"><canvas id="chart-tables"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pages Tab -->
+            <div id="content-pages" class="hidden">
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8 mb-8">
+                    <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                        🛡️ BẬT/TẮT TÍNH NĂNG HỆ THỐNG
+                    </h3>
+                    <div id="pages-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Switches go here -->
+                        <div class="animate-pulse bg-slate-100 h-24 rounded-2xl"></div>
+                        <div class="animate-pulse bg-slate-100 h-24 rounded-2xl"></div>
+                        <div class="animate-pulse bg-slate-100 h-24 rounded-2xl"></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+                    <h3 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                        🔑 VÙNG ĐỔI MẬT KHẨU
+                    </h3>
+                    <div class="max-w-md">
+                        <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Mật khẩu mới</p>
+                        <div class="flex gap-2">
+                            <input type="password" id="new-admin-pass" class="flex-1 border-2 border-slate-100 p-3 rounded-xl focus:border-indigo-500 outline-none font-bold" placeholder="Nhập pass mới...">
+                            <button onclick="updatePassword()" class="px-6 py-2 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition active:scale-95 shadow-lg shadow-rose-100">
+                                CẬP NHẬT
+                            </button>
+                        </div>
+                        <p class="text-slate-400 text-[10px] mt-2 italic">⚠️ Lưu ý: Sau khi đổi, bạn sẽ phải đăng nhập lại với mật khẩu mới.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Logs (Shown on Egress Tab) -->
+            <div id="recent-logs" class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mt-8">
+                <div class="p-8 border-b border-slate-50 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-slate-800 uppercase tracking-widest text-[12px]">Chi tiết Nhật ký truy cập</h3>
+                    <button onclick="loadStats()" class="text-indigo-600 font-bold hover:underline">Phát hiện mới ↻</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-wider">
+                            <tr>
+                                <th class="px-8 py-4">Thời gian</th>
+                                <th class="px-8 py-4">Trang</th>
+                                <th class="px-8 py-4">Bảng</th>
+                                <th class="px-8 py-4">Action</th>
+                                <th class="px-8 py-4 text-right">Dung lượng</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-body" class="divide-y divide-slate-50"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="toast" class="fixed bottom-8 right-8 bg-slate-900 text-white px-6 py-4 rounded-2xl font-bold shadow-2xl transition transform translate-y-24 opacity-0 z-[200]">
+        ✅ Đã lưu thay đổi
+    </div>
+
+    <script type="module">
+        import { supabase } from './supabaseClient.js';
+
+        let charts = {};
+        let configData = [];
+
+        // --- AUTH LOGIC ---
+        async function handleLogin() {
+            const passInput = document.getElementById('admin-pass');
+            const errorEl = document.getElementById('login-error');
+            const pass = passInput.value;
+
+            const { data, error } = await supabase
+                .from('system_config')
+                .select('value')
+                .eq('id', 'admin_password')
+                .single();
+
+            if (!error && data.value === pass) {
+                localStorage.setItem('admin_session', pass);
+                unlockUI();
+            } else {
+                errorEl.classList.remove('hidden');
+                passInput.classList.add('border-rose-500');
+            }
+        }
+        window.handleLogin = handleLogin;
+
+        function unlockUI() {
+            document.getElementById('login-overlay').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('opacity-0', 'pointer-events-none');
+            loadStats();
+            loadPagesConfig();
+        }
+
+        function logout() {
+            localStorage.removeItem('admin_session');
+            window.location.reload();
+        }
+        window.logout = logout;
+
+        // Auto-login if session exists
+        window.onload = () => {
+            const session = localStorage.getItem('admin_session');
+            if (session) {
+                // Background check
+                supabase.from('system_config').select('value').eq('id', 'admin_password').single()
+                    .then(({data, error}) => {
+                        if (!error && data.value === session) unlockUI();
+                    });
+            }
+        };
+
+        // --- TAB LOGIC ---
+        function switchTab(tab) {
+            document.getElementById('content-egress').classList.toggle('hidden', tab !== 'egress');
+            document.getElementById('recent-logs').classList.toggle('hidden', tab !== 'egress');
+            document.getElementById('content-pages').classList.toggle('hidden', tab !== 'pages');
+
+            document.getElementById('tab-egress').className = tab === 'egress' ? 
+                'pb-4 px-4 font-bold text-indigo-600 border-b-4 border-indigo-600' : 
+                'pb-4 px-4 font-bold text-slate-400 hover:text-slate-600 transition';
+            document.getElementById('tab-pages').className = tab === 'pages' ? 
+                'pb-4 px-4 font-bold text-indigo-600 border-b-4 border-indigo-600' : 
+                'pb-4 px-4 font-bold text-slate-400 hover:text-slate-600 transition';
+        }
+        window.switchTab = switchTab;
+
+        // --- STATS LOGIC ---
+        async function loadStats() {
+            const { data, error } = await supabase
+                .from('usage_logs')
+                .select('*')
+                .order('timestamp', { ascending: false })
+                .limit(1000);
+
+            if (error) return;
+
+            renderSummary(data);
+            renderCharts(data);
+            renderTable(data);
+        }
+        window.loadStats = loadStats;
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024, sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function renderSummary(data) {
+            const totalBytes = data.reduce((sum, item) => sum + (item.size_bytes || 0), 0);
+            document.getElementById('total-egress').innerText = formatBytes(totalBytes);
+            document.getElementById('total-requests').innerText = data.length;
+
+            const pageUsage = {};
+            data.forEach(item => pageUsage[item.page_path] = (pageUsage[item.page_path] || 0) + (item.size_bytes || 0));
+            const heaviest = Object.entries(pageUsage).sort((a,b) => b[1] - a[1])[0];
+            document.getElementById('heaviest-page').innerText = heaviest ? `${heaviest[0]} (${formatBytes(heaviest[1])})` : '---';
+        }
+
+        function renderCharts(data) {
+            const pageLogs = {}, tableLogs = {};
+            data.forEach(item => {
+                const mb = (item.size_bytes || 0) / (1024 * 1024);
+                pageLogs[item.page_path || 'unknown'] = (pageLogs[item.page_path || 'unknown'] || 0) + mb;
+                tableLogs[item.table_name || 'unknown'] = (tableLogs[item.table_name || 'unknown'] || 0) + mb;
+            });
+            updateChart('chart-pages', Object.keys(pageLogs), Object.values(pageLogs), 'Dung lượng (MB)', '#6366f1');
+            updateChart('chart-tables', Object.keys(tableLogs), Object.values(tableLogs), 'Dung lượng (MB)', '#10b981');
+        }
+
+        function updateChart(id, labels, values, label, color) {
+            if (charts[id]) charts[id].destroy();
+            charts[id] = new Chart(document.getElementById(id), {
+                type: 'bar',
+                data: { labels, datasets: [{ label, data: values, backgroundColor: color, borderRadius: 8 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                           scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
+            });
+        }
+
+        function renderTable(data) {
+            document.getElementById('log-body').innerHTML = data.slice(0, 50).map(item => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="px-8 py-4 text-[10px] text-slate-400 font-mono">${new Date(item.timestamp).toLocaleString()}</td>
+                    <td class="px-8 py-4 font-bold text-slate-700 text-sm">${item.page_path}</td>
+                    <td class="px-8 py-4 text-slate-600 text-sm"><span class="px-2 py-1 bg-slate-100 rounded text-[9px] font-black uppercase text-slate-400 mr-2">TABLE</span>${item.table_name}</td>
+                    <td class="px-8 py-4"><span class="px-2 py-1 ${item.action === 'GET' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'} rounded text-[10px] font-black">${item.action}</span></td>
+                    <td class="px-8 py-4 text-right font-mono font-bold text-slate-800 text-sm">${formatBytes(item.size_bytes)}</td>
+                </tr>`).join('');
+        }
+
+        // --- PAGE CONFIG LOGIC ---
+        async function loadPagesConfig() {
+            const { data, error } = await supabase.from('system_config').select('*').like('id', 'status_%');
+            if (error) return;
+            configData = data;
+            const container = document.getElementById('pages-list');
+            container.innerHTML = data.map(cfg => {
+                const isOn = cfg.value === 'ON';
+                const pageName = cfg.id.replace('status_', '');
+                return `
+                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">${cfg.description}</p>
+                            <h4 class="font-bold text-slate-700">${pageName}</h4>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" ${isOn ? 'checked' : ''} onchange="togglePage('${cfg.id}', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function togglePage(id, isChecked) {
+            const newValue = isChecked ? 'ON' : 'OFF';
+            const { error } = await supabase.from('system_config').update({ value: newValue }).eq('id', id);
+            if (error) alert("Lỗi khi lưu: " + error.message);
+            else showToast(`Page ${id.replace('status_', '')} is now ${newValue}`);
+        }
+        window.togglePage = togglePage;
+
+        async function updatePassword() {
+            const newPass = document.getElementById('new-admin-pass').value;
+            if (!newPass || newPass.length < 4) {
+                alert("Mật khẩu phải dài ít nhất 4 ký tự!");
+                return;
+            }
+
+            if(!confirm("Bạn có chắc chắn muốn đổi mật khẩu? Bạn sẽ phải đăng nhập lại sau đó.")) return;
+
+            const { error } = await supabase
+                .from('system_config')
+                .update({ value: newPass })
+                .eq('id', 'admin_password');
+
+            if (error) {
+                alert("Lỗi khi cập nhật mật khẩu: " + error.message);
+            } else {
+                showToast("Đã đổi mật khẩu thành công!");
+                setTimeout(() => logout(), 1500);
+            }
+        }
+        window.updatePassword = updatePassword;
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = '✅ ' + msg;
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-24', 'opacity-0'), 3000);
+        }
+    </script>
+</body>
+</html>
