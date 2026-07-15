@@ -2015,6 +2015,12 @@ function showToast(msg, type = "success") {
 
 // Init
 document.addEventListener('DOMContentLoaded', () => {
+    const pass = prompt("🔒 Vui lòng nhập mật khẩu xác thực để truy cập:");
+    if (pass !== 'thaomycute') {
+        alert("⛔ Mật khẩu sai! Không được phép truy cập.");
+        window.location.href = 'index.html';
+        return;
+    }
     initDates();
     fetchProgressData();
     setupRealtimeSubscription();

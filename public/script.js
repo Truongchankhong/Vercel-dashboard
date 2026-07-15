@@ -1022,6 +1022,11 @@ window.addEventListener('DOMContentLoaded', async () => {
       alert("Tính năng này đã bị khóa bởi Admin.");
       return;
     }
+    const pass = prompt("🔒 Vui lòng nhập mật khẩu xác thực:");
+    if (pass !== 'thaomycute') {
+      alert("⛔ Mật khẩu sai! Không được phép truy cập.");
+      return;
+    }
     loadProgress();
   });
 
