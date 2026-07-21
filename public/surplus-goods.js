@@ -2429,7 +2429,7 @@ window.openInOutHistory = async (rpro) => {
     totalOut.textContent = "-" + outSum;
 };
 
-window.exportInOutHistoryExcel = () => {
+window.exportInOutHistoryExcel = async () => {
     if (!currentHistoryDataForExport || currentHistoryDataForExport.length === 0) {
         showToast("⚠️ Không có dữ liệu để xuất!", "error");
         return;

@@ -314,7 +314,7 @@ scanInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSca
 
 // ==================== EXCEL EXPORT ====================
 
-function exportExcel() {
+async function exportExcel() {
     if (currentData.length === 0) {
         alert('Không có dữ liệu để xuất!');
         return;
