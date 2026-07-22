@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient.js';
+const supabase = window.supabaseClient || (window.supabase ? window.supabase : null);
 
 // ==================== CONFIG & STATE ====================
 const STANDARD_SIZES = [
