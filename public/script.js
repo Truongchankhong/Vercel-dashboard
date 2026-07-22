@@ -1223,13 +1223,13 @@ async function loadDelayUrgentData(type) {
   }
 }
 
-document.getElementById("btn-supplement")?.addEventListener("click", () => { window.location.href = "/supplement.html"; });
-document.getElementById("btn-confirm-page")?.addEventListener("click", () => { window.location.href = "/supplement-confirm.html"; });
-document.getElementById("btn-supplement-count")?.addEventListener("click", () => { window.location.href = "/supplement-count.html"; });
+document.getElementById("btn-supplement")?.addEventListener("click", () => { window.location.href = "supplement-monitor.html"; });
+document.getElementById("btn-confirm-page")?.addEventListener("click", () => { window.location.href = "supplement-confirm.html"; });
+document.getElementById("btn-supplement-count")?.addEventListener("click", () => { window.location.href = "supplement-count.html"; });
 
 const btnSurplusGoods = document.getElementById('btn-surplus-goods');
 if (btnSurplusGoods) {
   btnSurplusGoods.addEventListener('click', () => {
-    window.location.href = 'surplus-landing.html';
+    window.location.href = 'surplus-goods.html';
   });
 }
